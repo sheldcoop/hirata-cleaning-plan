@@ -74,18 +74,18 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   w.location.hash = '#board'; await wait(200);
   ok($('.week-label').textContent.startsWith('Week '), 'week label');
   ok($$('table.grid tbody tr').length === 13, 'rows: ' + $$('table.grid tbody tr').length);
-  await click(btn('›')); await click(btn('›'));
+  await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]'));
   ok($$('.chip.s-projected').length > 0, 'projected cells in a later week');
   await click(btn('Today'));
   // jump to the week with the first cleanings (Tuesday on/after today)
   let guard = 0;
-  while (!$('button.chip') && guard++ < 3) await click(btn('›'));
+  while (!$('button.chip') && guard++ < 3) await click($('[aria-label="Next week"]'));
   const chip = $('button.chip');
   ok(chip, 'clickable cleaning chip');
 
   step = 'complete';
   await click(chip);
-  await click(btn('✓ Complete'));
+  await click(btn('Complete'));
   await click(btn('Continue'));
   ok($('.form-error') && !$('.form-error').hidden, 'name required');
   const pick = (name) => { const sel = $('.modal select.person'); const o = [...sel.options].find(x => x.textContent === name); ok(o, 'name in list: ' + name); type(sel, o.value); };
@@ -101,15 +101,24 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   step = 'postpone';
   const open2 = $$('button.chip').find(c => !c.classList.contains('s-done'));
   await click(open2);
-  await click(btn('🕓 Postpone'));
+  await click(btn('Postpone'));
   pick('Anja KRALJ');
   await click(btn('Continue'));
   await click(btn('Yes, postpone'), 400);
   ok($$('.toast').some(t => t.textContent.includes('postponed to')), 'postpone toast');
+  step = 'undo';
+  const undoBtn = $$('.toast-action').pop();
+  ok(undoBtn && undoBtn.textContent.includes('Undo'), 'undo button on the toast');
+  await click(undoBtn, 400);
+  ok($$('.toast').some(t => t.textContent.includes('Undone')), 'undone toast');
+  step = 'summary';
+  ok($$('.tile').length === 5 && $('.ring'), 'summary tiles and progress ring');
+  await click($('.tile.t-done'));
+  ok($('table.grid').classList.contains('focus-done'), 'tile highlights status');
 
   step = 'tool down';
   await click($('.tool-name'));
-  await click(btn('⛔ Set tool down'));
+  await click(btn('Set tool down'));
   type($('.modal textarea'), 'No use allowed');
   await click(btn('Continue'));
   await click(btn('Yes, set down'), 400);
@@ -118,11 +127,11 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   step = 'history + export';
   w.location.hash = '#history'; await wait(200);
   ok($$('table.list tbody tr').length >= 4, 'history rows');
-  await click(btn('⬇ Export CSV'));
+  await click(btn('Export CSV'));
   ok(w.__downloads[0] && w.__downloads[0].endsWith('.csv'), 'csv download');
 
   step = 'theme + logout';
-  await click($('.icon-btn.on-dark'));
+  await click($('.theme-btn'));
   ok(d.documentElement.getAttribute('data-theme') === 'teal', 'theme switched');
   await click(btn('Log out'));
   ok(!d.body.textContent.includes('Admin: Khurana'), 'logged out');

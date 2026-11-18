@@ -365,6 +365,10 @@ Each phase ends with a **milestone**. Do not start the next phase until the owne
 - **Zero install:** no npm, no build, no CDN, no internet. Only plain files that run in Edge. Any library must be a single vendored file and approved by the owner.
 - Keep the UI plain and fast. No frameworks.
 
+## 13b. Version 0.3 additions (owner asked for visual polish)
+
+Summary strip with week progress ring and clickable status tiles (highlight on the board); drawn SVG icons instead of emoji (`js/icons.js`); richer cells (who and time on Done, "since" on overdue, "from" on postponed); today column marker; status dot and red stripe for tools down; sticky tool column; Undo (10 s) after Complete/Postpone (`store.undo`, refused if changed meanwhile, history action `undone`); print layout; modal and toast motion (off with reduced motion).
+
 ## 14. Open items (owner to confirm during the build)
 
 1. Start date for each seeded tool (placeholder: next Tuesday).

@@ -29,9 +29,9 @@ window.HCP.views.history = (function () {
       U.field('Tool', toolSel), U.field('Action', actSel), U.field('From', from), U.field('To', to),
       h('div', { class: 'filter-actions' }, [
         h('button', { class: 'btn ghost', text: 'Clear', onclick: function () { filters = { toolId: '', action: '', from: '', to: '' }; app.render(); } }),
-        h('button', { class: 'btn', text: '⬇ Export CSV', disabled: !rows.length, onclick: function () {
+        h('button', { class: 'btn', disabled: !rows.length, onclick: function () {
           U.download('hirata-cleaning-history-' + R.today() + '.csv', S.historyCsv(filters));
-        } })
+        } }, [window.HCP.icon('download', 15), ' Export CSV'])
       ])
     ]);
 

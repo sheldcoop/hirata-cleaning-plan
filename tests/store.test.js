@@ -196,6 +196,24 @@
       .then(function (u) { eq(u.name, 'Khurana'); });
   });
 
+  test('undo: Complete and Postpone can be undone right after; refused if changed meanwhile', function () {
+    var id, tok;
+    return setup().then(function () { id = openTask('LAC901').id; return S.complete(id, 'OP001', 'oops'); })
+      .then(function (r) { tok = r.undo; return S.undo(tok); })
+      .then(function (t) {
+        eq(t.status, 'open'); eq(t.completion_comment, '');
+        eq(S.current().tasks.filter(function (x) { return x.tool_id === tool('LAC901').id; }).length, 1, 'next cleaning removed');
+        eq(S.history({ action: 'undone' }).length, 1);
+        return rejects(S.undo(tok), 'conflict');                 // nothing to undo twice
+      })
+      .then(function () { return S.postpone(id, 'OP001', '2026-11-26', 'x'); })
+      .then(function (r) { tok = r.undo; return S.undo(tok); })
+      .then(function (t) { eq(t.due_date, '2026-11-24'); eq(t.postpone_count, 0); eq(t.last_postpone_reason, ''); })
+      .then(function () { return S.postpone(id, 'OP001', '2026-11-26'); })
+      .then(function (r) { tok = r.undo; return S.complete(id, 'OP002'); })
+      .then(function () { return rejects(S.undo(tok), 'conflict'); });
+  });
+
   test('14b. two PCs complete the same cleaning: only one succeeds', function () {
     var mem, id;
     return setup().then(function (m) { mem = m; id = openTask('LAC901').id; })

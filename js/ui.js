@@ -35,12 +35,24 @@ window.HCP.ui = (function () {
 
   /* --- Toast -------------------------------------------------------- */
 
-  function toast(msg, kind) {
+  /** toast(msg, kind, {action: {label, fn}, ms}) - an action button (e.g. Undo) shows a countdown bar. */
+  function toast(msg, kind, opts) {
+    var o = opts || {};
+    var ms = o.ms || (kind === 'error' ? 6000 : 3500);
     var box = document.getElementById('toasts');
-    var t = h('div', { class: 'toast ' + (kind || 'ok'), role: 'status' }, msg);
+    var t = h('div', { class: 'toast ' + (kind || 'ok'), role: 'status' }, h('span', { class: 'toast-msg', text: msg }));
+    var gone = false;
+    function remove() { if (gone) return; gone = true; t.classList.add('fade'); setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400); }
+    if (o.action) {
+      var b = h('button', { class: 'toast-action' }, [window.HCP.icon(o.action.icon || 'undo', 14), o.action.label]);
+      b.addEventListener('click', function () { b.disabled = true; remove(); o.action.fn(); });
+      t.appendChild(b);
+      var bar = h('span', { class: 'toast-bar' });
+      bar.style.animationDuration = ms + 'ms';
+      t.appendChild(bar);
+    }
     box.appendChild(t);
-    setTimeout(function () { t.classList.add('fade'); }, kind === 'error' ? 6000 : 3500);
-    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, kind === 'error' ? 6600 : 4100);
+    setTimeout(remove, ms);
   }
 
   function errorText(e) {
@@ -62,7 +74,7 @@ window.HCP.ui = (function () {
     var box = h('div', { class: 'modal' + (o.wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title }, [
       h('div', { class: 'modal-head' }, [
         h('h2', { text: title }),
-        h('button', { class: 'icon-btn', 'aria-label': 'Close', title: 'Close', onclick: closeModal, text: '×' })
+        h('button', { class: 'icon-btn', 'aria-label': 'Close', title: 'Close (Esc)', onclick: closeModal }, window.HCP.icon('plus', 20))
       ]),
       body
     ]);

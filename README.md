@@ -27,6 +27,9 @@ Every PC must connect the **same** `data` folder on the share to see the same pl
 - Click a tool name → details; Admin can set **Tool down** / **Reactivate**.
 - **History:** filter and **Export CSV** (opens in Excel).
 - **Admin login** (top right): choose your name + PIN. Settings: Tools, Users, One-off cleaning, General (Teams reminder, default theme).
+- Summary strip at the top: week progress, due today, overdue, postponed, done, tools down. Click a tile to highlight those cleanings on the board.
+- After Complete or Postpone an **Undo** button shows for 10 seconds.
+- **Print** prints the week (A4 landscape).
 - The board refreshes every minute, so changes from other PCs appear.
 
 ## Teams reminder (optional)

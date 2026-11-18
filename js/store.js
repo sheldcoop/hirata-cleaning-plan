@@ -262,13 +262,15 @@ window.HCP.store = (function () {
       var u = userByOperatorId(d, operatorId);
       var t = openTaskOrThrow(d, taskId);
       var tool = find(d.tools, t.tool_id);
+      var before = { status: t.status, completed_by: t.completed_by, completed_at: t.completed_at, completion_comment: t.completion_comment };
       t.status = 'completed';
       t.completed_by = u.id;
       t.completed_at = nowStamp();
       t.completion_comment = clean(comment);
       hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'completed', user_id: u.id, comment: comment, old_date: t.due_date });
       var next = (!t.is_one_off && tool) ? ensureNext(d, tool, t, R.today()) : null;
-      return { task: t, next: next, user: u };
+      return { task: t, next: next, user: u,
+        undo: { kind: 'complete', taskId: t.id, userId: u.id, nextId: next ? next.id : null, before: before } };
     }, clean(operatorId).toUpperCase());
   }
 
@@ -288,12 +290,38 @@ window.HCP.store = (function () {
         target = R.nextWorkingDay(R.maxDate(t.due_date, today));
       }
       var old = t.due_date;
+      var before = { due_date: t.due_date, postpone_count: t.postpone_count || 0, last_postpone_reason: t.last_postpone_reason || '' };
       t.due_date = target;
       t.postpone_count = (t.postpone_count || 0) + 1;
       t.last_postpone_reason = clean(reason);
       hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'postponed', user_id: u.id, reason: reason, old_date: old, new_date: target });
-      return { task: t, movedFromWeekend: moved, user: u };
+      return { task: t, movedFromWeekend: moved, user: u,
+        undo: { kind: 'postpone', taskId: t.id, userId: u.id, newDate: target, before: before } };
     }, clean(operatorId).toUpperCase());
+  }
+
+  /** Undo a Complete or Postpone right after it (the screen offers it for a few seconds).
+   *  Refused if someone changed the cleaning in the meantime. */
+  function undo(token) {
+    return mutate(function (d) {
+      var t = find(d.tasks, token.taskId);
+      var changed = err('conflict', 'Cannot undo: this cleaning was changed in the meantime.');
+      if (!t) throw changed;
+      if (token.kind === 'complete') {
+        if (t.status !== 'completed' || t.completed_by !== token.userId) throw changed;
+        var next = token.nextId ? find(d.tasks, token.nextId) : null;
+        if (next && (next.status !== 'open' || next.postpone_count)) throw changed;
+        if (next) d.tasks.splice(d.tasks.indexOf(next), 1);
+        Object.assign(t, token.before);
+        hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'undone', user_id: token.userId, comment: 'Undo of Completed' });
+      } else if (token.kind === 'postpone') {
+        if (t.status !== 'open' || t.due_date !== token.newDate || t.postpone_count !== token.before.postpone_count + 1) throw changed;
+        var from = t.due_date;
+        Object.assign(t, token.before);
+        hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'undone', user_id: token.userId, comment: 'Undo of Postponed', old_date: from, new_date: t.due_date });
+      } else throw err('invalid', 'Nothing to undo.');
+      return t;
+    }, 'undo');
   }
 
   /* --- Admin session ------------------------------------------------ */
@@ -582,7 +610,7 @@ window.HCP.store = (function () {
   var ACTION_LABELS = {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
     reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Cleaning deleted',
-    tool_changed: 'Tool changed', user_changed: 'User changed'
+    tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone'
   };
 
   /** filters: {toolId, action, from, to} (dates inclusive) */
@@ -664,7 +692,7 @@ window.HCP.store = (function () {
 
   return {
     setAdapter: setAdapter, load: load, current: current, wasRecovered: wasRecovered, createPlan: createPlan,
-    complete: complete, postpone: postpone,
+    complete: complete, postpone: postpone, undo: undo,
     adminLogin: adminLogin, resumeAdmin: resumeAdmin, adminLogout: adminLogout, currentAdmin: currentAdmin,
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,

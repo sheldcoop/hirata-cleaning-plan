@@ -50,6 +50,7 @@
   function start() {
     applyTheme();
     document.getElementById('version').textContent = 'v' + cfg.version;
+    document.getElementById('logo').appendChild(HCP.icon('logo', 26));
     if (!storage.isSupported()) { screen([h('h2', { text: 'Please use Microsoft Edge' }), h('p', { text: storage.unsupportedMessage() })]); return; }
     storage.reconnect({ silent: true }).then(function (ok) {
       if (ok) return open();
@@ -128,10 +129,12 @@
         return h('a', { href: '#' + n[0], class: view === n[0] ? 'active' : '', text: n[1] });
       })));
       U.add(topbar, adminUser
-        ? h('span', { class: 'admin-chip' }, ['Admin: ' + adminUser.name, h('button', { class: 'link', text: 'Log out', onclick: logout })])
-        : h('button', { class: 'btn small ghost on-dark', text: 'Admin login', onclick: loginDialog }));
+        ? h('span', { class: 'admin-chip' }, [HCP.icon('user', 14), 'Admin: ' + adminUser.name, h('button', { class: 'link', text: 'Log out', onclick: logout })])
+        : h('button', { class: 'btn small ghost on-dark', onclick: loginDialog }, [HCP.icon('user', 14), ' Admin login']));
     }
-    U.add(topbar, h('button', { class: 'icon-btn on-dark', title: 'Switch theme', 'aria-label': 'Switch theme', text: theme() === 'teal' ? '☀' : '◐', onclick: toggleTheme }));
+    var teal = theme() === 'teal';
+    U.add(topbar, h('button', { class: 'theme-btn', title: 'Switch to ' + (teal ? 'Pure White' : 'Dark Teal'), 'aria-label': 'Switch theme', onclick: toggleTheme },
+      [HCP.icon(teal ? 'sun' : 'moon', 15), teal ? ' White' : ' Teal']));
   }
 
   function render() {

@@ -12,77 +12,144 @@ window.HCP.views.board = (function () {
   var ONLY_KEY = window.HCP.config.local_prefix + 'only_due';
   var week = null;   // any date in the week shown
 
+  var I = window.HCP.icon;
   var LABEL = {
-    done: ['✓', 'Done'], overdue: ['⚠', 'Overdue'], today: ['●', 'Due today'], postponed: ['🕓', 'Postponed'],
-    upcoming: ['○', 'Due'], down: ['⛔', 'Tool down'], projected: ['·', 'Planned']
+    done: ['check', 'Done'], overdue: ['alert', 'Overdue'], today: ['target', 'Due today'], postponed: ['clock', 'Postponed'],
+    upcoming: ['circle', 'Due'], down: ['ban', 'Tool down'], projected: ['dashed', 'Planned']
   };
   var STATUS_TEXT = { done: 'Done', overdue: 'Overdue', today: 'Due today', postponed: 'Postponed', upcoming: 'Upcoming', down: 'Tool down' };
 
   var onlyMem = null;
   function onlyDue() { if (onlyMem !== null) return onlyMem; try { return localStorage.getItem(ONLY_KEY) === '1'; } catch (e) { return false; } }
   function setOnlyDue(v) { onlyMem = !!v; try { localStorage.setItem(ONLY_KEY, v ? '1' : '0'); } catch (e) { /* ignore */ } }
+  var focus = '';   // highlight one status (click a summary tile)
+
+  /** Counts for the summary strip. */
+  function summary(b, today) {
+    var c = { planned: 0, done: 0, today: 0, overdue: 0, postponed: 0, down: 0 };
+    b.rows.forEach(function (r) {
+      if (r.tool.status === 'down') c.down++;
+      r.cells.forEach(function (items) {
+        items.forEach(function (it) {
+          if (it.carried) return;
+          c.planned++;
+          if (it.status === 'done') c.done++;
+          else if (it.status === 'today') c.today++;
+          else if (it.status === 'overdue') c.overdue++;
+          else if (it.status === 'postponed') c.postponed++;
+        });
+      });
+    });
+    // overdue counts every open overdue cleaning (also from earlier weeks)
+    c.overdueAll = S.current().tasks.filter(function (t) {
+      var tool = S.current().tools.find(function (x) { return x.id === t.tool_id; });
+      return tool && !tool.archived && R.taskStatus(t, tool, today) === 'overdue';
+    }).length;
+    return c;
+  }
+
+  function tile(key, label, value, sub, app) {
+    return h('button', { class: 'tile t-' + key + (focus === key ? ' on' : '') + (value ? '' : ' zero'), title: 'Highlight on the board',
+      onclick: function () { focus = focus === key ? '' : key; app.render(); } }, [
+      h('span', { class: 'tile-ico' }, I(LABEL[key === 'planned' ? 'upcoming' : key][0], 18)),
+      h('span', { class: 'tile-num', text: String(value) }),
+      h('span', { class: 'tile-label', text: label }),
+      sub ? h('span', { class: 'tile-sub', text: sub }) : null
+    ]);
+  }
 
   function render(root, app) {
     if (!week) week = R.today();
     var b = S.board(week);
     var today = R.today();
     var only = onlyDue();
+    var c = summary(b, today);
+    var pct = c.planned ? Math.round(100 * c.done / c.planned) : 0;
 
-    var label = 'Week ' + R.isoWeek(b.monday) + ' · ' + R.shortDate(b.days[0]) + ' – ' + R.longDate(b.days[4]);
     var bar = h('div', { class: 'board-bar' }, [
       h('div', { class: 'week-nav' }, [
-        h('button', { class: 'btn ghost', title: 'Previous week', 'aria-label': 'Previous week', text: '‹', onclick: function () { week = R.addDays(b.monday, -7); app.render(); } }),
-        h('h2', { class: 'week-label', text: label }),
-        h('button', { class: 'btn ghost', title: 'Next week', 'aria-label': 'Next week', text: '›', onclick: function () { week = R.addDays(b.monday, 7); app.render(); } }),
-        h('button', { class: 'btn ghost', text: 'Today', disabled: b.isThisWeek, onclick: function () { week = R.today(); app.render(); } })
+        h('button', { class: 'btn ghost square', title: 'Previous week', 'aria-label': 'Previous week', onclick: function () { week = R.addDays(b.monday, -7); app.render(); } }, I('left', 18)),
+        h('div', { class: 'week-title' }, [
+          h('div', { class: 'week-kicker', text: b.isThisWeek ? 'This week' : (b.monday < R.mondayOf(today) ? 'Past week' : 'Coming week') }),
+          h('h2', { class: 'week-label' }, [h('span', { class: 'wk', text: 'Week ' + R.isoWeek(b.monday) }), h('span', { class: 'sep', text: ' · ' }), R.shortDate(b.days[0]) + ' – ' + R.longDate(b.days[4])])
+        ]),
+        h('button', { class: 'btn ghost square', title: 'Next week', 'aria-label': 'Next week', onclick: function () { week = R.addDays(b.monday, 7); app.render(); } }, I('right', 18)),
+        h('button', { class: 'btn ghost', disabled: b.isThisWeek, onclick: function () { week = R.today(); app.render(); } }, [I('calendar', 15), ' Today'])
       ]),
-      h('label', { class: 'toggle' }, [
-        h('input', { type: 'checkbox', checked: only, onchange: function (ev) { setOnlyDue(ev.target.checked); app.render(); } }),
-        ' Only tools with something this week'
+      h('div', { class: 'bar-right' }, [
+        h('label', { class: 'toggle' }, [
+          h('input', { type: 'checkbox', checked: only, onchange: function (ev) { setOnlyDue(ev.target.checked); app.render(); } }),
+          ' Only tools with something this week'
+        ]),
+        h('button', { class: 'btn ghost', title: 'Print this week', onclick: function () { window.print(); } }, [I('printer', 15), ' Print'])
       ])
     ]);
 
-    var rows = b.rows.filter(function (r) { return !only || r.hasItems; });
-    var table = h('table', { class: 'grid' }, [
-      h('thead', {}, h('tr', {}, [h('th', { class: 'tool-col', text: 'Tool' })].concat(b.days.map(function (d) {
-        return h('th', { class: d === today ? 'is-today' : '' }, [h('span', { class: 'dname', text: R.dayName(d).slice(0, 3) }), ' ', R.shortDate(d)]);
-      })))),
-      h('tbody', {}, rows.length ? rows.map(function (r) { return row(r, b, today, app); })
-        : h('tr', {}, h('td', { colspan: '6', class: 'empty', text: b.rows.length ? 'Nothing planned this week.' : 'No tools yet. An Admin adds tools in Settings.' })))
+    var strip = h('div', { class: 'summary' }, [
+      h('div', { class: 'progress-card' }, [
+        h('div', { class: 'ring', style: '--p:' + pct }, h('span', { text: pct + '%' })),
+        h('div', {}, [h('div', { class: 'tile-label', text: 'Week progress' }),
+          h('div', { class: 'progress-text', text: c.done + ' of ' + c.planned + ' cleanings done' })])
+      ]),
+      tile('today', 'Due today', b.isThisWeek ? c.today : 0, b.isThisWeek ? R.dayName(today).slice(0, 3) + ' ' + R.shortDate(today) : 'not this week', app),
+      tile('overdue', 'Overdue', c.overdueAll, c.overdueAll ? 'needs action' : 'all on time', app),
+      tile('postponed', 'Postponed', c.postponed, 'this week', app),
+      tile('done', 'Done', c.done, 'this week', app),
+      tile('down', 'Tools down', c.down, c.down ? 'cleanings paused' : 'all running', app)
     ]);
 
-    var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'down', 'projected'].map(function (s) {
-      return h('span', { class: 'chip static s-' + s }, [h('span', { class: 'ico', text: LABEL[s][0] }), LABEL[s][1]]);
+    var rows = b.rows.filter(function (r) { return !only || r.hasItems; });
+    var table = h('table', { class: 'grid' + (focus ? ' focus focus-' + focus : '') }, [
+      h('thead', {}, h('tr', {}, [h('th', { class: 'tool-col', text: 'Tool' })].concat(b.days.map(function (d) {
+        return h('th', { class: d === today ? 'is-today' : (d < today ? 'is-past' : '') }, [
+          h('span', { class: 'dname', text: R.dayName(d).slice(0, 3) }), ' ', h('span', { class: 'dnum', text: R.shortDate(d) }),
+          d === today ? h('span', { class: 'today-pill', text: 'Today' }) : null]);
+      })))),
+      h('tbody', {}, rows.length ? rows.map(function (r) { return row(r, b, today, app); })
+        : h('tr', {}, h('td', { colspan: '6', class: 'empty' }, [I('calendar', 28), h('div', { text: b.rows.length ? 'Nothing planned this week.' : 'No tools yet. An Admin adds tools in Settings.' })])))
+    ]);
+
+    var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'down', 'projected'].map(function (st) {
+      return h('span', { class: 'chip static s-' + st }, [I(LABEL[st][0], 14), LABEL[st][1]]);
     }));
 
-    U.add(root, [bar, h('div', { class: 'grid-wrap' }, table), legend]);
+    U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend]);
   }
 
   function row(r, b, today, app) {
     var t = r.tool;
     var head = h('th', { class: 'tool-col', scope: 'row' }, [
-      h('button', { class: 'tool-name', text: t.name, title: 'Tool details', onclick: function () { toolPanel(t.id, app); } }),
-      t.status === 'down' ? h('span', { class: 'badge down', text: 'DOWN' }) : null,
+      h('div', { class: 'tool-line' }, [
+        h('span', { class: 'dot ' + (t.status === 'down' ? 'dot-down' : 'dot-ok'), title: t.status === 'down' ? 'Tool down' : 'Active' }),
+        h('button', { class: 'tool-name', text: t.name, title: 'Tool details', onclick: function () { toolPanel(t.id, app); } }),
+        t.status === 'down' ? h('span', { class: 'badge down', title: t.down_reason || '', text: 'DOWN' }) : null
+      ]),
       h('div', { class: 'sched', text: R.describeSchedule(t) })
     ]);
     return h('tr', { class: t.status === 'down' ? 'is-down' : '' }, [head].concat(r.cells.map(function (items, i) {
-      return h('td', { class: b.days[i] === today ? 'is-today' : '' }, items.map(function (it) { return chip(it, app); }));
+      var d = b.days[i];
+      return h('td', { class: d === today ? 'is-today' : (d < today ? 'is-past' : '') }, items.map(function (it) { return chip(it, app); }));
     })));
   }
 
   function chip(it, app) {
     var l = LABEL[it.status];
-    if (it.kind === 'projected') return h('span', { class: 'chip s-projected', title: 'Planned by the schedule', text: l[1] });
-    var t = it.task, text = l[1];
-    if (it.carried) text = 'Overdue since ' + R.shortDate(it.date);
-    if (it.status === 'done') {
+    if (it.kind === 'projected') return h('span', { class: 'chip s-projected', title: 'Planned by the schedule' }, [I(l[0], 14), h('span', { class: 'chip-main', text: l[1] })]);
+    var t = it.task, main = l[1], sub = '';
+    if (it.carried) { main = 'Overdue'; sub = 'since ' + R.dayName(it.date).slice(0, 3) + ' ' + R.shortDate(it.date); }
+    else if (it.status === 'done') {
       var u = S.current().users.find(function (x) { return x.id === t.completed_by; });
-      text = 'Done' + (u ? ' · ' + u.name.split(' ')[0] : '');
+      main = u ? u.name.split(' ')[0] : 'Done';
+      sub = 'done ' + String(t.completed_at).slice(11, 16);
+    } else if (t.postpone_count > 0 && t.due_date !== t.pattern_date && !t.is_one_off) {
+      sub = 'from ' + R.dayName(t.pattern_date).slice(0, 3) + ' ' + R.shortDate(t.pattern_date);
     }
-    return h('button', { class: 'chip s-' + it.status, title: 'Open', onclick: function () { taskPanel(t.id, app); } }, [
-      h('span', { class: 'ico', text: l[0] }), text,
+    return h('button', { class: 'chip s-' + it.status, title: 'Open ' + (it.status === 'done' ? 'details' : 'to complete or postpone'),
+      onclick: function () { taskPanel(t.id, app); } }, [
+      I(l[0], 14),
+      h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null]),
       t.is_one_off ? h('span', { class: 'tag', text: 'one-off' }) : null,
-      t.completion_comment && it.status === 'done' ? h('span', { class: 'tag', title: t.completion_comment, text: '💬' }) : null
+      t.completion_comment && it.status === 'done' ? h('span', { class: 'tag', title: t.completion_comment }, I('message', 13)) : null
     ]);
   }
 
@@ -120,15 +187,20 @@ window.HCP.views.board = (function () {
 
     var m = U.modal(title, [facts, events, area], { wide: false });
 
-    function done(msg) { U.toast(msg); m.close(); app.reload(); }
+    function done(msg, undoToken) {
+      m.close(); app.reload();
+      U.toast(msg, 'ok', undoToken ? { ms: 10000, action: { label: 'Undo', fn: function () {
+        S.undo(undoToken).then(function () { U.toast('Undone.'); app.reload(); }, function (e) { U.toast(U.errorText(e), 'error'); app.reload(); });
+      } } } : null);
+    }
     function failHard(e) { if (e && e.code === 'conflict') { U.toast(e.message, 'error'); m.close(); app.reload(); return true; } return false; }
 
     function menu() {
       U.clear(area);
       var buttons = [];
       if (t.status === 'open') {
-        buttons.push(h('button', { class: 'btn', text: '✓ Complete', onclick: completeForm }));
-        buttons.push(h('button', { class: 'btn secondary', text: '🕓 Postpone', onclick: postponeForm }));
+        buttons.push(h('button', { class: 'btn', onclick: completeForm }, [I('check', 16), ' Complete']));
+        buttons.push(h('button', { class: 'btn secondary', onclick: postponeForm }, [I('clock', 16), ' Postpone']));
       }
       if (isAdmin && t.status === 'open') {
         buttons.push(h('button', { class: 'btn ghost', text: 'Change date', onclick: editForm }));
@@ -155,7 +227,7 @@ window.HCP.views.board = (function () {
         var opId = op.input.value, c = comment.value;
         U.confirmStep(area, 'Confirm cleaning completed for ' + tool.name + ' by ' + u.name + '?', 'Yes, completed', function () {
           return S.complete(t.id, opId, c).then(function (r) {
-            done(tool.name + ' completed.' + (r.next ? ' Next cleaning: ' + R.dayName(r.next.due_date) + ' ' + R.longDate(r.next.due_date) + '.' : ''));
+            done(tool.name + ' completed.' + (r.next ? ' Next: ' + R.dayName(r.next.due_date).slice(0, 3) + ' ' + R.shortDate(r.next.due_date) + '.' : ''), r.undo);
           }, function (e) { if (!failHard(e)) throw e; });
         }, completeForm);
       }
@@ -185,7 +257,7 @@ window.HCP.views.board = (function () {
         U.confirmStep(area, u.name + ': postpone ' + tool.name + ' to ' + R.dayName(target) + ' ' + R.longDate(target) + '?' +
           (d && target !== d ? ' (the chosen date is a weekend)' : ''), 'Yes, postpone', function () {
           return S.postpone(t.id, opId, d, rs).then(function (r) {
-            done(tool.name + ' postponed to ' + R.dayName(r.task.due_date) + ' ' + R.longDate(r.task.due_date) + '.');
+            done(tool.name + ' postponed to ' + R.dayName(r.task.due_date).slice(0, 3) + ' ' + R.shortDate(r.task.due_date) + '.', r.undo);
           }, function (e) { if (!failHard(e)) throw e; });
         }, postponeForm);
       }
@@ -252,7 +324,7 @@ window.HCP.views.board = (function () {
       if (!isAdmin) { U.add(area, h('p', { class: 'muted', text: 'Tool down / reactivate: log in as Admin.' })); return; }
       U.add(area, h('div', { class: 'actions' }, tool.status === 'down'
         ? [h('button', { class: 'btn', text: 'Reactivate tool', onclick: reactivateForm })]
-        : [h('button', { class: 'btn danger', text: '⛔ Set tool down', onclick: downForm })]));
+        : [h('button', { class: 'btn danger', onclick: downForm }, [I('ban', 16), ' Set tool down'])]));
     }
     function downForm() {
       var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why is the tool down? e.g. no use allowed, waiting for service' });

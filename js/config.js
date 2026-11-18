@@ -2,7 +2,7 @@
 window.HCP = window.HCP || {};
 window.HCP.config = {
   app_name: 'Hirata Cleaning Plan',
-  version: '0.2.0',
+  version: '0.3.0',
   idb_name: 'hirata-cleaning-plan',   // remembers the data folder per PC
   data_file: 'hirata_data.json',
   prev_file: 'hirata_data.prev.json',

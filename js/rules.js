@@ -36,6 +36,7 @@ window.HCP.rules = (function () {
     return y + '-' + pad(m) + '-' + pad(Math.min(day, daysInMonth(y, m)));
   }
   function maxDate(a, b) { return a > b ? a : b; }
+  function diffDays(a, b) { return Math.round((parse(b) - parse(a)) / 864e5); }   // b - a in days
 
   /** Today's local date (R16). config.fixed_today overrides it (tests). */
   function today() {
@@ -238,7 +239,7 @@ window.HCP.rules = (function () {
   return {
     pad: pad, isDate: isDate, addDays: addDays, weekday: weekday, isWeekend: isWeekend,
     toWorkingDay: toWorkingDay, nextWorkingDay: nextWorkingDay, toPrevWorkingDay: toPrevWorkingDay,
-    mondayOf: mondayOf, monthDate: monthDate, maxDate: maxDate, today: today, isoWeek: isoWeek,
+    mondayOf: mondayOf, monthDate: monthDate, maxDate: maxDate, diffDays: diffDays, today: today, isoWeek: isoWeek,
     shortDate: shortDate, longDate: longDate, dayName: dayName, DAY_NAMES: DAY_NAMES,
     firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,

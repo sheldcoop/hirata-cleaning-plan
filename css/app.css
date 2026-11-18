@@ -364,3 +364,51 @@ button.chip.admin { cursor: pointer; }
 .grid.dragging tr.drag-row td:not(.is-past) { outline: 1px dashed color-mix(in srgb, var(--brand-2) 40%, transparent); outline-offset: -4px; }
 .grid td.drop-ok { background: color-mix(in srgb, var(--brand-2) 14%, var(--surface)) !important; outline: 2px solid var(--brand-2) !important; outline-offset: -3px; }
 .dnd-hint { margin-top: 6px; }
+
+
+/* ---------- Analytics ---------- */
+.an-head { display: grid; grid-template-columns: 1fr auto; gap: 10px 20px; align-items: end; margin-bottom: 16px; }
+.an-head h2 { margin: 0; }
+.an-head p { margin: 2px 0 0; }
+.an-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.an-downloads { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.segmented { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; box-shadow: var(--card-shadow); }
+.segmented button { background: none; border: 0; padding: 6px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; color: var(--muted); }
+.segmented button.on { background: var(--brand); color: #fff; }
+.range { display: inline-flex; gap: 6px; align-items: center; }
+.an-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+.an-kpi { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: 14px; padding: 14px; box-shadow: var(--card-shadow); }
+.an-ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--c-upcoming) 12%, var(--surface)); color: var(--c-upcoming); }
+.an-kpi.bad .an-ico { background: color-mix(in srgb, var(--c-overdue) 14%, var(--surface)); color: var(--c-overdue); }
+.an-kpi.bad .an-num { color: var(--c-overdue); }
+.an-num { font-size: 24px; font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.an-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.an-grid .card, .an-card { max-width: none; margin: 0; }
+.card { max-width: none; }
+.an-card h3 { margin: 0; }
+.small { font-size: 12px; margin: 2px 0 12px; }
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 30%) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.bar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.bar-track { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
+.bar-fill.blue { background: linear-gradient(90deg, var(--c-upcoming), var(--c-today)); }
+.bar-fill.good { background: var(--c-done); } .bar-fill.warn { background: var(--c-postponed); } .bar-fill.bad { background: var(--c-overdue); }
+.bar-val { white-space: nowrap; } .bar-val small { color: var(--muted); }
+.week-chart { width: 100%; height: auto; display: block; }
+.week-chart .gridline { stroke: var(--line); stroke-width: 1; }
+.week-chart .axis { fill: var(--muted); font-size: 11px; }
+.week-chart .col-num { fill: var(--text); font-size: 11px; font-weight: 700; }
+.week-chart .col-ontime { fill: var(--c-done); }
+.week-chart .col-late { fill: var(--c-postponed); }
+.chart-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-left: 8px; }
+.sw.ontime { background: var(--c-done); } .sw.late { background: var(--c-postponed); }
+.pct { font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.pct.good { background: color-mix(in srgb, var(--c-done) 15%, transparent); color: var(--c-done); }
+.pct.warn { background: color-mix(in srgb, var(--c-postponed) 18%, transparent); color: color-mix(in srgb, var(--c-postponed) 80%, var(--text)); }
+.pct.bad { background: color-mix(in srgb, var(--c-overdue) 15%, transparent); color: var(--c-overdue); }
+.bad-text { color: var(--c-overdue); font-weight: 700; }
+.grid-wrap.flat { box-shadow: none; }
+.empty-card { text-align: center; color: var(--muted); padding: 30px; }
+@media (max-width: 1200px) { .an-kpis { grid-template-columns: repeat(3, 1fr); } .an-grid { grid-template-columns: 1fr; } }

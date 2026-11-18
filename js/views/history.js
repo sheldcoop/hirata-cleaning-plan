@@ -49,6 +49,7 @@ window.HCP.views.history = (function () {
     ]);
 
     U.add(root, [h('h2', { text: 'History' }), bar,
+      h('p', { class: 'muted' }, ['One row per action. For one row per cleaning (planned, done, days late, who) and the Excel workbook, see ', h('a', { href: '#analytics', text: 'Analytics' }), '.']),
       h('p', { class: 'muted', text: rows.length + ' entries' + (rows.length > PAGE ? ' (showing the newest ' + PAGE + '; Export CSV has all)' : '') }),
       h('div', { class: 'grid-wrap' }, table)]);
   }

@@ -376,6 +376,12 @@ Summary strip with week progress ring and clickable status tiles (highlight on t
 - **R19 Future cycles (Admin):** click or drag a Next cycle to **move** it to another working day (after the open cleaning) or **skip** it, and **Back to normal date** to undo. Stored in `exceptions` `{id, tool_id, nominal, action: move|skip, new_date}`; used (and removed) when that cycle becomes the open cleaning; Undo/Reopen give them back; a schedule change clears the tool's exceptions. History: `cycle_moved`, `cycle_skipped`, `cycle_restored`.
 - **Drag and drop:** drag an open cleaning to another day in the same row (today or later, Mon–Fri) → the Postpone/Move form opens with the date filled in; nothing is saved without the name and confirmation. Admins can drag a Next cycle → the Move form. Mouse only; the date field still works for other weeks.
 
+## 13d. Version 0.6: reports and analytics
+
+- `js/analytics.js` (pure): `reportRows` (one row per cleaning: planned, current, done date/time, days late, who, postponed, reason, comment, status) and `stats` (KPIs, per tool, per week, per operator, top postpone reasons). "On time" = done on or before the planned (schedule) date; days late in calendar days.
+- `js/xlsx.js`: own dependency-free .xlsx writer (no SheetJS needed): several sheets, bold AT&S-blue header, frozen header, filter, column widths, real Excel dates.
+- Analytics page (nav): period presets + custom range, KPI tiles, done-per-week chart (SVG), bars per tool / reason / operator, per-tool table, downloads (Excel workbook, cleaning report CSV).
+
 ## 14. Open items (owner to confirm during the build)
 
 1. Start date for each seeded tool (placeholder: next Tuesday).

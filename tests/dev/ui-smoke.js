@@ -159,6 +159,17 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(btn('Export CSV'));
   ok(w.__downloads[0] && w.__downloads[0].endsWith('.csv'), 'csv download');
 
+  step = 'analytics';
+  w.location.hash = '#analytics'; await wait(250);
+  ok($('.an-kpis') && $$('.an-kpi').length === 6, 'analytics KPIs');
+  ok($('.week-chart') && $$('.bar-row').length > 0, 'charts drawn');
+  await click(btn('Excel workbook'));
+  ok(w.__downloads.some(n => n.endsWith('.xlsx')), 'xlsx download');
+  await click(btn('Cleaning report'));
+  ok(w.__downloads.some(n => n.endsWith('-report.csv')), 'report csv download');
+  await click($$('.segmented button').find(b => b.textContent === '12 months'));
+  ok($$('.segmented button.on')[0].textContent === '12 months', 'period switch');
+
   step = 'theme + logout';
   await click($('.theme-btn'));
   ok(d.documentElement.getAttribute('data-theme') === 'teal', 'theme switched');

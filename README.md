@@ -27,7 +27,10 @@ Every PC must connect the **same** `data` folder on the share to see the same pl
 - **Drag** a cleaning to another day in its row to postpone or move it (you still choose your name and confirm).
 - **Admin:** click or drag a *Next cycle* to move or skip that one future cleaning; *Back to normal date* undoes it.
 - Click a tool name → details; Admin can set **Tool down** / **Reactivate**.
-- **History:** filter and **Export CSV** (opens in Excel).
+- **History:** every action, with filters and **Export CSV** (opens in Excel).
+- **Analytics:** pick a period (4 weeks, 3 months, 12 months or custom) to see on-time rate, average days late, postponements, overdue, done per week, on-time per tool, top postpone reasons and cleanings per operator.
+  - **Excel workbook (.xlsx):** sheets Summary, Cleanings, Operators, Postpone reasons, History, Tools — with filters, frozen header and real dates.
+  - **Cleaning report (CSV):** one row per cleaning (planned date, done date, days late, who, times postponed, reason, comment, status).
 - **Admin login** (top right): choose your name + PIN. Settings: Tools, Users, One-off cleaning, General (Teams reminder, default theme).
 - Summary strip at the top: week progress, due today, overdue, postponed, done, tools down. Click a tile to highlight those cleanings on the board.
 - After Complete or Postpone an **Undo** button shows for 10 seconds.

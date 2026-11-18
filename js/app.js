@@ -115,7 +115,7 @@
 
   function route() {
     var hash = (location.hash || '#board').slice(1);
-    view = ['board', 'history', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
+    view = ['board', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
     render();
   }
   window.addEventListener('hashchange', function () { if (S.current()) route(); });
@@ -125,7 +125,7 @@
     var d = S.current();
     var adminUser = S.currentAdmin();
     if (d) {
-      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Board'], ['history', 'History'], ['settings', 'Settings']].map(function (n) {
+      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Board'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
         return h('a', { href: '#' + n[0], class: view === n[0] ? 'active' : '', text: n[1] });
       })));
       U.add(topbar, adminUser

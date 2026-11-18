@@ -715,7 +715,50 @@ window.HCP.store = (function () {
     var lines = [head.join(',')].concat(history(filters).map(function (r) {
       return [r.date, r.time, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
     }));
-    return '﻿' + lines.join('\r\n') + '\r\n';
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  /* --- Cleaning report and Excel workbook ---------------------------- */
+
+  var REPORT_COLS = [
+    ['Tool', 'tool', 10, 'text'], ['Planned date', 'planned', 13, 'date'], ['Current date', 'due', 13, 'date'], ['Done date', 'done', 12, 'date'],
+    ['Done time', 'time', 10, 'text'], ['Days late', 'days_late', 10, 'number'], ['Who', 'who', 24, 'text'], ['Times postponed', 'postponed', 15, 'number'],
+    ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
+  ];
+
+  /** One row per cleaning, as CSV (UTF-8 with BOM). */
+  function reportCsv(from, to) {
+    var rows = window.HCP.analytics.reportRows(data, from, to, R.today());
+    var lines = [REPORT_COLS.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
+      return REPORT_COLS.map(function (c) { return csvCell(r[c[1]]); }).join(',');
+    }));
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  /** Excel workbook for a period: Summary, Cleanings, Postpone reasons, History, Tools. -> Uint8Array */
+  function workbook(from, to) {
+    var A = window.HCP.analytics, X = window.HCP.xlsx;
+    var st = A.stats(data, from, to, R.today());
+    var col = function (h, w, t) { return { header: h, width: w, type: t || 'text' }; };
+    var hist = history({ from: from, to: to }).slice().reverse();
+    return X.build([
+      { name: 'Summary', columns: [col('Tool', 10), col('Cleanings', 11, 'number'), col('Done', 8, 'number'), col('On time', 9, 'number'),
+          col('On time %', 11, 'number'), col('Avg days late', 13, 'number'), col('Times postponed', 15, 'number'), col('Overdue now', 12, 'number')],
+        rows: st.byTool.map(function (t) { return [t.tool, t.total, t.done, t.onTime, t.onTimePct, t.avgLate, t.postponed, t.overdue]; })
+          .concat([['ALL', st.kpi.planned, st.kpi.done, null, st.kpi.onTimePct, st.kpi.avgLate, st.kpi.postponements, st.kpi.overdueNow]]) },
+      { name: 'Cleanings', columns: REPORT_COLS.map(function (c) { return col(c[0], c[2], c[3]); }),
+        rows: st.rows.map(function (r) { return REPORT_COLS.map(function (c) { return r[c[1]]; }); }) },
+      { name: 'Operators', columns: [col('Who', 26), col('Cleanings done', 15, 'number'), col('On time', 9, 'number')],
+        rows: st.byOperator.map(function (o) { return [o.who, o.done, o.onTime]; }) },
+      { name: 'Postpone reasons', columns: [col('Reason', 40), col('Times', 8, 'number')],
+        rows: st.topReasons.map(function (r) { return [r.reason, r.count]; }) },
+      { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Tool', 10), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
+        rows: hist.map(function (r) { return [r.date, r.time, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
+      { name: 'Tools', columns: [col('Tool', 10), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
+        rows: data.tools.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (t) {
+          return [t.name, R.describeSchedule(t), t.start_date, t.tool_owner, t.mnt_owner, t.archived ? 'Archived' : t.status === 'down' ? 'Down' : 'Active'];
+        }) }
+    ]);
   }
 
   /** Task details for the action panel. */
@@ -769,7 +812,7 @@ window.HCP.store = (function () {
     moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
     saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, SEED_OPERATORS: SEED_OPERATORS,
-    board: board, history: history, historyCsv: historyCsv, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
+    board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin
   };

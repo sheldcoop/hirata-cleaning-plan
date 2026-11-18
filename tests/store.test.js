@@ -240,6 +240,30 @@
       .then(function () { eq(S.current().exceptions.length, 1); S.adminLogout(); return rejects(S.skipCycle(id, '2026-12-15'), 'forbidden'); });
   });
 
+  test('cleaning report and analytics: on time / late, days late, operators, reasons', function () {
+    var A = window.HCP.analytics;
+    return setup().then(function () { day('2026-11-24'); return S.complete(openTask('LAC901').id, 'OP002', 'ok'); })   // on time (Tue 24)
+      .then(function () { return S.postpone(openTask('AOP901').id, 'OP001', '2026-11-26', 'PROD on tool'); })
+      .then(function () { day('2026-11-26'); return S.complete(openTask('AOP901').id, 'OP001'); })                       // 2 days late
+      .then(function () {
+        day('2026-11-27');
+        var st = A.stats(S.current(), '2026-11-16', '2026-11-27', '2026-11-27');
+        var lac = st.rows.find(function (r) { return r.tool === 'LAC901' && r.done; });
+        var aop = st.rows.find(function (r) { return r.tool === 'AOP901' && r.done; });
+        eq([lac.status, lac.days_late, lac.who], ['Done on time', 0, 'Mohamed Ibrahem']);
+        eq([aop.status, aop.days_late, aop.postponed, aop.reason], ['Done late', 2, 1, 'PROD on tool']);
+        eq(st.kpi.done, 2); eq(st.kpi.onTimePct, 50); eq(st.kpi.avgLate, 1);
+        eq(st.topReasons, [{ reason: 'PROD on tool', count: 1 }]);
+        eq(st.byOperator.map(function (o) { return o.who; }).sort(), ['Mohamed Ibrahem', 'Valeriia Kyrychenko']);
+        ok(st.rows.some(function (r) { return r.status === 'Overdue'; }), 'overdue rows listed');   // e.g. Mon/Tue tools not done
+        var csv = S.reportCsv('2026-11-16', '2026-11-27');
+        ok(csv.indexOf('Planned date') > 0 && csv.indexOf('Done late') > 0);
+        var x = S.workbook('2026-11-16', '2026-11-27');
+        eq([x[0], x[1]], [0x50, 0x4b]);   // a zip (xlsx)
+        window.__lastWorkbook = x;
+      });
+  });
+
   test('14b. two PCs complete the same cleaning: only one succeeds', function () {
     var mem, id;
     return setup().then(function (m) { mem = m; id = openTask('LAC901').id; })

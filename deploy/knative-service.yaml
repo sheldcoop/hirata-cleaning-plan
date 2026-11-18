@@ -1,0 +1,22 @@
+# Paste into ProKube > Serverless > Deploy New Knative Service > YAML (adjust image and pull secret).
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: hirata-cleaning-plan
+  namespace: p-khurana
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/min-scale: "1"   # 1 = always ready (no cold start); 0 = sleeps when unused
+        autoscaling.knative.dev/max-scale: "2"
+    spec:
+      # imagePullSecrets:            # needed if the Harbor project is private - ask the ProKube team for the secret name
+      #   - name: harbor-pull-secret
+      containers:
+        - image: HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.7.0
+          ports:
+            - containerPort: 8080
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 128Mi }

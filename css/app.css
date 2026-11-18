@@ -14,27 +14,27 @@
   --today-col: #eaf3ff;
   --danger: #c0392b;
   --shadow: 0 8px 30px rgba(15, 35, 50, .18);
-  --c-upcoming: var(--ats-blue); --c-today: #1a7cf5; --c-overdue: #d93025; --c-postponed: #e8900c; --c-done: #1e9e57; --c-down: #3a4552; --c-projected: #8fb2da; --c-skipped: #9aa7b5;
+  --c-upcoming: var(--ats-blue); --c-today: #1565d8; --c-overdue: #c62828; --c-postponed: #e8900c; --c-done: #1e9e57; --c-down: #3a4552; --c-projected: #8fb2da; --c-skipped: #9aa7b5;
   --card-shadow: 0 1px 2px rgba(16, 40, 56, .06), 0 4px 16px rgba(16, 40, 56, .06);
   --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(19, 100, 118, .10), transparent 60%), radial-gradient(900px 400px at 100% 0%, rgba(23, 105, 224, .07), transparent 60%);
 }
 
-[data-theme="teal"] {
-  --bg: #0b1f26; --surface: #10303a; --surface-2: #153b47; --text: #e4f1f3; --muted: #93b1b8; --line: #23505c;
-  --brand: #072a33; --brand-2: #1c6b7d; --on-brand: #e4f1f3; --focus: #4fd1c5;
-  --upcoming-bg: #1b4552; --upcoming-fg: #cfe3e7;
-  --today-bg: #12476b; --today-fg: #cfe8ff;
-  --overdue-bg: #5c1d22; --overdue-fg: #ffd0d0;
-  --postponed-bg: #5a4110; --postponed-fg: #ffe3a8;
-  --done-bg: #164b33; --done-fg: #c5f2d6;
+[data-theme="teal"] {   /* "Dark" theme: graphite grey with AT&S blue (key kept as "teal" for saved settings) */
+  --bg: #14171c; --surface: #1d2229; --surface-2: #262c35; --text: #e9edf2; --muted: #9ca8b7; --line: #333b46;
+  --brand: #0b4f96; --brand-2: #2f7ff0; --on-brand: #ffffff; --focus: #6aa8ff;
+  --upcoming-bg: #1d3452; --upcoming-fg: #cfe3ff;
+  --today-bg: #1f4f8f; --today-fg: #dbeaff;
+  --overdue-bg: #4a1d1d; --overdue-fg: #ffb4ab;
+  --postponed-bg: #4a3612; --postponed-fg: #ffd591;
+  --done-bg: #173d2a; --done-fg: #9fe8bf;
   --down-bg: #000000; --down-fg: #ffffff;
-  --projected-fg: #6f8f97;
-  --today-col: #133a46;
+  --projected-fg: #7f97b3;
+  --today-col: #1b2a3d;
   --danger: #ff6b5e;
-  --shadow: 0 8px 30px rgba(0, 0, 0, .5);
-  --c-upcoming: #5aa9e6; --c-today: #3d8bfd; --c-overdue: #ff5a4e; --c-postponed: #f5a524; --c-done: #2ecc71; --c-down: #8a96a3; --c-projected: #557580; --c-skipped: #6b8189;
-  --card-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
-  --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(79, 209, 197, .10), transparent 60%), radial-gradient(900px 400px at 100% 0%, rgba(61, 139, 253, .08), transparent 60%);
+  --shadow: 0 8px 30px rgba(0, 0, 0, .55);
+  --c-upcoming: #5ea2ff; --c-today: #2563eb; --c-overdue: #dc2626; --c-postponed: #f2a33a; --c-done: #34c77b; --c-down: #8a96a3; --c-projected: #6f8db0; --c-skipped: #6b7785;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .3);
+  --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(47, 127, 240, .10), transparent 60%);
 }
 
 * { box-sizing: border-box; }
@@ -347,7 +347,7 @@ tr.is-down .avatar { filter: grayscale(1) opacity(.6); }
 
 
 /* ---------- v0.5: names, AT&S blue, future cycles, drag and drop ---------- */
-[data-theme="teal"] .topbar { background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 70%, #1b7f92)); }
+[data-theme="teal"] .topbar { background: linear-gradient(90deg, #0a3d75, #0b4f96); }
 .chip.s-upcoming { background: linear-gradient(135deg, color-mix(in srgb, var(--c-upcoming) 8%, var(--surface)), var(--surface)); }
 .chip.s-upcoming .chip-main { color: var(--c-upcoming); }
 .chip.s-today { border-color: color-mix(in srgb, var(--c-today) 45%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--c-today) 18%, var(--surface)), color-mix(in srgb, var(--c-today) 5%, var(--surface))); }
@@ -412,3 +412,41 @@ button.chip.admin { cursor: pointer; }
 .grid-wrap.flat { box-shadow: none; }
 .empty-card { text-align: center; color: var(--muted); padding: 30px; }
 @media (max-width: 1200px) { .an-kpis { grid-template-columns: repeat(3, 1fr); } .an-grid { grid-template-columns: 1fr; } }
+
+
+/* ---------- v0.7: solid, high-contrast status cards (both themes) ---------- */
+:root, [data-theme="white"] {
+  --k-sched-bg: #e3eefb; --k-sched-bd: #9fc1ea; --k-sched-fg: #003f7d;
+  --k-post-bg: #fff0d6; --k-post-bd: #f0c172; --k-post-fg: #7a4a00;
+  --k-done-bg: #dff3e7; --k-done-bd: #96d2ad; --k-done-fg: #135c34;
+  --k-next-bd: #8fb2da; --k-next-fg: #3f6a99;
+}
+[data-theme="teal"] {
+  --k-sched-bg: #1c3657; --k-sched-bd: #3a6aa6; --k-sched-fg: #d6e7ff;
+  --k-post-bg: #4a3512; --k-post-bd: #8f6a26; --k-post-fg: #ffe0a6;
+  --k-done-bg: #163d2a; --k-done-bd: #2f7d52; --k-done-fg: #bff0d3;
+  --k-next-bd: #56769c; --k-next-fg: #a9c2e0;
+}
+.chip { box-shadow: 0 1px 2px rgba(0,0,0,.08) !important; }
+.chip.s-upcoming { background: var(--k-sched-bg); border: 1px solid var(--k-sched-bd); }
+.chip.s-upcoming .chip-main, .chip.s-upcoming .chip-sub { color: var(--k-sched-fg); }
+.chip.s-today { background: var(--c-today); border: 1px solid var(--c-today); color: #fff; }
+.chip.s-overdue { background: var(--c-overdue); border: 1px solid var(--c-overdue); color: #fff; }
+.chip.s-today .chip-main, .chip.s-today .chip-sub, .chip.s-overdue .chip-main, .chip.s-overdue .chip-sub, .chip.s-today .tag, .chip.s-overdue .tag { color: #fff; }
+.chip.s-today .med, .chip.s-overdue .med { background: #fff; box-shadow: none; }
+.chip.s-today .med { color: var(--c-today); }
+.chip.s-overdue .med { color: var(--c-overdue); }
+.chip.s-postponed { background: var(--k-post-bg); border: 1px solid var(--k-post-bd); }
+.chip.s-postponed .chip-main, .chip.s-postponed .chip-sub { color: var(--k-post-fg); }
+.chip.s-done { background: var(--k-done-bg); border: 1px solid var(--k-done-bd); }
+.chip.s-done .chip-main, .chip.s-done .chip-sub { color: var(--k-done-fg); }
+.chip.s-projected { background: transparent; border: 1.5px dashed var(--k-next-bd); }
+.chip.s-projected .chip-main, .chip.s-projected .chip-sub { color: var(--k-next-fg); }
+.chip.s-projected .med { color: var(--k-next-fg); box-shadow: inset 0 0 0 1.5px var(--k-next-fg); }
+button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,.18) !important; }
+.chip.s-today .med.m-today { animation: ring-today-w 2.4s ease-out infinite; }
+.chip.s-overdue .med.m-overdue { animation: ring-overdue-w 1.8s ease-out infinite; }
+@keyframes ring-today-w { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.7); } 70%, 100% { box-shadow: 0 0 0 6px rgba(255,255,255,0); } }
+@keyframes ring-overdue-w { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.8); } 70%, 100% { box-shadow: 0 0 0 7px rgba(255,255,255,0); } }
+.grid.focus-today .chip.s-today, .grid.focus-overdue .chip.s-overdue { box-shadow: 0 0 0 3px color-mix(in srgb, var(--chip-c) 40%, transparent) !important; }
+.legend-item .med.m-projected { color: var(--k-next-fg); box-shadow: inset 0 0 0 1.5px var(--k-next-fg); }

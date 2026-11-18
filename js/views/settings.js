@@ -201,8 +201,8 @@ window.HCP.views.settings = (function () {
   function general(body, app) {
     var d = S.current();
     var url = h('input', { type: 'url', value: d.settings.teams_webhook_url || '', placeholder: 'https://… (empty = off)', class: 'wide' });
-    var theme = h('select', {}, [h('option', { value: 'white', text: 'Pure White', selected: d.settings.theme_default !== 'teal' }),
-      h('option', { value: 'teal', text: 'Dark Teal', selected: d.settings.theme_default === 'teal' })]);
+    var theme = h('select', {}, [h('option', { value: 'white', text: 'Light', selected: d.settings.theme_default !== 'teal' }),
+      h('option', { value: 'teal', text: 'Dark (graphite)', selected: d.settings.theme_default === 'teal' })]);
     var msg = h('p', { class: 'form-error', hidden: true });
     U.add(body, [
       h('section', { class: 'card' }, [

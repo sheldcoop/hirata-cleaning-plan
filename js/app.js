@@ -133,8 +133,8 @@
         : h('button', { class: 'btn small ghost on-dark', onclick: loginDialog }, [HCP.icon('user', 14), ' Admin login']));
     }
     var teal = theme() === 'teal';
-    U.add(topbar, h('button', { class: 'theme-btn', title: 'Switch to ' + (teal ? 'Pure White' : 'Dark Teal'), 'aria-label': 'Switch theme', onclick: toggleTheme },
-      [HCP.icon(teal ? 'sun' : 'moon', 15), teal ? ' White' : ' Teal']));
+    U.add(topbar, h('button', { class: 'theme-btn', title: 'Switch to ' + (teal ? 'Light' : 'Dark') + ' theme', 'aria-label': 'Switch theme', onclick: toggleTheme },
+      [HCP.icon(teal ? 'sun' : 'moon', 15), teal ? ' Light' : ' Dark']));
   }
 
   function render() {

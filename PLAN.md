@@ -71,7 +71,7 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 
 **Other**
 - History page with **Export to CSV (opens in Excel)**.
-- Two themes: **Pure White** and **Dark Teal**, switched with a button in the top bar.
+- Two themes: **Light** and **Dark (graphite)**, switched with a button in the top bar.
 - Deleting a tool means **archive** (hidden, history kept).
 - **Reminders are not in v1.** A Microsoft Teams webhook hook is built but switched off until a webhook URL is entered in Settings.
 - Language: English.

@@ -265,9 +265,9 @@ Rule: **all date and schedule logic lives only in `js/rules.js`** and has tests.
 
 **First run:** when the app opens a data folder with no data file, it offers "Create new plan": it asks for the first Admin's PIN and creates the file with the Admin and the tools below. First Admin: **Khurana**, operator ID `ADMIN01`, role `admin`. The PIN is never in the repo.
 
-Tools to pre-load (from the old Excel; the Admin can change everything in Settings). Weekday and start date are **to be confirmed by the Admin**; use Tuesday and the next Tuesday as placeholders.
+Tools to pre-load (from the old Excel; the Admin can change everything in Settings). Weekday and start week are **placeholders spread over Monday–Friday** (weekly and bi-weekly mixed, as in the Excel); the Admin sets the real ones in Settings.
 
-| Tool | Tool owner | MNT owner | Every N weeks (weeks type, Tuesday) |
+| Tool | Tool owner | MNT owner | Every N weeks (weekday: see js/store.js SEED_TOOLS) |
 |---|---|---|---|
 | AOP901 | Hammad Ali | Breitenberger Gerhard | 2 |
 | BLY901 | Marco Trummer | Corpuz Jomari | 1 |

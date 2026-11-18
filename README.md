@@ -13,7 +13,7 @@ Same approach as the Metrology Request Tracker: plain files on a shared drive, o
 1. Copy the whole folder to the shared drive, e.g. `Z:\Tools\Hirata Cleaning Plan\`. Everyone who uses it needs read/write access to the `data` folder.
 2. Double-click **`Hirata Cleaning Plan.cmd`** (or open `index.html` in Edge).
 3. Click **Connect data folder** and choose the `data` folder next to `index.html`. Edge remembers it on this PC (it may ask "allow" once per session).
-4. The first time, the folder is empty: click **Create new plan** and choose the Admin PIN. The plan starts with the 12 loader tools (every 1/2/4 weeks on Tuesday) and Admin **Khurana, ID `ADMIN01`**.
+4. The first time, the folder is empty: click **Create new plan** and choose the Admin PIN. The plan starts with the 12 loader tools (weekly, bi-weekly or 4-weekly, on different weekdays as placeholders) and Admin **Khurana, ID `ADMIN01`**.
 5. The 6 operators are already in the list. Add or change people in **Settings → Users** (just the name; a short ID is filled in automatically). In **Settings → Tools**, set each tool's real schedule.
 
 Every PC must connect the **same** `data` folder on the share to see the same plan.

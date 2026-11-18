@@ -15,7 +15,7 @@
   function openTask(name) { var id = tool(name).id; return S.current().tasks.find(function (t) { return t.tool_id === id && t.status === 'open'; }); }
   function day(d) { cfg.fixed_today = d; }
 
-  test('first run creates Admin, the 6 real operators and 12 tools, each with one open cleaning on Tuesday', function () {
+  test('first run creates Admin, the 6 real operators and 12 tools, each with one open cleaning, spread over the week', function () {
     return setup().then(function (mem) {
       var d = JSON.parse(mem.files['hirata_data.json']);
       eq(d.users.filter(function (u) { return u.role === 'operator'; }).map(function (u) { return u.name; }), S.SEED_OPERATORS);
@@ -25,6 +25,10 @@
       eq(d.users[0].operator_id, 'ADMIN01');
       ok(d.users[0].pin_hash.indexOf('pbkdf2$') === 0 && d.users[0].pin_hash.indexOf('1234') < 0, 'PIN is hashed');
       eq(openTask('LAC901').due_date, '2026-11-24');
+      eq(openTask('BLY901').due_date, '2026-11-23');   // weekly on Monday (this Monday already passed)
+      eq(openTask('TLA901').due_date, '2026-11-30');   // every 4 weeks, Monday, starts in 2 weeks
+      var days = {}; d.tools.forEach(function (t) { days[t.weekday] = 1; });
+      eq(Object.keys(days).length, 5, 'Monday to Friday all used');
       return rejects(S.createPlan('1234'), 'exists');
     });
   });

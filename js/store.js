@@ -23,19 +23,22 @@ window.HCP.store = (function () {
   var queue = Promise.resolve();
   var recovered = false;
 
+  // Starting tools (from the Excel). Weekday and start week are placeholders spread over the
+  // week so the board is balanced; the Admin sets the real schedules in Settings.
+  // [name, tool owner, MNT owner, every N weeks, weekday 1=Mon..5=Fri, start week offset]
   var SEED_TOOLS = [
-    ['AOP901', 'Hammad Ali', 'Breitenberger Gerhard', 2],
-    ['BLY901', 'Marco Trummer', 'Corpuz Jomari', 1],
-    ['LAC901', 'Peng Chongnan', 'Chen Cong', 1],
-    ['DEY901', 'Valeriia Kyrychenko', 'Edina Vunic', 2],
-    ['ACY901', 'Karam / Eric Zeichner', 'Breitenberger Gerhard', 2],
-    ['DPM901', 'Jovan Tosic', 'Anand Gopal', 2],
-    ['ECP901', 'Marcin Sliwowski', 'Mokhberi Alireza', 2],
-    ['DFS901', 'Hammad Ali', 'Thomas Kelly', 2],
-    ['AOI901', 'Juliet Raya', 'Khaled Ismail', 4],
-    ['NCC901', 'Govardhna Rao Bondalapati', 'Mokhberi Alireza', 2],
-    ['TLA901', 'Lukas Bursch', 'Aboutahir Fatima Zahra', 4],
-    ['CPM901', 'Petar Jurjevic', 'De Los Santos Tristan', 2]
+    ['AOP901', 'Hammad Ali', 'Breitenberger Gerhard', 2, 2, 0],
+    ['BLY901', 'Marco Trummer', 'Corpuz Jomari', 1, 1, 0],
+    ['LAC901', 'Peng Chongnan', 'Chen Cong', 1, 2, 0],
+    ['DEY901', 'Valeriia Kyrychenko', 'Edina Vunic', 2, 4, 1],
+    ['ACY901', 'Karam / Eric Zeichner', 'Breitenberger Gerhard', 2, 1, 1],
+    ['DPM901', 'Jovan Tosic', 'Anand Gopal', 2, 3, 0],
+    ['ECP901', 'Marcin Sliwowski', 'Mokhberi Alireza', 2, 3, 1],
+    ['DFS901', 'Hammad Ali', 'Thomas Kelly', 2, 4, 0],
+    ['AOI901', 'Juliet Raya', 'Khaled Ismail', 4, 5, 0],
+    ['NCC901', 'Govardhna Rao Bondalapati', 'Mokhberi Alireza', 2, 2, 1],
+    ['TLA901', 'Lukas Bursch', 'Aboutahir Fatima Zahra', 4, 1, 2],
+    ['CPM901', 'Petar Jurjevic', 'De Los Santos Tristan', 2, 5, 1]
   ];
 
   // The real operators (from the cleaning plan Excel). Admins can add/edit/deactivate in Settings.
@@ -221,7 +224,7 @@ window.HCP.store = (function () {
       return hashPin(adminPin);
     }).then(function (pinHash) {
       var stamp = nowStamp();
-      var start = R.firstRuleDate({ schedule_type: 'weeks', weekday: 2 }, R.today()).pattern;
+      var thisMonday = R.mondayOf(R.today());
       var d = {
         schema_version: SCHEMA_VERSION, revision: 1, created_at: stamp, saved_at: stamp, saved_by: 'ADMIN01',
         users: [{ id: newId('user'), operator_id: 'ADMIN01', name: 'Khurana', role: 'admin', pin_hash: pinHash, active: true }]
@@ -234,8 +237,8 @@ window.HCP.store = (function () {
       SEED_TOOLS.forEach(function (s) {
         var tool = {
           id: newId('tool'), name: s[0], tool_owner: s[1], mnt_owner: s[2],
-          schedule_type: 'weeks', interval: s[3], weekday: 2, month_day: null,
-          start_date: start, status: 'active', down_reason: '', down_since: null, archived: false
+          schedule_type: 'weeks', interval: s[3], weekday: s[4], month_day: null,
+          start_date: R.maxDate(R.today(), R.addDays(thisMonday, 7 * s[5])), status: 'active', down_reason: '', down_since: null, archived: false
         };
         d.tools.push(tool);
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));

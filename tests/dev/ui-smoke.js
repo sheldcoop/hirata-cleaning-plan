@@ -96,7 +96,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($('.confirm-q').textContent.includes('Mohamed Ibrahem'), 'confirmation shows name');
   await click(btn('Yes, completed'), 400);
   ok(!$('.modal'), 'modal closed after complete');
-  ok($$('.chip.s-done').length === 1, 'done chip on the board');
+  ok($$('button.chip.s-done').length === 1, 'done chip on the board');
 
   step = 'postpone';
   const open2 = $$('button.chip').find(c => !c.classList.contains('s-done'));

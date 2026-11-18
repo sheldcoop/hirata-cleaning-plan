@@ -1,0 +1,3387 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="white">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hirata Cleaning Plan</title>
+  <style>
+/* Hirata Cleaning Plan - styles. Two themes: Pure White (default) and Dark Teal. */
+
+:root, [data-theme="white"] {
+  --ats-blue: #0057a8;   /* AT&S blue - change here if the brand guide gives another code */
+  --bg: #f2f6fa; --surface: #ffffff; --surface-2: #eef3f8; --text: #1b2733; --muted: #5f6f82; --line: #dce4ee;
+  --brand: var(--ats-blue); --brand-2: #0a63c2; --on-brand: #ffffff; --focus: #1a7cf5;
+  --upcoming-bg: #eef2f6; --upcoming-fg: #3e4c59;
+  --today-bg: #e2f0fb; --today-fg: #0b5394;
+  --overdue-bg: #fde4e4; --overdue-fg: #a61b1b;
+  --postponed-bg: #fff1d6; --postponed-fg: #8a5300;
+  --done-bg: #dff3e6; --done-fg: #17663a;
+  --down-bg: #2f3a45; --down-fg: #ffffff;
+  --projected-fg: #9aa5b1;
+  --today-col: #eaf3ff;
+  --danger: #c0392b;
+  --shadow: 0 8px 30px rgba(15, 35, 50, .18);
+  --c-upcoming: var(--ats-blue); --c-today: #1565d8; --c-overdue: #c62828; --c-postponed: #e8900c; --c-done: #1e9e57; --c-down: #3a4552; --c-projected: #8fb2da; --c-skipped: #9aa7b5;
+  --card-shadow: 0 1px 2px rgba(16, 40, 56, .06), 0 4px 16px rgba(16, 40, 56, .06);
+  --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(19, 100, 118, .10), transparent 60%), radial-gradient(900px 400px at 100% 0%, rgba(23, 105, 224, .07), transparent 60%);
+}
+
+[data-theme="teal"] {   /* "Dark" theme: graphite grey with AT&S blue (key kept as "teal" for saved settings) */
+  --bg: #14171c; --surface: #1d2229; --surface-2: #262c35; --text: #e9edf2; --muted: #9ca8b7; --line: #333b46;
+  --brand: #0b4f96; --brand-2: #2f7ff0; --on-brand: #ffffff; --focus: #6aa8ff;
+  --upcoming-bg: #1d3452; --upcoming-fg: #cfe3ff;
+  --today-bg: #1f4f8f; --today-fg: #dbeaff;
+  --overdue-bg: #4a1d1d; --overdue-fg: #ffb4ab;
+  --postponed-bg: #4a3612; --postponed-fg: #ffd591;
+  --done-bg: #173d2a; --done-fg: #9fe8bf;
+  --down-bg: #000000; --down-fg: #ffffff;
+  --projected-fg: #7f97b3;
+  --today-col: #1b2a3d;
+  --danger: #ff6b5e;
+  --shadow: 0 8px 30px rgba(0, 0, 0, .55);
+  --c-upcoming: #5ea2ff; --c-today: #2563eb; --c-overdue: #dc2626; --c-postponed: #f2a33a; --c-done: #34c77b; --c-down: #8a96a3; --c-projected: #6f8db0; --c-skipped: #6b7785;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .3);
+  --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(47, 127, 240, .10), transparent 60%);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, Arial, sans-serif; }
+body { background-image: var(--page-glow); background-attachment: fixed; min-height: 100vh; }
+a { color: inherit; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Top bar */
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 65%, #1a7cf5)); color: var(--on-brand); padding: 10px 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .15); }
+.brand { font-size: 17px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo { display: inline-flex; width: 34px; height: 34px; border-radius: 9px; align-items: center; justify-content: center; background: rgba(255,255,255,.12); }
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-sub { font-size: 11px; font-weight: 400; opacity: .65; letter-spacing: .02em; }
+.icon { flex: none; vertical-align: -2px; }
+.btn, .theme-btn, .toast-action { display: inline-flex; align-items: center; gap: 6px; }
+.btn.square { padding: 8px; }
+.theme-btn { background: rgba(255,255,255,.1); color: var(--on-brand); border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+.theme-btn:hover { background: rgba(255,255,255,.18); }
+.modal-head .icon-btn svg { transform: rotate(45deg); }
+.version { font-size: 11px; opacity: .6; font-weight: 400; }
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.nav { display: flex; gap: 4px; }
+.nav a { padding: 6px 12px; border-radius: 6px; text-decoration: none; opacity: .85; }
+.nav a:hover { background: rgba(255,255,255,.12); opacity: 1; }
+.nav a.active { background: rgba(255,255,255,.18); opacity: 1; font-weight: 600; }
+.admin-chip { font-size: 13px; background: rgba(255,255,255,.14); padding: 4px 10px; border-radius: 999px; display: flex; gap: 8px; align-items: center; }
+.link { background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 0; color: inherit; }
+
+main { padding: 20px 24px 60px; max-width: 1400px; margin: 0 auto; }
+h2 { font-size: 20px; margin: 0 0 14px; }
+h3 { font-size: 16px; margin: 4px 0 12px; }
+.muted { color: var(--muted); }
+
+/* Buttons */
+.btn { background: var(--brand-2); color: #fff; border: 1px solid transparent; border-radius: 6px; padding: 8px 14px; cursor: pointer; font-weight: 600; }
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.secondary { background: var(--postponed-bg); color: var(--postponed-fg); }
+.btn.ghost { background: transparent; color: var(--text); border-color: var(--line); font-weight: 500; }
+.btn.ghost:hover:not(:disabled) { background: var(--surface-2); filter: none; }
+.btn.on-dark { color: var(--on-brand); border-color: rgba(255,255,255,.35); }
+.btn.on-dark:hover { background: rgba(255,255,255,.12) !important; }
+.btn.danger { background: var(--danger); }
+.btn.danger-text { color: var(--danger); }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn.big { padding: 12px 22px; font-size: 15px; }
+.icon-btn { background: none; border: 0; font-size: 20px; cursor: pointer; color: var(--text); line-height: 1; padding: 4px 8px; border-radius: 6px; }
+.icon-btn.on-dark { color: var(--on-brand); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+/* Board */
+.board-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.week-nav { display: flex; align-items: center; gap: 8px; }
+.week-title { min-width: 280px; text-align: center; margin: 0 4px; }
+.week-kicker { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.week-label { margin: 0; font-size: 21px; }
+.week-label .wk { color: var(--brand-2); }
+.week-label .sep { color: var(--muted); font-weight: 400; }
+.bar-right { display: flex; align-items: center; gap: 14px; }
+
+/* Summary strip */
+.summary { display: grid; grid-template-columns: 1.6fr repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+.progress-card, .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.progress-card { display: flex; align-items: center; gap: 14px; }
+.ring { --p: 0; width: 58px; height: 58px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: conic-gradient(var(--done-fg) calc(var(--p) * 1%), var(--surface-2) 0); }
+.ring span { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.progress-text { font-size: 15px; font-weight: 600; }
+.tile { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; column-gap: 10px; text-align: left; cursor: pointer; color: var(--text);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; position: relative; overflow: hidden; }
+.tile::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--tile-accent, var(--line)); }
+.tile:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+.tile.on { border-color: var(--tile-accent); box-shadow: 0 0 0 2px var(--tile-accent) inset; }
+.tile-ico { grid-row: 1 / 4; align-self: center; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--tile-bg, var(--surface-2)); color: var(--tile-accent, var(--muted)); }
+.tile-num { font-size: 24px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile-label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.tile-sub { font-size: 12px; color: var(--muted); }
+.tile.zero .tile-num { color: var(--muted); }
+.t-today { --tile-accent: var(--today-fg); --tile-bg: var(--today-bg); }
+.t-overdue { --tile-accent: var(--overdue-fg); --tile-bg: var(--overdue-bg); }
+.t-overdue:not(.zero) .tile-num { color: var(--overdue-fg); }
+.t-postponed { --tile-accent: var(--postponed-fg); --tile-bg: var(--postponed-bg); }
+.t-done { --tile-accent: var(--done-fg); --tile-bg: var(--done-bg); }
+.t-down { --tile-accent: var(--danger); --tile-bg: var(--overdue-bg); }
+@media (max-width: 1100px) { .summary { grid-template-columns: repeat(3, 1fr); } }
+
+/* Highlight one status: dim the rest */
+.grid.focus .chip { opacity: .22; }
+.grid.focus-today .chip.s-today, .grid.focus-overdue .chip.s-overdue, .grid.focus-postponed .chip.s-postponed,
+.grid.focus-done .chip.s-done, .grid.focus-down .chip.s-down { opacity: 1; box-shadow: 0 0 0 2px currentColor; }
+.grid.focus-down tr:not(.is-down) .tool-col { opacity: .4; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); }
+.grid-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; }
+.grid th, .grid td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 8px; vertical-align: top; }
+.grid th:last-child, .grid td:last-child { border-right: 0; }
+.grid thead th { background: var(--surface-2); font-weight: 600; text-align: left; position: sticky; top: 0; white-space: nowrap; }
+.grid thead th.is-today { background: var(--today-bg); color: var(--today-fg); box-shadow: inset 0 -3px 0 var(--today-fg); }
+.grid td.is-today { background: var(--today-col); }
+.grid thead th.is-past .dnum, .grid thead th.is-past .dname { opacity: .6; }
+.today-pill { margin-left: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; background: var(--today-fg); color: var(--surface); padding: 2px 7px; border-radius: 999px; vertical-align: 1px; }
+.grid tbody tr:hover td, .grid tbody tr:hover th { background-color: color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.grid tbody tr:hover td.is-today { background: var(--today-col); }
+.grid .tool-col { position: sticky; left: 0; background: var(--surface); z-index: 1; }
+.grid thead .tool-col { background: var(--surface-2); z-index: 2; }
+.tool-line { display: flex; align-items: center; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot-ok { background: var(--done-fg); }
+.dot-down { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
+tr.is-down .tool-col { box-shadow: inset 4px 0 0 var(--danger); }
+.grid td { width: 17%; min-width: 130px; height: 52px; }
+.dname { color: var(--muted); font-weight: 500; }
+.tool-col { width: 15%; min-width: 150px; text-align: left; }
+.tool-name { background: none; border: 0; padding: 0; font-weight: 700; font-size: 15px; cursor: pointer; color: var(--text); }
+.tool-name:hover { text-decoration: underline; }
+.sched { color: var(--muted); font-size: 12px; font-weight: 400; }
+tr.is-down .tool-name { color: var(--muted); }
+.badge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; vertical-align: middle; }
+.badge.down { background: var(--down-bg); color: var(--down-fg); }
+.empty { text-align: center; color: var(--muted); padding: 30px !important; }
+
+.chip { display: flex; align-items: center; gap: 8px; width: 100%; margin: 2px 0; padding: 7px 9px; border-radius: 8px; border: 1px solid transparent;
+  font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, opacity .2s ease; }
+button.chip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,.12); border-color: currentColor; }
+.chip-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.chip-main { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-sub { font-size: 11px; font-weight: 500; opacity: .85; }
+.chip.s-overdue { box-shadow: inset 3px 0 0 var(--overdue-fg); }
+.chip.s-today { box-shadow: inset 3px 0 0 var(--today-fg); }
+.chip.s-done { opacity: .9; }
+.empty .icon { color: var(--muted); margin-bottom: 6px; }
+.chip.static { display: inline-flex; width: auto; cursor: default; margin: 0 6px 6px 0; }
+.chip.static:hover { filter: none; border-color: transparent; }
+.chip .ico { width: 14px; text-align: center; }
+.chip .tag { margin-left: auto; font-size: 11px; font-weight: 500; opacity: .8; }
+.s-upcoming { background: var(--upcoming-bg); color: var(--upcoming-fg); }
+.s-today { background: var(--today-bg); color: var(--today-fg); }
+.s-overdue { background: var(--overdue-bg); color: var(--overdue-fg); }
+.s-postponed { background: var(--postponed-bg); color: var(--postponed-fg); }
+.s-done { background: var(--done-bg); color: var(--done-fg); }
+.s-down { background: var(--down-bg); color: var(--down-fg); }
+.s-projected { background: transparent; color: var(--projected-fg); border: 1px dashed var(--line); font-weight: 500; cursor: default; padding-top: 5px; padding-bottom: 5px; }
+span.chip.s-projected:hover { filter: none; border-color: var(--line); }
+.legend { margin-top: 12px; display: flex; flex-wrap: wrap; }
+.legend .chip { font-size: 12px; padding: 4px 9px; }
+
+/* Lists (history, settings) */
+.list th, .list td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.list thead th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+.list tbody tr:hover { background: var(--surface-2); }
+.list .wrap { white-space: normal; max-width: 420px; }
+.strong { font-weight: 600; }
+.mono { font-family: Consolas, "Courier New", monospace; }
+tr.is-archived { opacity: .55; }
+.row-actions { white-space: nowrap; text-align: right; }
+.row-actions .btn { margin-left: 4px; }
+.act { font-weight: 600; }
+.a-completed { color: var(--done-fg); } .a-postponed { color: var(--postponed-fg); } .a-tool_down { color: var(--danger); }
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 10px; }
+.filter-actions { display: flex; gap: 8px; }
+.row-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+
+/* Tabs and cards */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.tab { background: none; border: 0; padding: 8px 14px; cursor: pointer; border-bottom: 3px solid transparent; color: var(--muted); font-weight: 600; }
+.tab.active { color: var(--text); border-bottom-color: var(--brand-2); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; max-width: 760px; }
+.center-card { max-width: 520px; margin: 60px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 28px; }
+
+/* Forms */
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field .label { font-weight: 600; font-size: 13px; }
+.field .hint, .hint { color: var(--muted); font-size: 12px; }
+input[type=text], input[type=password], input[type=date], input[type=number], input[type=url], select, textarea {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; }
+input.num { width: 90px; }
+input.wide { width: 100%; }
+textarea { width: 100%; resize: vertical; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 16px; }
+.form-error { color: var(--danger); font-weight: 600; margin: 6px 0; }
+.person { min-width: 260px; font-size: 15px; padding: 9px 10px; }
+.preview { background: var(--surface-2); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
+.preview.bad { color: var(--danger); }
+.confirm-q { font-size: 15px; font-weight: 600; }
+
+/* Modal */
+.backdrop { position: fixed; inset: 0; background: rgba(10, 20, 28, .45); display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; z-index: 50; overflow-y: auto; animation: fade-in .15s ease; }
+.modal { background: var(--surface); color: var(--text); border-radius: 14px; box-shadow: var(--shadow); width: 100%; max-width: 520px; animation: pop-in .18s ease; }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+.modal.wide { max-width: 760px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.modal-head h2 { margin: 0; font-size: 17px; }
+.modal-body { padding: 16px 18px 18px; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 12px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+.events { margin: 6px 0 10px; font-size: 13px; }
+.events summary { cursor: pointer; color: var(--muted); }
+.events ul { margin: 6px 0 0; padding-left: 18px; }
+.action-area { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px; }
+
+/* Toasts */
+.toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toast { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; background: var(--surface); color: var(--text); border: 1px solid var(--line);
+  border-left: 4px solid var(--done-fg); padding: 11px 14px; border-radius: 10px; box-shadow: var(--shadow); font-weight: 600; max-width: 460px;
+  transition: opacity .4s, transform .4s; animation: slide-in .2s ease; }
+.toast.error { border-left-color: var(--overdue-fg); color: var(--overdue-fg); }
+.toast.fade { opacity: 0; transform: translateX(20px); }
+.toast-action { margin-left: auto; background: var(--brand-2); color: #fff; border: 0; border-radius: 6px; padding: 5px 10px; font-weight: 700; cursor: pointer; }
+.toast-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--brand-2); transform-origin: left; animation: shrink linear forwards; }
+@keyframes slide-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body { background: #fff; color: #000; }
+  .topbar, .board-bar .btn, .bar-right, .toasts, .summary .tile { display: none !important; }
+  .summary { display: block; margin: 0 0 6px; }
+  .progress-card { border: 0; padding: 0; }
+  .ring { display: none; }
+  main { padding: 0; max-width: none; }
+  .grid-wrap { border: 1px solid #999; overflow: visible; }
+  .grid th, .grid td { border-color: #bbb !important; }
+  .chip { box-shadow: none !important; border: 1px solid #888 !important; transform: none !important; }
+  .grid .tool-col { position: static; }
+  .week-kicker { display: none; }
+}
+
+
+/* ---------- v0.4 look: status medallions, card chips, tool badges ---------- */
+.med { display: inline-grid; place-items: center; flex: none; border-radius: 50%; color: #fff; background: var(--c, var(--c-upcoming));
+  box-shadow: 0 1px 2px rgba(0,0,0,.18), inset 0 -2px 0 rgba(0,0,0,.12); }
+.med .icon { stroke-width: 2.4; }
+.m-upcoming { --c: var(--c-upcoming); }
+.m-today { --c: var(--c-today); animation: ring-today 2.4s ease-out infinite; }
+.m-overdue { --c: var(--c-overdue); animation: ring-overdue 1.8s ease-out infinite; }
+.m-postponed { --c: var(--c-postponed); }
+.m-done { --c: var(--c-done); }
+.m-down { --c: var(--c-down); clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); border-radius: 0; box-shadow: none; }
+.m-projected { background: transparent; color: var(--c-projected); box-shadow: inset 0 0 0 1.5px var(--c-projected); }
+.m-projected .icon { stroke-width: 2; }
+@keyframes ring-overdue { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-overdue) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+@keyframes ring-today { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-today) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+
+/* chips become small cards */
+.chip { gap: 9px; padding: 7px 10px 7px 7px; border-radius: 10px; background: var(--surface); color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--chip-c, var(--line)) 30%, var(--line)); box-shadow: var(--card-shadow) !important; }
+.chip.s-upcoming { --chip-c: var(--c-upcoming); }
+.chip.s-today { --chip-c: var(--c-today); background: linear-gradient(135deg, color-mix(in srgb, var(--c-today) 12%, var(--surface)), var(--surface)); }
+.chip.s-overdue { --chip-c: var(--c-overdue); background: linear-gradient(135deg, color-mix(in srgb, var(--c-overdue) 14%, var(--surface)), var(--surface)); }
+.chip.s-postponed { --chip-c: var(--c-postponed); background: linear-gradient(135deg, color-mix(in srgb, var(--c-postponed) 12%, var(--surface)), var(--surface)); }
+.chip.s-done { --chip-c: var(--c-done); background: linear-gradient(135deg, color-mix(in srgb, var(--c-done) 10%, var(--surface)), var(--surface)); opacity: 1; }
+.chip.s-down { --chip-c: var(--c-down); background: repeating-linear-gradient(135deg, var(--surface), var(--surface) 6px, var(--surface-2) 6px, var(--surface-2) 12px); color: var(--text); }
+.chip.s-projected { background: transparent; box-shadow: none !important; border: 1px dashed color-mix(in srgb, var(--c-projected) 60%, transparent); color: var(--muted); padding: 5px 10px 5px 6px; }
+.chip .chip-main { font-weight: 650; }
+.chip.s-overdue .chip-main { color: var(--c-overdue); }
+.chip.s-today .chip-main { color: var(--c-today); }
+.chip.s-done .chip-main { color: color-mix(in srgb, var(--c-done) 75%, var(--text)); }
+.chip.s-postponed .chip-main { color: color-mix(in srgb, var(--c-postponed) 80%, var(--text)); }
+button.chip:hover { border-color: var(--chip-c, var(--line)); box-shadow: 0 6px 18px rgba(0,0,0,.14) !important; }
+.chip .tag { color: var(--muted); }
+.grid.focus-today .chip.s-today, .grid.focus-overdue .chip.s-overdue, .grid.focus-postponed .chip.s-postponed,
+.grid.focus-done .chip.s-done, .grid.focus-down .chip.s-down { box-shadow: 0 0 0 2px var(--chip-c) !important; }
+
+/* grid as a card */
+.grid-wrap { border-radius: 14px; box-shadow: var(--card-shadow); border-color: color-mix(in srgb, var(--line) 80%, transparent); }
+.grid td { height: 60px; padding: 7px; }
+.grid tbody tr:nth-child(even) td:not(.is-today), .grid tbody tr:nth-child(even) .tool-col { background-color: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); }
+.grid thead th { font-size: 13px; letter-spacing: .01em; padding: 10px 8px; }
+.dnum { font-weight: 700; }
+
+/* tool badge */
+.tool-line { gap: 10px; }
+.avatar { --h: 190; flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  color: #fff; background: linear-gradient(145deg, hsl(var(--h) 55% 48%), hsl(calc(var(--h) + 25) 60% 36%)); box-shadow: inset 0 -2px 0 rgba(0,0,0,.15); }
+tr.is-down .avatar { filter: grayscale(1) opacity(.6); }
+.tool-meta { min-width: 0; }
+.tool-top { display: flex; align-items: center; gap: 7px; }
+.tool-col .dot { width: 7px; height: 7px; }
+
+/* summary tiles and legend */
+.tile, .progress-card { box-shadow: var(--card-shadow); border-color: color-mix(in srgb, var(--line) 80%, transparent); border-radius: 14px; }
+.tile::before { display: none; }
+.tile-ico { background: none !important; width: auto; height: auto; }
+.tile.on { box-shadow: 0 0 0 2px var(--tile-accent) inset, var(--card-shadow); }
+.t-planned { --tile-accent: var(--c-upcoming); }
+.t-today { --tile-accent: var(--c-today); } .t-overdue { --tile-accent: var(--c-overdue); } .t-postponed { --tile-accent: var(--c-postponed); }
+.t-done { --tile-accent: var(--c-done); } .t-down { --tile-accent: var(--c-down); }
+.t-overdue:not(.zero) .tile-num { color: var(--c-overdue); }
+.ring { background: conic-gradient(var(--c-done) calc(var(--p) * 1%), var(--surface-2) 0); }
+.legend { gap: 16px; padding: 4px 2px; }
+.legend-item { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.legend-item .med { animation: none; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 3px; background: var(--surface-2); color: var(--text); }
+.pill .med { animation: none; }
+.btn { border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.btn.ghost { box-shadow: none; background: var(--surface); }
+.card, .center-card { box-shadow: var(--card-shadow); border-radius: 14px; }
+@media print { .med { animation: none !important; box-shadow: none !important; } .avatar { box-shadow: none; } body { background-image: none; } }
+.grid .tool-col { min-width: 220px; width: 16%; }
+.sched { white-space: nowrap; }
+
+
+/* ---------- v0.5: names, AT&S blue, future cycles, drag and drop ---------- */
+[data-theme="teal"] .topbar { background: linear-gradient(90deg, #0a3d75, #0b4f96); }
+.chip.s-upcoming { background: linear-gradient(135deg, color-mix(in srgb, var(--c-upcoming) 8%, var(--surface)), var(--surface)); }
+.chip.s-upcoming .chip-main { color: var(--c-upcoming); }
+.chip.s-today { border-color: color-mix(in srgb, var(--c-today) 45%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--c-today) 18%, var(--surface)), color-mix(in srgb, var(--c-today) 5%, var(--surface))); }
+.chip.s-projected { border-color: color-mix(in srgb, var(--c-projected) 70%, transparent); background: color-mix(in srgb, var(--c-projected) 6%, transparent); }
+.chip.s-projected .chip-main { color: color-mix(in srgb, var(--c-projected) 60%, var(--muted)); }
+.chip.s-projected.is-moved { border-style: solid; }
+.chip.s-skipped { background: transparent; border: 1px dashed var(--line); color: var(--muted); box-shadow: none !important; text-decoration: none; }
+.chip.s-skipped .chip-main { text-decoration: line-through; }
+.m-skipped { --c: var(--c-skipped); background: transparent; color: var(--c-skipped); box-shadow: inset 0 0 0 1.5px var(--c-skipped); }
+button.chip.admin { cursor: pointer; }
+.chip[draggable="true"] { cursor: grab; }
+.chip[draggable="true"]:active { cursor: grabbing; }
+.grid.dragging tr:not(.drag-row) td { opacity: .45; }
+.grid.dragging tr.drag-row td:not(.is-past) { outline: 1px dashed color-mix(in srgb, var(--brand-2) 40%, transparent); outline-offset: -4px; }
+.grid td.drop-ok { background: color-mix(in srgb, var(--brand-2) 14%, var(--surface)) !important; outline: 2px solid var(--brand-2) !important; outline-offset: -3px; }
+.dnd-hint { margin-top: 6px; }
+
+
+/* ---------- Analytics ---------- */
+.an-head { display: grid; grid-template-columns: 1fr auto; gap: 10px 20px; align-items: end; margin-bottom: 16px; }
+.an-head h2 { margin: 0; }
+.an-head p { margin: 2px 0 0; }
+.an-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.an-downloads { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.segmented { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; box-shadow: var(--card-shadow); }
+.segmented button { background: none; border: 0; padding: 6px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; color: var(--muted); }
+.segmented button.on { background: var(--brand); color: #fff; }
+.range { display: inline-flex; gap: 6px; align-items: center; }
+.an-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+.an-kpi { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--line) 80%, transparent); border-radius: 14px; padding: 14px; box-shadow: var(--card-shadow); }
+.an-ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--c-upcoming) 12%, var(--surface)); color: var(--c-upcoming); }
+.an-kpi.bad .an-ico { background: color-mix(in srgb, var(--c-overdue) 14%, var(--surface)); color: var(--c-overdue); }
+.an-kpi.bad .an-num { color: var(--c-overdue); }
+.an-num { font-size: 24px; font-weight: 750; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.an-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.an-grid .card, .an-card { max-width: none; margin: 0; }
+.card { max-width: none; }
+.an-card h3 { margin: 0; }
+.small { font-size: 12px; margin: 2px 0 12px; }
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 30%) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.bar-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.bar-track { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .4s ease; }
+.bar-fill.blue { background: linear-gradient(90deg, var(--c-upcoming), var(--c-today)); }
+.bar-fill.good { background: var(--c-done); } .bar-fill.warn { background: var(--c-postponed); } .bar-fill.bad { background: var(--c-overdue); }
+.bar-val { white-space: nowrap; } .bar-val small { color: var(--muted); }
+.week-chart { width: 100%; height: auto; display: block; }
+.week-chart .gridline { stroke: var(--line); stroke-width: 1; }
+.week-chart .axis { fill: var(--muted); font-size: 11px; }
+.week-chart .col-num { fill: var(--text); font-size: 11px; font-weight: 700; }
+.week-chart .col-ontime { fill: var(--c-done); }
+.week-chart .col-late { fill: var(--c-postponed); }
+.chart-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-left: 8px; }
+.sw.ontime { background: var(--c-done); } .sw.late { background: var(--c-postponed); }
+.pct { font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.pct.good { background: color-mix(in srgb, var(--c-done) 15%, transparent); color: var(--c-done); }
+.pct.warn { background: color-mix(in srgb, var(--c-postponed) 18%, transparent); color: color-mix(in srgb, var(--c-postponed) 80%, var(--text)); }
+.pct.bad { background: color-mix(in srgb, var(--c-overdue) 15%, transparent); color: var(--c-overdue); }
+.bad-text { color: var(--c-overdue); font-weight: 700; }
+.grid-wrap.flat { box-shadow: none; }
+.empty-card { text-align: center; color: var(--muted); padding: 30px; }
+@media (max-width: 1200px) { .an-kpis { grid-template-columns: repeat(3, 1fr); } .an-grid { grid-template-columns: 1fr; } }
+
+
+/* ---------- v0.7: solid, high-contrast status cards (both themes) ---------- */
+:root, [data-theme="white"] {
+  --k-sched-bg: #e3eefb; --k-sched-bd: #9fc1ea; --k-sched-fg: #003f7d;
+  --k-post-bg: #fff0d6; --k-post-bd: #f0c172; --k-post-fg: #7a4a00;
+  --k-done-bg: #dff3e7; --k-done-bd: #96d2ad; --k-done-fg: #135c34;
+  --k-next-bd: #8fb2da; --k-next-fg: #3f6a99;
+}
+[data-theme="teal"] {
+  --k-sched-bg: #1c3657; --k-sched-bd: #3a6aa6; --k-sched-fg: #d6e7ff;
+  --k-post-bg: #4a3512; --k-post-bd: #8f6a26; --k-post-fg: #ffe0a6;
+  --k-done-bg: #163d2a; --k-done-bd: #2f7d52; --k-done-fg: #bff0d3;
+  --k-next-bd: #56769c; --k-next-fg: #a9c2e0;
+}
+.chip { box-shadow: 0 1px 2px rgba(0,0,0,.08) !important; }
+.chip.s-upcoming { background: var(--k-sched-bg); border: 1px solid var(--k-sched-bd); }
+.chip.s-upcoming .chip-main, .chip.s-upcoming .chip-sub { color: var(--k-sched-fg); }
+.chip.s-today { background: var(--c-today); border: 1px solid var(--c-today); color: #fff; }
+.chip.s-overdue { background: var(--c-overdue); border: 1px solid var(--c-overdue); color: #fff; }
+.chip.s-today .chip-main, .chip.s-today .chip-sub, .chip.s-overdue .chip-main, .chip.s-overdue .chip-sub, .chip.s-today .tag, .chip.s-overdue .tag { color: #fff; }
+.chip.s-today .med, .chip.s-overdue .med { background: #fff; box-shadow: none; }
+.chip.s-today .med { color: var(--c-today); }
+.chip.s-overdue .med { color: var(--c-overdue); }
+.chip.s-postponed { background: var(--k-post-bg); border: 1px solid var(--k-post-bd); }
+.chip.s-postponed .chip-main, .chip.s-postponed .chip-sub { color: var(--k-post-fg); }
+.chip.s-done { background: var(--k-done-bg); border: 1px solid var(--k-done-bd); }
+.chip.s-done .chip-main, .chip.s-done .chip-sub { color: var(--k-done-fg); }
+.chip.s-projected { background: transparent; border: 1.5px dashed var(--k-next-bd); }
+.chip.s-projected .chip-main, .chip.s-projected .chip-sub { color: var(--k-next-fg); }
+.chip.s-projected .med { color: var(--k-next-fg); box-shadow: inset 0 0 0 1.5px var(--k-next-fg); }
+button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,.18) !important; }
+.chip.s-today .med.m-today { animation: ring-today-w 2.4s ease-out infinite; }
+.chip.s-overdue .med.m-overdue { animation: ring-overdue-w 1.8s ease-out infinite; }
+@keyframes ring-today-w { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.7); } 70%, 100% { box-shadow: 0 0 0 6px rgba(255,255,255,0); } }
+@keyframes ring-overdue-w { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.8); } 70%, 100% { box-shadow: 0 0 0 7px rgba(255,255,255,0); } }
+.grid.focus-today .chip.s-today, .grid.focus-overdue .chip.s-overdue { box-shadow: 0 0 0 3px color-mix(in srgb, var(--chip-c) 40%, transparent) !important; }
+.legend-item .med.m-projected { color: var(--k-next-fg); box-shadow: inset 0 0 0 1.5px var(--k-next-fg); }
+
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#board"><span class="logo" id="logo"></span><span class="brand-text">Hirata Cleaning Plan<span class="brand-sub">Loader tool cleaning</span></span><span id="version" class="version"></span></a>
+    <div id="topbar-right" class="topbar-right"></div>
+  </header>
+  <main id="main"><p class="muted">Starting…</p></main>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script>
+/* js/config.js */
+/** Hirata Cleaning Plan - config.js: names and constants used everywhere. */
+window.HCP = window.HCP || {};
+window.HCP.config = {
+  app_name: 'Hirata Cleaning Plan',
+  version: '0.7.0',
+  idb_name: 'hirata-cleaning-plan',   // remembers the data folder per PC
+  data_file: 'hirata_data.json',
+  prev_file: 'hirata_data.prev.json',
+  local_prefix: 'hcp_'
+};
+
+</script>
+  <script>
+/* js/rules.js */
+/**
+ * Hirata Cleaning Plan - rules.js
+ *
+ * ALL date, schedule and status logic (PLAN.md section 6, R1-R16).
+ * Pure functions: no file access, no DOM. Dates are 'YYYY-MM-DD' strings
+ * (local Europe/Vienna date); weekday numbers: 1 = Monday ... 7 = Sunday.
+ */
+window.HCP = window.HCP || {};
+window.HCP.rules = (function () {
+  'use strict';
+
+  var DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  /* --- Date helpers ------------------------------------------------- */
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function parse(d) { var p = d.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); }
+  function fmt(dt) { return dt.getUTCFullYear() + '-' + pad(dt.getUTCMonth() + 1) + '-' + pad(dt.getUTCDate()); }
+  function isDate(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && fmt(parse(s)) === s; }
+  function addDays(d, n) { var x = parse(d); x.setUTCDate(x.getUTCDate() + n); return fmt(x); }
+  function weekday(d) { var w = parse(d).getUTCDay(); return w === 0 ? 7 : w; }
+  function isWeekend(d) { return weekday(d) > 5; }
+  /** Weekend -> following Monday; working days unchanged. */
+  function toWorkingDay(d) { var w = weekday(d); return w === 6 ? addDays(d, 2) : w === 7 ? addDays(d, 1) : d; }
+  /** First working day strictly after d. */
+  function nextWorkingDay(d) { return toWorkingDay(addDays(d, 1)); }
+  /** Weekend -> previous Friday (used to place a weekend completion in the grid). */
+  function toPrevWorkingDay(d) { var w = weekday(d); return w === 6 ? addDays(d, -1) : w === 7 ? addDays(d, -2) : d; }
+  function mondayOf(d) { return addDays(d, 1 - weekday(d)); }
+  function daysInMonth(y, m) { return new Date(Date.UTC(y, m, 0)).getUTCDate(); }   // m: 1-12
+  /** Day `day` of month m (m may run past 12), clamped to the month's last day. */
+  function monthDate(y, m, day) {
+    y += Math.floor((m - 1) / 12);
+    m = ((m - 1) % 12 + 12) % 12 + 1;
+    return y + '-' + pad(m) + '-' + pad(Math.min(day, daysInMonth(y, m)));
+  }
+  function maxDate(a, b) { return a > b ? a : b; }
+  function diffDays(a, b) { return Math.round((parse(b) - parse(a)) / 864e5); }   // b - a in days
+
+  /** Today's local date (R16). config.fixed_today overrides it (tests). */
+  function today() {
+    var c = window.HCP.config;
+    if (c && c.fixed_today) return c.fixed_today;
+    var n = new Date();
+    return n.getFullYear() + '-' + pad(n.getMonth() + 1) + '-' + pad(n.getDate());
+  }
+
+  /** ISO week number (for "Week 47"). */
+  function isoWeek(d) {
+    var x = parse(d);
+    x.setUTCDate(x.getUTCDate() + 4 - (x.getUTCDay() || 7));
+    var yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+    return Math.ceil(((x - yearStart) / 864e5 + 1) / 7);
+  }
+
+  function shortDate(d) { return +d.slice(8, 10) + ' ' + MONTHS[+d.slice(5, 7) - 1]; }
+  function longDate(d) { return shortDate(d) + ' ' + d.slice(0, 4); }
+  function dayName(d) { return DAY_NAMES[weekday(d)]; }
+
+  /* --- Schedule rules (R3, R4, R11, R13) ---------------------------- */
+
+  /** First rule date on or after `from` -> {pattern, nominal}. nominal is the
+   *  unadjusted rule date (months: before the weekend shift) so monthly
+   *  schedules never drift. */
+  function firstRuleDate(tool, from) {
+    if (tool.schedule_type === 'months') {
+      var y = +from.slice(0, 4), m = +from.slice(5, 7);
+      for (var i = 0; i < 36; i++) {
+        var nom = monthDate(y, m + i, tool.month_day);
+        var adj = toWorkingDay(nom);
+        if (adj >= from) return { pattern: adj, nominal: nom };
+      }
+    }
+    var d = from;
+    while (weekday(d) !== tool.weekday) d = addDays(d, 1);
+    return { pattern: d, nominal: d };
+  }
+
+  /** The rule occurrence after the one whose nominal date is given. */
+  function stepRule(tool, nominal) {
+    if (tool.schedule_type === 'months') {
+      var nom = monthDate(+nominal.slice(0, 4), +nominal.slice(5, 7) + tool.interval, tool.month_day);
+      return { pattern: toWorkingDay(nom), nominal: nom };
+    }
+    var p = addDays(nominal, 7 * tool.interval);
+    return { pattern: p, nominal: p };
+  }
+
+  /** Exceptions (R19): an Admin moved or skipped one future cycle of a tool.
+   *  exception: {id, tool_id, nominal, action: 'move'|'skip', new_date} - matched by the cycle's nominal date. */
+  function exceptionFor(exceptions, toolId, nominal) {
+    return (exceptions || []).find(function (e) { return e.tool_id === toolId && e.nominal === nominal; }) || null;
+  }
+
+  /** R4: next cleaning after a completion - back to the pattern, strictly after the completion date,
+   *  with exceptions applied (skipped cycles are passed over, a moved cycle gets its new date).
+   *  -> {pattern, nominal, due, used: [exception ids consumed]} */
+  function nextAfterCompletion(tool, task, completionDate, exceptions) {
+    var used = [];
+    var r = stepRule(tool, task.nominal_date || task.pattern_date);
+    for (var guard = 0; guard < 2000; guard++) {
+      if (r.pattern <= completionDate) { r = stepRule(tool, r.nominal); continue; }
+      var ex = exceptionFor(exceptions, tool.id, r.nominal);
+      if (ex && ex.action === 'skip') { used.push(ex.id); r = stepRule(tool, r.nominal); continue; }
+      if (ex && ex.action === 'move') {
+        used.push(ex.id);
+        if (ex.new_date > completionDate) return { pattern: r.pattern, nominal: r.nominal, due: ex.new_date, used: used };
+      }
+      break;
+    }
+    return { pattern: r.pattern, nominal: r.nominal, due: r.pattern, used: used };
+  }
+
+  /** R13: future cycles in [from, to] after the open task, with exceptions.
+   *  -> [{date, pattern, nominal, moved, skipped}] (skipped ones are listed so an Admin can restore them) */
+  function projected(tool, openTask, from, to, exceptions) {
+    var out = [];
+    if (!openTask) return out;
+    var r = { nominal: openTask.nominal_date || openTask.pattern_date };
+    for (var i = 0; i < 400; i++) {
+      r = stepRule(tool, r.nominal);
+      if (r.pattern > addDays(to, 400)) break;
+      var ex = exceptionFor(exceptions, tool.id, r.nominal);
+      var date = ex && ex.action === 'move' ? ex.new_date : r.pattern;
+      if (r.pattern > to && date > to) { if (r.pattern > addDays(to, 60)) break; continue; }
+      if (date >= from && date <= to && date > openTask.due_date) {
+        out.push({ date: date, pattern: r.pattern, nominal: r.nominal, moved: !!(ex && ex.action === 'move'), skipped: !!(ex && ex.action === 'skip') });
+      }
+    }
+    return out;
+  }
+
+  /** Next n rule dates from a date (Settings preview). */
+  function previewDates(tool, from, n) {
+    var out = [];
+    if (validateSchedule(tool)) return out;
+    var r = firstRuleDate(tool, from);
+    out.push(r.pattern);
+    while (out.length < n) { r = stepRule(tool, r.nominal); out.push(r.pattern); }
+    return out;
+  }
+
+  function describeSchedule(tool) {
+    var n = tool.interval;
+    if (tool.schedule_type === 'months') {
+      return (n === 1 ? 'Every month' : 'Every ' + n + ' months') + ' on day ' + tool.month_day;
+    }
+    return (n === 1 ? 'Every week' : 'Every ' + n + ' weeks') + ' on ' + DAY_NAMES[tool.weekday];
+  }
+
+  /** Returns an error text, or '' when the schedule fields are valid. */
+  function validateSchedule(t) {
+    if (t.schedule_type !== 'weeks' && t.schedule_type !== 'months') return 'Choose a schedule type.';
+    if (!(Number.isInteger(t.interval) && t.interval >= 1 && t.interval <= 52)) return 'Repeat every: enter a whole number from 1 to 52.';
+    if (t.schedule_type === 'weeks' && !(Number.isInteger(t.weekday) && t.weekday >= 1 && t.weekday <= 5)) return 'Choose a weekday (Monday to Friday).';
+    if (t.schedule_type === 'months' && !(Number.isInteger(t.month_day) && t.month_day >= 1 && t.month_day <= 31)) return 'Day of month: enter 1 to 31.';
+    if (!isDate(t.start_date)) return 'Enter a valid start date.';
+    return '';
+  }
+
+  /* --- Status (R1) -------------------------------------------------- */
+
+  /** done | down | overdue | today | postponed | upcoming */
+  function taskStatus(task, tool, todayStr) {
+    if (task.status === 'completed') return 'done';
+    if (tool && tool.status === 'down') return 'down';
+    if (task.due_date < todayStr) return 'overdue';
+    if (task.due_date === todayStr) return 'today';
+    if (task.postpone_count > 0) return 'postponed';
+    return 'upcoming';
+  }
+
+  /* --- Weekly board (R13, R14, R14b, R14c) -------------------------- */
+
+  /**
+   * -> { monday, days: [5 dates], rows: [{tool, cells: [[item]x5], hasItems}] }
+   * item: {kind: 'task'|'projected', task?, date, status, carried?}
+   */
+  function buildBoard(data, weekDate, todayStr) {
+    var monday = mondayOf(weekDate);
+    var friday = addDays(monday, 4);
+    var days = [0, 1, 2, 3, 4].map(function (i) { return addDays(monday, i); });
+    var thisWeek = mondayOf(todayStr) === monday;
+    var carryCol = days.indexOf(toPrevWorkingDay(todayStr));
+
+    var tools = data.tools.filter(function (t) { return !t.archived; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+
+    var rows = tools.map(function (tool) {
+      var cells = [[], [], [], [], []];
+      var tasks = data.tasks.filter(function (t) { return t.tool_id === tool.id; });
+      var openScheduled = null;
+
+      tasks.forEach(function (t) {
+        var st = taskStatus(t, tool, todayStr);
+        if (t.status === 'completed') {
+          var cd = toPrevWorkingDay(String(t.completed_at).slice(0, 10));
+          var ci = days.indexOf(cd);
+          if (ci >= 0) cells[ci].push({ kind: 'task', task: t, date: cd, status: 'done' });
+          return;
+        }
+        if (!t.is_one_off) openScheduled = t;
+        var di = days.indexOf(t.due_date);
+        if (di >= 0) cells[di].push({ kind: 'task', task: t, date: t.due_date, status: st });
+        // R14b: overdue from an earlier week also shows in today's column
+        if (thisWeek && carryCol >= 0 && st === 'overdue' && t.due_date < monday) {
+          cells[carryCol].push({ kind: 'task', task: t, date: t.due_date, status: 'overdue', carried: true });
+        }
+      });
+
+      if (tool.status !== 'down' && openScheduled) {
+        projected(tool, openScheduled, monday, friday, data.exceptions).forEach(function (p) {
+          cells[days.indexOf(p.date)].push({ kind: 'projected', date: p.date, status: 'projected', pattern: p.pattern, nominal: p.nominal, moved: p.moved, skipped: p.skipped });
+        });
+      }
+      var hasItems = cells.some(function (c) { return c.length > 0; });
+      return { tool: tool, cells: cells, hasItems: hasItems };
+    });
+
+    return { monday: monday, days: days, rows: rows, isThisWeek: thisWeek };
+  }
+
+  /** Tasks for the daily Teams message: overdue + due today, active tools. */
+  function dailySummary(data, todayStr) {
+    var out = { overdue: [], today: [] };
+    data.tasks.forEach(function (t) {
+      if (t.status !== 'open') return;
+      var tool = data.tools.find(function (x) { return x.id === t.tool_id; });
+      if (!tool || tool.archived || tool.status === 'down') return;
+      if (t.due_date < todayStr) out.overdue.push({ tool: tool.name, date: t.due_date });
+      else if (t.due_date === todayStr) out.today.push({ tool: tool.name, date: t.due_date });
+    });
+    var byName = function (a, b) { return a.tool.localeCompare(b.tool); };
+    out.overdue.sort(byName); out.today.sort(byName);
+    return out;
+  }
+
+  return {
+    pad: pad, isDate: isDate, addDays: addDays, weekday: weekday, isWeekend: isWeekend,
+    toWorkingDay: toWorkingDay, nextWorkingDay: nextWorkingDay, toPrevWorkingDay: toPrevWorkingDay,
+    mondayOf: mondayOf, monthDate: monthDate, maxDate: maxDate, diffDays: diffDays, today: today, isoWeek: isoWeek,
+    shortDate: shortDate, longDate: longDate, dayName: dayName, DAY_NAMES: DAY_NAMES,
+    firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
+    projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
+    validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
+    dailySummary: dailySummary
+  };
+})();
+
+</script>
+  <script>
+/* js/adapters/storage-folder.js */
+/**
+ * Hirata Cleaning Plan - adapters/storage-folder.js
+ *
+ * Storage adapter for today: a folder the person picks (data\ next to
+ * index.html), through the File System Access API (Edge/Chrome). The folder
+ * handle is kept in IndexedDB so later visits need one click.
+ *
+ * Every storage adapter has the same interface, all Promise-based, so the
+ * store can swap this one for a server API later without other changes:
+ *
+ *   id                      'folder'
+ *   isSupported()           true when this browser can use it
+ *   unsupportedMessage()    what to tell the person otherwise
+ *   hasSaved()              -> bool   a connection is remembered
+ *   connect()               -> void   first use (asks the person)
+ *   reconnect({silent})     -> bool   later visits (false = ask again). silent:
+ *                                     never prompt - a browser prompt needs a click
+ *   savedLabel()            -> name of the remembered connection, or null
+ *   label()                 name to show (the folder name)
+ *   read(path)              -> text | null (null = no such file)
+ *   write(path, text)       -> void
+ *   list(dir)               -> [{name, size}]  files in a sub-folder
+ *   remove(path)            -> void
+ *
+ * Paths are relative, '/'-separated: 'hirata_data.json', 'backups/x.json'.
+ * Only the store calls this module.
+ */
+window.HCP = window.HCP || {};
+window.HCP.adapters = window.HCP.adapters || {};
+window.HCP.adapters.storageFolder = (function () {
+  'use strict';
+
+  var cfg = window.HCP.config;
+  var IDB_STORE = 'handles';
+  var IDB_KEY = 'data-folder';
+  var dir = null;   // FileSystemDirectoryHandle once connected
+
+  function isSupported() { return typeof window.showDirectoryPicker === 'function'; }
+
+  function unsupportedMessage() {
+    return 'This app needs the File System Access API. Please open it in Microsoft Edge or Google Chrome.';
+  }
+
+  /* --- IndexedDB: remember the folder handle ------------------------ */
+
+  function idb() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open(cfg.idb_name, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(IDB_STORE); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+
+  function idbPut(value) {
+    return idb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put(value, IDB_KEY);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+      });
+    });
+  }
+
+  function idbGet() {
+    return idb().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(IDB_STORE, 'readonly');
+        var req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  /* --- Connecting --------------------------------------------------- */
+
+  function hasSaved() {
+    return idbGet().then(function (h) { return !!h; }).catch(function () { return false; });
+  }
+
+  function connect() {
+    return window.showDirectoryPicker({ id: 'hcp-data', mode: 'readwrite' }).then(function (handle) {
+      dir = handle;
+      return idbPut(handle).catch(function () { /* still usable this session */ });
+    });
+  }
+
+  function reconnect(o) {
+    var silent = !!(o && o.silent);
+    return idbGet().then(function (handle) {
+      if (!handle) return false;
+      return handle.queryPermission({ mode: 'readwrite' }).then(function (perm) {
+        if (perm === 'granted' || silent) return perm;
+        return handle.requestPermission({ mode: 'readwrite' });   // needs a click
+      }).then(function (perm) {
+        if (perm !== 'granted') return false;
+        dir = handle;
+        return true;
+      });
+    });
+  }
+
+  function savedLabel() {
+    return idbGet().then(function (h) { return h && h.name ? h.name : null; }).catch(function () { return null; });
+  }
+
+  function label() { return dir && dir.name ? dir.name : null; }
+
+  /* --- Files -------------------------------------------------------- */
+
+  function need() {
+    if (!dir) throw new Error('No data folder is connected');
+    return dir;
+  }
+
+  /** Resolve 'a/b/file.json' to [folder handle, 'file.json']. */
+  function locate(path, create) {
+    var parts = String(path).split('/').filter(Boolean);
+    var name = parts.pop();
+    var p = Promise.resolve(need());
+    parts.forEach(function (sub) {
+      p = p.then(function (d) { return d.getDirectoryHandle(sub, { create: !!create }); });
+    });
+    return p.then(function (d) { return [d, name]; });
+  }
+
+  function read(path) {
+    return locate(path, false)
+      .then(function (loc) { return loc[0].getFileHandle(loc[1]); })
+      .then(function (fh) { return fh.getFile(); })
+      .then(function (file) { return file.text(); })
+      .catch(function (e) {
+        if (e && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError')) return null;
+        throw e;
+      });
+  }
+
+  function write(path, text) {
+    return locate(path, true)
+      .then(function (loc) { return loc[0].getFileHandle(loc[1], { create: true }); })
+      .then(function (fh) { return fh.createWritable(); })
+      .then(function (w) { return w.write(text).then(function () { return w.close(); }); });
+  }
+
+  function list(sub) {
+    return need().getDirectoryHandle(sub, { create: true }).then(function (d) {
+      return (async function () {
+        var out = [];
+        for await (var entry of d.values()) {
+          if (entry.kind !== 'file') continue;
+          var file = await entry.getFile();
+          out.push({ name: entry.name, size: file.size });
+        }
+        return out;
+      })();
+    });
+  }
+
+  function remove(path) {
+    return locate(path, false).then(function (loc) { return loc[0].removeEntry(loc[1]); });
+  }
+
+  return {
+    id: 'folder',
+    isSupported: isSupported,
+    unsupportedMessage: unsupportedMessage,
+    hasSaved: hasSaved,
+    connect: connect,
+    reconnect: reconnect,
+    savedLabel: savedLabel,
+    label: label,
+    read: read,
+    write: write,
+    list: list,
+    remove: remove
+  };
+})();
+
+</script>
+  <script>
+/* js/store.js */
+/**
+ * Hirata Cleaning Plan - store.js
+ *
+ * The ONLY module that reads/writes the plan file (through the storage
+ * adapter) and the only place actions and permissions live. Screens call
+ * these functions; all date logic comes from rules.js.
+ *
+ * Save rule R17: every action re-reads the file, applies itself to that
+ * fresh copy (re-checking it is still allowed), bumps `revision`, parks the
+ * old file as *.prev.json and writes. Actions in this tab run one at a time.
+ */
+window.HCP = window.HCP || {};
+window.HCP.store = (function () {
+  'use strict';
+
+  var R = window.HCP.rules;
+  var cfg = window.HCP.config;
+  var SCHEMA_VERSION = 1;
+
+  var adapter = null;
+  var data = null;          // last loaded copy (for screens only, never the truth for writes)
+  var admin = null;         // {user_id} while an Admin is logged in (this tab)
+  var queue = Promise.resolve();
+  var recovered = false;
+
+  // Starting tools (from the Excel). Weekday and start week are placeholders spread over the
+  // week so the board is balanced; the Admin sets the real schedules in Settings.
+  // [name, tool owner, MNT owner, every N weeks, weekday 1=Mon..5=Fri, start week offset]
+  var SEED_TOOLS = [
+    ['AOP901', 'Hammad Ali', 'Breitenberger Gerhard', 2, 2, 0],
+    ['BLY901', 'Marco Trummer', 'Corpuz Jomari', 1, 1, 0],
+    ['LAC901', 'Peng Chongnan', 'Chen Cong', 1, 2, 0],
+    ['DEY901', 'Valeriia Kyrychenko', 'Edina Vunic', 2, 4, 1],
+    ['ACY901', 'Karam / Eric Zeichner', 'Breitenberger Gerhard', 2, 1, 1],
+    ['DPM901', 'Jovan Tosic', 'Anand Gopal', 2, 3, 0],
+    ['ECP901', 'Marcin Sliwowski', 'Mokhberi Alireza', 2, 3, 1],
+    ['DFS901', 'Hammad Ali', 'Thomas Kelly', 2, 4, 0],
+    ['AOI901', 'Juliet Raya', 'Khaled Ismail', 4, 5, 0],
+    ['NCC901', 'Govardhna Rao Bondalapati', 'Mokhberi Alireza', 2, 2, 1],
+    ['TLA901', 'Lukas Bursch', 'Aboutahir Fatima Zahra', 4, 1, 2],
+    ['CPM901', 'Petar Jurjevic', 'De Los Santos Tristan', 2, 5, 1]
+  ];
+
+  // The real operators (from the cleaning plan Excel). Admins can add/edit/deactivate in Settings.
+  var SEED_OPERATORS = ['Valeriia Kyrychenko', 'Mohamed Ibrahem', 'Kent Derrens Plugio', 'Anja KRALJ', 'Volodymyr SAMBURSKYI', 'Talal AL-EFFAH'];
+
+  /* --- Small helpers ------------------------------------------------ */
+
+  function err(code, msg) { var e = new Error(msg); e.code = code; return e; }
+  function newId(p) { return p + '_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+  function clean(s) { return s == null ? '' : String(s).trim(); }
+  function find(list, id) { return list.find(function (x) { return x.id === id; }) || null; }
+  function nowStamp() {
+    if (cfg.fixed_today) return cfg.fixed_today + 'T12:00:00';
+    var n = new Date(), p = R.pad;
+    return R.today() + 'T' + p(n.getHours()) + ':' + p(n.getMinutes()) + ':' + p(n.getSeconds());
+  }
+
+  function setAdapter(a) { adapter = a; }
+  function current() { return data; }
+  function wasRecovered() { return recovered; }
+
+  /** Find a person by user id (what the name list sends) or by short ID. */
+  function findUser(d, ref) {
+    var key = clean(ref).toUpperCase();
+    if (!key) return null;
+    return d.users.find(function (x) { return x.id === clean(ref); }) ||
+      d.users.find(function (x) { return x.operator_id.toUpperCase() === key; }) || null;
+  }
+
+  function userByOperatorId(d, ref) {
+    if (!clean(ref)) throw err('noid', 'Choose your name.');
+    var u = findUser(d, ref);
+    if (!u) throw err('badid', 'This person is not in the list any more. The board will refresh.');
+    if (!u.active) throw err('badid', u.name + ' is deactivated.');
+    return u;
+  }
+
+  /** Lookup for screens (no error). */
+  function lookupOperator(ref) {
+    if (!data) return null;
+    var u = findUser(data, ref);
+    return u && u.active ? u : null;
+  }
+
+  /** Active people for the name list, sorted by name. */
+  function activeUsers() {
+    if (!data) return [];
+    return data.users.filter(function (u) { return u.active; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  }
+  function admins() { return activeUsers().filter(function (u) { return u.role === 'admin'; }); }
+
+  /** Next free short ID like OP003 (people never need to type it). */
+  function nextShortId(d) {
+    var n = 1;
+    while (d.users.some(function (u) { return u.operator_id === 'OP' + (n < 10 ? '00' : n < 100 ? '0' : '') + n; })) n++;
+    return 'OP' + (n < 10 ? '00' : n < 100 ? '0' : '') + n;
+  }
+
+  function requireAdmin(d) {
+    var u = admin && find(d.users, admin.user_id);
+    if (!u || !u.active || u.role !== 'admin') {
+      admin = null;
+      throw err('forbidden', 'Only an Admin can do this. Please log in as Admin.');
+    }
+    return u;
+  }
+
+  function hist(d, row) {
+    d.history.push({
+      id: newId('h'), tool_id: row.tool_id || null, task_id: row.task_id || null, action: row.action,
+      user_id: row.user_id || null, at: nowStamp(), reason: clean(row.reason), comment: clean(row.comment),
+      old_date: row.old_date || null, new_date: row.new_date || null
+    });
+  }
+
+  function makeTask(toolId, r, oneOff) {
+    return {
+      id: newId('task'), tool_id: toolId, task_type: 'cleaning',
+      pattern_date: r.pattern, nominal_date: r.nominal || r.pattern, due_date: r.pattern,
+      status: 'open', is_one_off: oneOff ? 1 : 0, postpone_count: 0, last_postpone_reason: '',
+      completed_by: null, completed_at: null, completion_comment: '', generated_from: null
+    };
+  }
+
+  function openScheduled(d, toolId) {
+    return d.tasks.find(function (t) { return t.tool_id === toolId && t.status === 'open' && !t.is_one_off; }) || null;
+  }
+
+  /** R2/R4: create the next scheduled task unless one is already open. */
+  function ensureNext(d, tool, prev, completionDate) {
+    if (openScheduled(d, tool.id)) return null;
+    var r = R.nextAfterCompletion(tool, prev, completionDate, d.exceptions);
+    var n = makeTask(tool.id, r);
+    n.due_date = r.due;
+    n.generated_from = prev.id;
+    if (r.used.length) {
+      n.used_exceptions = (d.exceptions || []).filter(function (e) { return r.used.indexOf(e.id) >= 0; });
+      d.exceptions = (d.exceptions || []).filter(function (e) { return r.used.indexOf(e.id) < 0; });
+    }
+    d.tasks.push(n);
+    return n;
+  }
+
+  /** Remove a generated task and give back the cycle exceptions it used. */
+  function removeGenerated(d, task) {
+    d.tasks.splice(d.tasks.indexOf(task), 1);
+    if (task.used_exceptions && task.used_exceptions.length) d.exceptions = (d.exceptions || []).concat(task.used_exceptions);
+  }
+
+  /* --- PIN hashing (PBKDF2, browser Web Crypto) ---------------------- */
+
+  function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join(''); }
+  function unhex(s) { var a = new Uint8Array(s.length / 2); for (var i = 0; i < a.length; i++) a[i] = parseInt(s.substr(i * 2, 2), 16); return a; }
+
+  function derive(pin, salt, iter) {
+    var subtle = window.crypto.subtle;
+    return subtle.importKey('raw', new TextEncoder().encode(String(pin)), 'PBKDF2', false, ['deriveBits'])
+      .then(function (key) { return subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: iter, hash: 'SHA-256' }, key, 256); })
+      .then(hex);
+  }
+
+  function hashPin(pin) {
+    if (!/^\d{4,8}$/.test(String(pin || ''))) return Promise.reject(err('badpin', 'The PIN must be 4 to 8 digits.'));
+    var salt = window.crypto.getRandomValues(new Uint8Array(16));
+    return derive(pin, salt, 100000).then(function (h) { return 'pbkdf2$100000$' + hex(salt) + '$' + h; });
+  }
+
+  function verifyPin(pin, stored) {
+    if (!stored) return Promise.resolve(false);
+    var p = stored.split('$');
+    return derive(pin, unhex(p[2]), +p[1]).then(function (h) { return h === p[3]; });
+  }
+
+  /* --- Load and save (R17) ------------------------------------------ */
+
+  function parseFile(text) {
+    var d = JSON.parse(text);
+    if (!d || !Array.isArray(d.tools) || !Array.isArray(d.tasks)) throw new Error('not a plan file');
+    return d;
+  }
+
+  /** -> plan data, or null when the folder has no plan yet. */
+  function load() {
+    recovered = false;
+    return adapter.read(cfg.data_file).then(function (text) {
+      if (text === null) { data = null; return null; }
+      try { data = parseFile(text); return data; }
+      catch (e) {
+        return adapter.read(cfg.prev_file).then(function (prev) {
+          if (prev === null) throw err('corrupt', 'The plan file is damaged and there is no backup copy.');
+          data = parseFile(prev);
+          recovered = true;
+          return data;
+        });
+      }
+    });
+  }
+
+  /** Run fn(freshData) and save. fn may throw to cancel. Serialized per tab. */
+  function mutate(fn, who) {
+    var job = queue.then(function () {
+      return adapter.read(cfg.data_file).then(function (text) {
+        var fresh, oldText = text;
+        if (text === null) throw err('nofile', 'The plan file is missing. Reload the page.');
+        try { fresh = parseFile(text); }
+        catch (e) {
+          // live file torn: rebuild from the backup copy
+          return adapter.read(cfg.prev_file).then(function (prev) {
+            if (prev === null) throw err('corrupt', 'The plan file is damaged. Ask the Admin to restore a backup.');
+            return finish(parseFile(prev), prev);
+          });
+        }
+        return finish(fresh, oldText);
+
+        function finish(d, previousText) {
+          var result = fn(d);
+          d.revision = (d.revision || 0) + 1;
+          d.saved_at = nowStamp();
+          d.saved_by = who || null;
+          return adapter.write(cfg.prev_file, previousText)
+            .then(function () { return adapter.write(cfg.data_file, JSON.stringify(d, null, 1)); })
+            .then(function () { data = d; return result; });
+        }
+      });
+    });
+    queue = job.catch(function () {});
+    return job;
+  }
+
+  /* --- First run ---------------------------------------------------- */
+
+  function createPlan(adminPin) {
+    return adapter.read(cfg.data_file).then(function (text) {
+      if (text !== null) throw err('exists', 'A plan file already exists in this folder.');
+      return hashPin(adminPin);
+    }).then(function (pinHash) {
+      var stamp = nowStamp();
+      var thisMonday = R.mondayOf(R.today());
+      var d = {
+        schema_version: SCHEMA_VERSION, revision: 1, created_at: stamp, saved_at: stamp, saved_by: 'ADMIN01',
+        users: [{ id: newId('user'), operator_id: 'ADMIN01', name: 'Khurana', role: 'admin', pin_hash: pinHash, active: true }]
+          .concat(SEED_OPERATORS.map(function (n, i) {
+            return { id: newId('user'), operator_id: 'OP00' + (i + 1), name: n, role: 'operator', pin_hash: null, active: true };
+          })),
+        tools: [], tasks: [], history: [], exceptions: [],
+        settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white' }
+      };
+      SEED_TOOLS.forEach(function (s) {
+        var tool = {
+          id: newId('tool'), name: s[0], tool_owner: s[1], mnt_owner: s[2],
+          schedule_type: 'weeks', interval: s[3], weekday: s[4], month_day: null,
+          start_date: R.maxDate(R.today(), R.addDays(thisMonday, 7 * s[5])), status: 'active', down_reason: '', down_since: null, archived: false
+        };
+        tool.start_date = R.firstRuleDate(tool, tool.start_date).pattern;   // start date = first cleaning, so each tool shows its own date
+        d.tools.push(tool);
+        d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
+      });
+      return adapter.write(cfg.data_file, JSON.stringify(d, null, 1)).then(function () { data = d; return d; });
+    });
+  }
+
+  /* --- Operator actions --------------------------------------------- */
+
+  function openTaskOrThrow(d, taskId) {
+    var t = find(d.tasks, taskId);
+    if (!t) throw err('conflict', 'This cleaning no longer exists. The board will refresh.');
+    if (t.status !== 'open') throw err('conflict', 'This cleaning was already completed by someone else. The board will refresh.');
+    return t;
+  }
+
+  /** R6 */
+  function complete(taskId, operatorId, comment) {
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var t = openTaskOrThrow(d, taskId);
+      var tool = find(d.tools, t.tool_id);
+      var before = { status: t.status, completed_by: t.completed_by, completed_at: t.completed_at, completion_comment: t.completion_comment };
+      t.status = 'completed';
+      t.completed_by = u.id;
+      t.completed_at = nowStamp();
+      t.completion_comment = clean(comment);
+      hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'completed', user_id: u.id, comment: comment, old_date: t.due_date });
+      var next = (!t.is_one_off && tool) ? ensureNext(d, tool, t, R.today()) : null;
+      return { task: t, next: next, user: u,
+        undo: { kind: 'complete', taskId: t.id, userId: u.id, nextId: next ? next.id : null, before: before } };
+    }, clean(operatorId).toUpperCase());
+  }
+
+  /** R5. newDate and reason optional. -> {task, movedFromWeekend} */
+  function postpone(taskId, operatorId, newDate, reason) {
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var t = openTaskOrThrow(d, taskId);
+      var today = R.today(), target, moved = false;
+      if (clean(newDate)) {
+        if (!R.isDate(newDate)) throw err('baddate', 'Enter a valid new date.');
+        target = R.toWorkingDay(newDate);
+        moved = target !== newDate;
+        if (target < today) throw err('baddate', 'The new date cannot be in the past.');
+        if (target === t.due_date) throw err('baddate', 'The new date is the same as the current date.');
+      } else {
+        target = R.nextWorkingDay(R.maxDate(t.due_date, today));
+      }
+      var old = t.due_date;
+      var before = { due_date: t.due_date, postpone_count: t.postpone_count || 0, last_postpone_reason: t.last_postpone_reason || '' };
+      t.due_date = target;
+      t.postpone_count = (t.postpone_count || 0) + 1;
+      t.last_postpone_reason = clean(reason);
+      hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'postponed', user_id: u.id, reason: reason, old_date: old, new_date: target });
+      return { task: t, movedFromWeekend: moved, user: u,
+        undo: { kind: 'postpone', taskId: t.id, userId: u.id, newDate: target, before: before } };
+    }, clean(operatorId).toUpperCase());
+  }
+
+  /** Undo a Complete or Postpone right after it (the screen offers it for a few seconds).
+   *  Refused if someone changed the cleaning in the meantime. */
+  function undo(token) {
+    return mutate(function (d) {
+      var t = find(d.tasks, token.taskId);
+      var changed = err('conflict', 'Cannot undo: this cleaning was changed in the meantime.');
+      if (!t) throw changed;
+      if (token.kind === 'complete') {
+        if (t.status !== 'completed' || t.completed_by !== token.userId) throw changed;
+        var next = token.nextId ? find(d.tasks, token.nextId) : null;
+        if (next && (next.status !== 'open' || next.postpone_count)) throw changed;
+        if (next) removeGenerated(d, next);
+        Object.assign(t, token.before);
+        hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'undone', user_id: token.userId, comment: 'Undo of Completed' });
+      } else if (token.kind === 'postpone') {
+        if (t.status !== 'open' || t.due_date !== token.newDate || t.postpone_count !== token.before.postpone_count + 1) throw changed;
+        var from = t.due_date;
+        Object.assign(t, token.before);
+        hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'undone', user_id: token.userId, comment: 'Undo of Postponed', old_date: from, new_date: t.due_date });
+      } else throw err('invalid', 'Nothing to undo.');
+      return t;
+    }, 'undo');
+  }
+
+  /* --- Admin session ------------------------------------------------ */
+
+  function adminLogin(operatorId, pin) {
+    return load().then(function (d) {
+      if (!d) throw err('nofile', 'No plan file.');
+      var u = findUser(d, operatorId);
+      if (!u || !u.active || u.role !== 'admin') throw err('badlogin', 'Wrong name or PIN.');
+      return verifyPin(pin, u.pin_hash).then(function (ok) {
+        if (!ok) throw err('badlogin', 'Wrong name or PIN.');
+        admin = { user_id: u.id };
+        return u;
+      });
+    });
+  }
+  /** Restore a session (same tab after reload) without the PIN. */
+  function resumeAdmin(userId) {
+    var u = data && find(data.users, userId);
+    if (u && u.active && u.role === 'admin') { admin = { user_id: userId }; return u; }
+    admin = null; return null;
+  }
+  function adminLogout() { admin = null; }
+  function currentAdmin() {
+    if (!admin || !data) return null;
+    var u = find(data.users, admin.user_id);
+    return u && u.active && u.role === 'admin' ? u : null;
+  }
+
+  /* --- Admin: tasks ------------------------------------------------- */
+
+  /** R8 */
+  function reopen(taskId) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var t = find(d.tasks, taskId);
+      if (!t || t.status !== 'completed') throw err('conflict', 'This cleaning is not completed.');
+      var latest = d.tasks.filter(function (x) { return x.tool_id === t.tool_id && x.status === 'completed'; })
+        .sort(function (x, y) { return x.completed_at < y.completed_at ? 1 : -1; })[0];
+      if (latest.id !== t.id) throw err('notlatest', 'Only the most recent completed cleaning of a tool can be reopened.');
+      var gen = d.tasks.find(function (x) { return x.generated_from === t.id && x.status === 'open' && !x.postpone_count; });
+      if (gen) removeGenerated(d, gen);
+      var by = t.completed_by;
+      t.status = 'open'; t.completed_by = null; t.completed_at = null; t.completion_comment = '';
+      hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'reopened', user_id: a.id, comment: 'Was completed by ' + userName(d, by) });
+      return t;
+    }, 'admin');
+  }
+
+  /** R10 edit: move an open cleaning to another working day. */
+  function editTask(taskId, newDate) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var t = openTaskOrThrow(d, taskId);
+      if (!R.isDate(newDate)) throw err('baddate', 'Enter a valid date.');
+      if (R.isWeekend(newDate)) throw err('baddate', 'Choose a working day (Monday to Friday).');
+      var old = t.due_date;
+      t.due_date = newDate;
+      hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'task_edited', user_id: a.id, old_date: old, new_date: newDate });
+      return t;
+    }, 'admin');
+  }
+
+  /** R10 delete: open cleanings only; the schedule continues. */
+  function deleteTask(taskId) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var t = openTaskOrThrow(d, taskId);
+      d.tasks.splice(d.tasks.indexOf(t), 1);
+      hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'task_deleted', user_id: a.id, old_date: t.due_date });
+      var tool = find(d.tools, t.tool_id);
+      var next = null;
+      if (!t.is_one_off && tool && !tool.archived) next = ensureNext(d, tool, t, R.addDays(R.today(), -1));
+      return { next: next };
+    }, 'admin');
+  }
+
+  /** R9 */
+  function addOneOff(toolId, date, comment) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool || tool.archived) throw err('notfound', 'Choose a tool.');
+      if (!R.isDate(date)) throw err('baddate', 'Enter a valid date.');
+      if (R.isWeekend(date)) throw err('baddate', 'Choose a working day (Monday to Friday).');
+      if (date < R.today()) throw err('baddate', 'The date cannot be in the past.');
+      var t = makeTask(tool.id, { pattern: date }, true);
+      d.tasks.push(t);
+      hist(d, { tool_id: tool.id, task_id: t.id, action: 'task_added', user_id: a.id, new_date: date, comment: comment || 'One-off cleaning' });
+      return t;
+    }, 'admin');
+  }
+
+  /* --- Admin: future cycles (R19) ---------------------------------- */
+
+  /** Check that `nominal` is a real future cycle of the tool (after its open cleaning). */
+  function futureCycle(d, tool, nominal) {
+    var open = openScheduled(d, tool.id);
+    if (!open) throw err('invalid', 'This tool has no open cleaning.');
+    var r = { nominal: open.nominal_date || open.pattern_date };
+    for (var i = 0; i < 600; i++) {
+      r = R.stepRule(tool, r.nominal);
+      if (r.nominal === nominal) return { open: open, cycle: r };
+      if (r.nominal > nominal) break;
+    }
+    throw err('invalid', 'This is not a future cycle of ' + tool.name + '.');
+  }
+
+  function moveCycle(toolId, nominal, newDate) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool || tool.archived) throw err('notfound', 'This tool no longer exists.');
+      var fc = futureCycle(d, tool, nominal);
+      if (!R.isDate(newDate) || R.isWeekend(newDate)) throw err('baddate', 'Choose a working day (Monday to Friday).');
+      if (newDate < R.today()) throw err('baddate', 'The date cannot be in the past.');
+      if (newDate <= fc.open.due_date) throw err('baddate', 'The new date must be after the open cleaning (' + R.longDate(fc.open.due_date) + ').');
+      d.exceptions = (d.exceptions || []).filter(function (e) { return !(e.tool_id === toolId && e.nominal === nominal); });
+      if (newDate !== fc.cycle.pattern) d.exceptions.push({ id: newId('ex'), tool_id: toolId, nominal: nominal, action: 'move', new_date: newDate });
+      hist(d, { tool_id: toolId, action: 'cycle_moved', user_id: a.id, old_date: fc.cycle.pattern, new_date: newDate, comment: 'Future cycle moved' });
+      return { from: fc.cycle.pattern, to: newDate };
+    }, 'admin');
+  }
+
+  function skipCycle(toolId, nominal, reason) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool || tool.archived) throw err('notfound', 'This tool no longer exists.');
+      var fc = futureCycle(d, tool, nominal);
+      d.exceptions = (d.exceptions || []).filter(function (e) { return !(e.tool_id === toolId && e.nominal === nominal); });
+      d.exceptions.push({ id: newId('ex'), tool_id: toolId, nominal: nominal, action: 'skip', new_date: null });
+      hist(d, { tool_id: toolId, action: 'cycle_skipped', user_id: a.id, old_date: fc.cycle.pattern, reason: reason });
+      return fc.cycle.pattern;
+    }, 'admin');
+  }
+
+  /** Undo a move or skip of a future cycle: back to the normal schedule date. */
+  function restoreCycle(toolId, nominal) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var before = (d.exceptions || []).length;
+      d.exceptions = (d.exceptions || []).filter(function (e) { return !(e.tool_id === toolId && e.nominal === nominal); });
+      if (d.exceptions.length === before) throw err('conflict', 'Nothing to restore: this cycle is already on its normal date.');
+      hist(d, { tool_id: toolId, action: 'cycle_restored', user_id: a.id, new_date: R.toWorkingDay(nominal), comment: 'Back to the normal schedule' });
+      return true;
+    }, 'admin');
+  }
+
+  /* --- Admin: tools ------------------------------------------------- */
+
+  var TOOL_FIELDS = ['name', 'tool_owner', 'mnt_owner', 'schedule_type', 'interval', 'weekday', 'month_day', 'start_date'];
+
+  function normalizeTool(input) {
+    var t = {
+      name: clean(input.name).toUpperCase(),
+      tool_owner: clean(input.tool_owner),
+      mnt_owner: clean(input.mnt_owner),
+      schedule_type: input.schedule_type === 'months' ? 'months' : 'weeks',
+      interval: parseInt(input.interval, 10),
+      weekday: input.weekday == null || input.weekday === '' ? null : parseInt(input.weekday, 10),
+      month_day: input.month_day == null || input.month_day === '' ? null : parseInt(input.month_day, 10),
+      start_date: clean(input.start_date)
+    };
+    if (t.schedule_type === 'weeks') t.month_day = null; else t.weekday = null;
+    return t;
+  }
+
+  function validateTool(d, t, id) {
+    if (!t.name) return 'Enter the tool name.';
+    if (t.name.length > 40) return 'The tool name is too long.';
+    var dup = d.tools.find(function (x) { return x.id !== id && x.name.toUpperCase() === t.name; });
+    if (dup) return 'A tool named "' + t.name + '" already exists' + (dup.archived ? ' (archived).' : '.');
+    return R.validateSchedule(t);
+  }
+
+  /** Add (no id) or edit a tool. R3 / R11. */
+  function saveTool(input) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var t = normalizeTool(input);
+      var msg = validateTool(d, t, input.id);
+      if (msg) throw err('invalid', msg);
+
+      if (!input.id) {
+        var tool = Object.assign({ id: newId('tool'), status: 'active', down_reason: '', down_since: null, archived: false }, t);
+        d.tools.push(tool);
+        d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
+        hist(d, { tool_id: tool.id, action: 'tool_changed', user_id: a.id, comment: 'Tool added: ' + R.describeSchedule(tool) });
+        return tool;
+      }
+
+      var old = find(d.tools, input.id);
+      if (!old) throw err('notfound', 'This tool no longer exists.');
+      var changes = TOOL_FIELDS.filter(function (f) { return String(old[f]) !== String(t[f]); });
+      if (!changes.length) return old;
+      var scheduleChanged = changes.some(function (f) { return ['schedule_type', 'interval', 'weekday', 'month_day', 'start_date'].indexOf(f) >= 0; });
+      var before = R.describeSchedule(old);
+      Object.assign(old, t);
+      if (scheduleChanged) d.exceptions = (d.exceptions || []).filter(function (e) { return e.tool_id !== old.id; });
+      if (scheduleChanged && old.status !== 'down') {
+        var open = openScheduled(d, old.id);
+        if (open) {
+          // R11: realign from the old pattern date (or the new start date when it changed)
+          var anchor = changes.indexOf('start_date') >= 0 ? old.start_date : open.pattern_date;
+          var r = R.firstRuleDate(old, anchor);
+          open.pattern_date = r.pattern; open.nominal_date = r.nominal; open.due_date = r.pattern;
+          open.postpone_count = 0; open.last_postpone_reason = '';
+        } else {
+          d.tasks.push(makeTask(old.id, R.firstRuleDate(old, R.maxDate(old.start_date, R.today()))));
+        }
+      }
+      hist(d, { tool_id: old.id, action: 'tool_changed', user_id: a.id,
+        comment: 'Changed: ' + changes.join(', ') + (scheduleChanged ? ' (' + before + ' -> ' + R.describeSchedule(old) + ')' : '') });
+      return old;
+    }, 'admin');
+  }
+
+  /** R12 */
+  function archiveTool(toolId, archived) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool) throw err('notfound', 'This tool no longer exists.');
+      tool.archived = !!archived;
+      if (!archived && tool.status !== 'down' && !openScheduled(d, tool.id)) {
+        d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, R.maxDate(tool.start_date, R.today()))));
+      }
+      hist(d, { tool_id: tool.id, action: 'tool_changed', user_id: a.id, comment: archived ? 'Tool archived' : 'Tool restored' });
+      return tool;
+    }, 'admin');
+  }
+
+  /** R7 */
+  function toolDown(toolId, reason) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool) throw err('notfound', 'This tool no longer exists.');
+      if (tool.status === 'down') throw err('conflict', 'This tool is already down.');
+      tool.status = 'down'; tool.down_reason = clean(reason); tool.down_since = nowStamp();
+      hist(d, { tool_id: tool.id, action: 'tool_down', user_id: a.id, reason: reason });
+      return tool;
+    }, 'admin');
+  }
+
+  function reactivate(toolId, date) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool) throw err('notfound', 'This tool no longer exists.');
+      if (tool.status !== 'down') throw err('conflict', 'This tool is not down.');
+      if (!R.isDate(date)) throw err('baddate', 'Choose the date of the next cleaning.');
+      if (R.isWeekend(date)) throw err('baddate', 'Choose a working day (Monday to Friday).');
+      if (date < R.today()) throw err('baddate', 'The date cannot be in the past.');
+      tool.status = 'active'; tool.down_reason = ''; tool.down_since = null;
+      var open = openScheduled(d, tool.id);
+      if (open) {
+        open.pattern_date = date; open.nominal_date = date; open.due_date = date;
+        open.postpone_count = 0; open.last_postpone_reason = '';
+      } else {
+        open = makeTask(tool.id, { pattern: date });
+        d.tasks.push(open);
+      }
+      if (tool.schedule_type === 'months') {
+        // keep the monthly pattern: nominal = rule day of that month
+        open.nominal_date = R.monthDate(+date.slice(0, 4), +date.slice(5, 7), tool.month_day);
+      }
+      hist(d, { tool_id: tool.id, task_id: open.id, action: 'reactivated', user_id: a.id, new_date: date });
+      return tool;
+    }, 'admin');
+  }
+
+  /* --- Admin: users and settings ------------------------------------ */
+
+  function saveUser(input) {
+    var pin = clean(input.pin);
+    var pinStep = pin ? hashPin(pin) : Promise.resolve(null);
+    return pinStep.then(function (pinHash) {
+      return mutate(function (d) {
+        var a = requireAdmin(d);
+        var name = clean(input.name);
+        var existing = input.id ? find(d.users, input.id) : null;
+        var opId = clean(input.operator_id).toUpperCase() || (existing ? existing.operator_id : nextShortId(d));
+        var role = input.role === 'admin' ? 'admin' : 'operator';
+        var active = input.active !== false;
+        if (!name) throw err('invalid', 'Enter the name.');
+        if (!/^[A-Z0-9_-]{2,20}$/.test(opId)) throw err('invalid', 'Short ID: 2 to 20 letters, digits, - or _.');
+        var sameName = d.users.find(function (x) { return x.id !== input.id && x.name.toLowerCase() === name.toLowerCase(); });
+        if (sameName) throw err('invalid', '"' + name + '" is already in the list. Use a different name (e.g. add the first letter of the surname).');
+        var dup = d.users.find(function (x) { return x.id !== input.id && x.operator_id.toUpperCase() === opId; });
+        if (dup) throw err('invalid', 'Short ID "' + opId + '" is already used by ' + dup.name + '.');
+        var u = input.id ? find(d.users, input.id) : null;
+        if (input.id && !u) throw err('notfound', 'This user no longer exists.');
+        var hasPin = pinHash || (u && u.pin_hash);
+        if (role === 'admin' && !hasPin) throw err('invalid', 'An Admin needs a PIN.');
+        if (u && u.role === 'admin' && u.active && (role !== 'admin' || !active)) {
+          var others = d.users.filter(function (x) { return x.id !== u.id && x.role === 'admin' && x.active; });
+          if (!others.length) throw err('invalid', 'There must always be at least one active Admin.');
+        }
+        if (!u) { u = { id: newId('user'), pin_hash: null }; d.users.push(u); }
+        u.operator_id = opId; u.name = name; u.role = role; u.active = active;
+        if (pinHash) u.pin_hash = pinHash;
+        if (role !== 'admin') u.pin_hash = null;
+        hist(d, { action: 'user_changed', user_id: a.id, comment: (input.id ? 'User changed: ' : 'User added: ') + opId + ' (' + name + ', ' + role + (active ? '' : ', inactive') + ')' });
+        return u;
+      }, 'admin');
+    });
+  }
+
+  function saveSettings(input) {
+    return mutate(function (d) {
+      requireAdmin(d);
+      var url = clean(input.teams_webhook_url);
+      if (url && !/^https:\/\//i.test(url)) throw err('invalid', 'The Teams webhook URL must start with https://');
+      d.settings.teams_webhook_url = url;
+      d.settings.theme_default = input.theme_default === 'teal' ? 'teal' : 'white';
+      return d.settings;
+    }, 'admin');
+  }
+
+  /** Adds any of the standard operators that are missing (by name). For plans created before the list existed. */
+  function addStandardOperators() {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var added = [];
+      SEED_OPERATORS.forEach(function (n) {
+        if (d.users.some(function (u) { return u.name.toLowerCase() === n.toLowerCase(); })) return;
+        d.users.push({ id: newId('user'), operator_id: nextShortId(d), name: n, role: 'operator', pin_hash: null, active: true });
+        added.push(n);
+      });
+      if (added.length) hist(d, { action: 'user_changed', user_id: a.id, comment: 'Standard operators added: ' + added.join(', ') });
+      return added;
+    }, 'admin');
+  }
+
+  /* --- Reading for screens ------------------------------------------ */
+
+  function userName(d, id) { var u = find(d.users, id); return u ? u.name : ''; }
+
+  function board(weekDate) { return R.buildBoard(data, weekDate, R.today()); }
+
+  var ACTION_LABELS = {
+    completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
+    reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Cleaning deleted',
+    tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
+    cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
+  };
+
+  /** filters: {toolId, action, from, to} (dates inclusive) */
+  function history(filters) {
+    var f = filters || {};
+    var d = data;
+    return d.history.filter(function (h) {
+      var day = h.at.slice(0, 10);
+      return (!f.toolId || h.tool_id === f.toolId) && (!f.action || h.action === f.action) &&
+        (!f.from || day >= f.from) && (!f.to || day <= f.to);
+    }).map(function (h) {
+      var tool = find(d.tools, h.tool_id), u = find(d.users, h.user_id);
+      return {
+        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '',
+        action: h.action, action_label: ACTION_LABELS[h.action] || h.action,
+        who: u ? u.name : '', operator_id: u ? u.operator_id : '',
+        old_date: h.old_date || '', new_date: h.new_date || '', reason: h.reason || '', comment: h.comment || ''
+      };
+    }).sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  }
+
+  function csvCell(v) {
+    var s = String(v == null ? '' : v);
+    if (/^[=+\-@]/.test(s)) s = "'" + s;                 // keep Excel from running it as a formula
+    return /[",\r\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  /** UTF-8 with BOM so Excel shows umlauts correctly. */
+  function historyCsv(filters) {
+    var head = ['Date', 'Time', 'Tool', 'Action', 'Who', 'Short ID', 'Old date', 'New date', 'Reason', 'Comment'];
+    var lines = [head.join(',')].concat(history(filters).map(function (r) {
+      return [r.date, r.time, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
+    }));
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  /* --- Cleaning report and Excel workbook ---------------------------- */
+
+  var REPORT_COLS = [
+    ['Tool', 'tool', 10, 'text'], ['Planned date', 'planned', 13, 'date'], ['Current date', 'due', 13, 'date'], ['Done date', 'done', 12, 'date'],
+    ['Done time', 'time', 10, 'text'], ['Days late', 'days_late', 10, 'number'], ['Who', 'who', 24, 'text'], ['Times postponed', 'postponed', 15, 'number'],
+    ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
+  ];
+
+  /** One row per cleaning, as CSV (UTF-8 with BOM). */
+  function reportCsv(from, to) {
+    var rows = window.HCP.analytics.reportRows(data, from, to, R.today());
+    var lines = [REPORT_COLS.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
+      return REPORT_COLS.map(function (c) { return csvCell(r[c[1]]); }).join(',');
+    }));
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  /** Excel workbook for a period: Summary, Cleanings, Postpone reasons, History, Tools. -> Uint8Array */
+  function workbook(from, to) {
+    var A = window.HCP.analytics, X = window.HCP.xlsx;
+    var st = A.stats(data, from, to, R.today());
+    var col = function (h, w, t) { return { header: h, width: w, type: t || 'text' }; };
+    var hist = history({ from: from, to: to }).slice().reverse();
+    return X.build([
+      { name: 'Summary', columns: [col('Tool', 10), col('Cleanings', 11, 'number'), col('Done', 8, 'number'), col('On time', 9, 'number'),
+          col('On time %', 11, 'number'), col('Avg days late', 13, 'number'), col('Times postponed', 15, 'number'), col('Overdue now', 12, 'number')],
+        rows: st.byTool.map(function (t) { return [t.tool, t.total, t.done, t.onTime, t.onTimePct, t.avgLate, t.postponed, t.overdue]; })
+          .concat([['ALL', st.kpi.planned, st.kpi.done, null, st.kpi.onTimePct, st.kpi.avgLate, st.kpi.postponements, st.kpi.overdueNow]]) },
+      { name: 'Cleanings', columns: REPORT_COLS.map(function (c) { return col(c[0], c[2], c[3]); }),
+        rows: st.rows.map(function (r) { return REPORT_COLS.map(function (c) { return r[c[1]]; }); }) },
+      { name: 'Operators', columns: [col('Who', 26), col('Cleanings done', 15, 'number'), col('On time', 9, 'number')],
+        rows: st.byOperator.map(function (o) { return [o.who, o.done, o.onTime]; }) },
+      { name: 'Postpone reasons', columns: [col('Reason', 40), col('Times', 8, 'number')],
+        rows: st.topReasons.map(function (r) { return [r.reason, r.count]; }) },
+      { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Tool', 10), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
+        rows: hist.map(function (r) { return [r.date, r.time, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
+      { name: 'Tools', columns: [col('Tool', 10), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
+        rows: data.tools.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (t) {
+          return [t.name, R.describeSchedule(t), t.start_date, t.tool_owner, t.mnt_owner, t.archived ? 'Archived' : t.status === 'down' ? 'Down' : 'Active'];
+        }) }
+    ]);
+  }
+
+  /** Task details for the action panel. */
+  function taskDetails(taskId) {
+    var t = find(data.tasks, taskId);
+    if (!t) return null;
+    var tool = find(data.tools, t.tool_id);
+    return {
+      task: t, tool: tool, status: R.taskStatus(t, tool, R.today()),
+      completed_by: t.completed_by ? userName(data, t.completed_by) : '',
+      events: data.history.filter(function (h) { return h.task_id === t.id; }).map(function (h) {
+        return { at: h.at, label: ACTION_LABELS[h.action] || h.action, who: userName(data, h.user_id),
+          old_date: h.old_date, new_date: h.new_date, reason: h.reason, comment: h.comment };
+      })
+    };
+  }
+
+  /* --- Daily Teams message ------------------------------------------ */
+
+  /** Sends at most once per working day (first person to open the app). */
+  function maybeSendDaily(post) {
+    if (!data) return Promise.resolve(false);
+    var today = R.today();
+    var url = data.settings && data.settings.teams_webhook_url;
+    if (!url || R.isWeekend(today) || data.settings.last_daily_message_date === today) return Promise.resolve(false);
+    var summary;
+    return mutate(function (d) {
+      if (!d.settings.teams_webhook_url || d.settings.last_daily_message_date === today) throw err('skip', 'already sent');
+      d.settings.last_daily_message_date = today;
+      summary = R.dailySummary(d, today);
+      return d.settings.teams_webhook_url;
+    }, 'daily').then(function (hook) {
+      return post(hook, teamsPayload(summary, today)).then(function () { return true; });
+    }).catch(function (e) { if (e.code === 'skip') return false; throw e; });
+  }
+
+  function teamsPayload(s, today) {
+    var body = [{ type: 'TextBlock', size: 'Medium', weight: 'Bolder', text: 'Hirata cleaning plan - ' + R.dayName(today) + ' ' + R.longDate(today) }];
+    if (!s.overdue.length && !s.today.length) body.push({ type: 'TextBlock', text: 'Nothing due today and nothing overdue.', wrap: true });
+    if (s.today.length) body.push({ type: 'TextBlock', wrap: true, text: '**Due today:** ' + s.today.map(function (x) { return x.tool; }).join(', ') });
+    if (s.overdue.length) body.push({ type: 'TextBlock', wrap: true, color: 'Attention', text: '**Overdue:** ' + s.overdue.map(function (x) { return x.tool + ' (since ' + R.shortDate(x.date) + ')'; }).join(', ') });
+    return { type: 'message', attachments: [{ contentType: 'application/vnd.microsoft.card.adaptive', contentUrl: null,
+      content: { $schema: 'http://adaptivecards.io/schemas/adaptive-card.json', type: 'AdaptiveCard', version: '1.4', body: body } }] };
+  }
+
+  return {
+    setAdapter: setAdapter, load: load, current: current, wasRecovered: wasRecovered, createPlan: createPlan,
+    complete: complete, postpone: postpone, undo: undo,
+    adminLogin: adminLogin, resumeAdmin: resumeAdmin, adminLogout: adminLogout, currentAdmin: currentAdmin,
+    reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
+    moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
+    saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
+    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, SEED_OPERATORS: SEED_OPERATORS,
+    board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
+    maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
+    _verifyPin: verifyPin, _hashPin: hashPin
+  };
+})();
+
+</script>
+  <script>
+/* js/analytics.js */
+/**
+ * Hirata Cleaning Plan - analytics.js
+ * Pure functions for the cleaning report and the Analytics page.
+ * "On time" = done on or before the planned (schedule) date; days late are calendar days.
+ */
+window.HCP = window.HCP || {};
+window.HCP.analytics = (function () {
+  'use strict';
+
+  var R = window.HCP.rules;
+
+  function byId(list) { var m = {}; list.forEach(function (x) { m[x.id] = x; }); return m; }
+
+  /** One row per cleaning in [from, to] (by planned date, done date, or still open). */
+  function reportRows(data, from, to, today) {
+    var tools = byId(data.tools), users = byId(data.users);
+    var rows = [];
+    data.tasks.forEach(function (t) {
+      var tool = tools[t.tool_id];
+      if (!tool) return;
+      var doneDate = t.status === 'completed' ? String(t.completed_at).slice(0, 10) : '';
+      var planned = t.pattern_date;
+      var inRange = function (d) { return d && d >= from && d <= to; };
+      var include = inRange(planned) || inRange(doneDate) || (t.status === 'open' && t.due_date <= to && t.due_date <= today && t.due_date >= from);
+      if (t.status === 'open' && planned > today && t.due_date > today) include = include && inRange(planned);
+      if (!include) return;
+      var late = 0, status;
+      if (t.status === 'completed') {
+        late = Math.max(0, R.diffDays(planned, doneDate));
+        status = late ? 'Done late' : 'Done on time';
+      } else if (tool.status === 'down') {
+        status = 'Tool down';
+      } else if (t.due_date < today) {
+        late = Math.max(0, R.diffDays(planned, today));
+        status = 'Overdue';
+      } else {
+        status = t.postpone_count ? 'Postponed' : 'Open';
+      }
+      var u = users[t.completed_by];
+      rows.push({
+        tool: tool.name, planned: planned, due: t.due_date, done: doneDate,
+        time: t.status === 'completed' ? String(t.completed_at).slice(11, 16) : '',
+        days_late: late, who: u ? u.name : '', postponed: t.postpone_count || 0,
+        reason: t.last_postpone_reason || '', comment: t.completion_comment || '', status: status,
+        one_off: !!t.is_one_off, schedule: t.is_one_off ? 'One-off' : R.describeSchedule(tool)
+      });
+    });
+    return rows.sort(function (a, b) { return a.planned < b.planned ? -1 : a.planned > b.planned ? 1 : a.tool.localeCompare(b.tool); });
+  }
+
+  function pct(a, b) { return b ? Math.round(100 * a / b) : null; }
+
+  /** Everything the Analytics page shows, for the period [from, to]. */
+  function stats(data, from, to, today) {
+    var rows = reportRows(data, from, to, today);
+    var done = rows.filter(function (r) { return r.done; });
+    var onTime = done.filter(function (r) { return !r.days_late; });
+    var lateDays = done.reduce(function (s, r) { return s + r.days_late; }, 0);
+
+    var tools = {};
+    rows.forEach(function (r) {
+      var t = tools[r.tool] || (tools[r.tool] = { tool: r.tool, total: 0, done: 0, onTime: 0, lateDays: 0, postponed: 0, overdue: 0 });
+      t.total++;
+      if (r.done) { t.done++; if (!r.days_late) t.onTime++; t.lateDays += r.days_late; }
+      if (r.status === 'Overdue') t.overdue++;
+      t.postponed += r.postponed;
+    });
+    var byTool = Object.keys(tools).sort().map(function (k) {
+      var t = tools[k];
+      t.onTimePct = pct(t.onTime, t.done);
+      t.avgLate = t.done ? Math.round(10 * t.lateDays / t.done) / 10 : null;
+      return t;
+    });
+
+    // weeks: done on time / late per ISO week (by done date)
+    var weeks = {};
+    for (var m = R.mondayOf(from); m <= to; m = R.addDays(m, 7)) weeks[m] = { monday: m, week: R.isoWeek(m), onTime: 0, late: 0 };
+    done.forEach(function (r) { var w = weeks[R.mondayOf(r.done)]; if (w) { if (r.days_late) w.late++; else w.onTime++; } });
+    var byWeek = Object.keys(weeks).sort().map(function (k) { return weeks[k]; });
+
+    var ops = {};
+    done.forEach(function (r) { var o = ops[r.who || '(unknown)'] || (ops[r.who || '(unknown)'] = { who: r.who || '(unknown)', done: 0, onTime: 0 }); o.done++; if (!r.days_late) o.onTime++; });
+    var byOperator = Object.keys(ops).map(function (k) { return ops[k]; }).sort(function (a, b) { return b.done - a.done || a.who.localeCompare(b.who); });
+
+    // postpone reasons from the history (every postponement counts once)
+    var reasons = {};
+    data.history.forEach(function (h) {
+      if (h.action !== 'postponed') return;
+      var d = h.at.slice(0, 10);
+      if (d < from || d > to) return;
+      var key = (h.reason || '').trim();
+      var label = key ? key.charAt(0).toUpperCase() + key.slice(1) : '(no reason given)';
+      var k = label.toLowerCase();
+      (reasons[k] = reasons[k] || { reason: label, count: 0 }).count++;
+    });
+    var topReasons = Object.keys(reasons).map(function (k) { return reasons[k]; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 8);
+
+    return {
+      from: from, to: to, rows: rows,
+      kpi: {
+        planned: rows.length, done: done.length, onTimePct: pct(onTime.length, done.length),
+        avgLate: done.length ? Math.round(10 * lateDays / done.length) / 10 : null,
+        postponements: topReasons.reduce(function (s, r) { return s + r.count; }, 0),
+        overdueNow: rows.filter(function (r) { return r.status === 'Overdue'; }).length
+      },
+      byTool: byTool, byWeek: byWeek, byOperator: byOperator, topReasons: topReasons
+    };
+  }
+
+  /** Period presets -> {from, to} */
+  function period(key, today) {
+    if (key === 'month') return { from: R.addDays(today, -30), to: today };
+    if (key === 'quarter') return { from: R.addDays(today, -91), to: today };
+    if (key === 'year') return { from: R.addDays(today, -365), to: today };
+    return { from: R.addDays(today, -27), to: today };   // 4 weeks
+  }
+
+  return { reportRows: reportRows, stats: stats, period: period };
+})();
+
+</script>
+  <script>
+/* js/xlsx.js */
+/**
+ * Hirata Cleaning Plan - xlsx.js
+ * A small, dependency-free Excel (.xlsx) writer: several sheets, bold header row,
+ * frozen header, filter buttons, column widths, real Excel dates and numbers.
+ * An .xlsx file is a zip of XML files; we write the zip ourselves (stored, no compression).
+ *
+ *   HCP.xlsx.build([{ name, columns: [{header, width, type: 'text'|'date'|'number'}], rows: [[...], ...] }])
+ *     -> Uint8Array (save it with the type MIME)
+ */
+window.HCP = window.HCP || {};
+window.HCP.xlsx = (function () {
+  'use strict';
+
+  var MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  var enc = new TextEncoder();
+
+  function esc(v) {
+    return String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function colName(i) { var s = ''; i++; while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+  function serial(d) { var p = d.split('-'); return (Date.UTC(+p[0], +p[1] - 1, +p[2]) - Date.UTC(1899, 11, 30)) / 864e5; }
+  function sheetName(n, used) {
+    var s = String(n).replace(/[\[\]:*?\/\\]/g, ' ').slice(0, 31) || 'Sheet';
+    var base = s, k = 2;
+    while (used[s.toLowerCase()]) s = base.slice(0, 28) + ' ' + (k++);
+    used[s.toLowerCase()] = 1;
+    return s;
+  }
+
+  function sheetXml(sh) {
+    var cols = sh.columns;
+    var rows = ['<row r="1">' + cols.map(function (c, i) {
+      return '<c r="' + colName(i) + '1" t="inlineStr" s="1"><is><t>' + esc(c.header) + '</t></is></c>';
+    }).join('') + '</row>'];
+    sh.rows.forEach(function (r, ri) {
+      var n = ri + 2;
+      rows.push('<row r="' + n + '">' + r.map(function (v, i) {
+        var ref = colName(i) + n, type = (cols[i] && cols[i].type) || 'text';
+        if (v === null || v === undefined || v === '') return '';
+        if (type === 'number' && typeof v === 'number' && isFinite(v)) return '<c r="' + ref + '"><v>' + v + '</v></c>';
+        if (type === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return '<c r="' + ref + '" s="2"><v>' + serial(v) + '</v></c>';
+        return '<c r="' + ref + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+      }).join('') + '</row>');
+    });
+    var last = colName(Math.max(cols.length - 1, 0)) + (sh.rows.length + 1);
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+      '<cols>' + cols.map(function (c, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + (c.width || 14) + '" customWidth="1"/>'; }).join('') + '</cols>' +
+      '<sheetData>' + rows.join('') + '</sheetData>' +
+      (sh.rows.length ? '<autoFilter ref="A1:' + last + '"/>' : '') +
+      '</worksheet>';
+  }
+
+  var STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></numFmts>' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>' +
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FF0057A8"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs>' +
+    '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+  /* --- zip (stored) ------------------------------------------------- */
+
+  var CRC = (function () { var t = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(b) { var c = 0xFFFFFFFF; for (var i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+
+  function zip(files) {
+    var parts = [], central = [], offset = 0;
+    function u16(v) { return [v & 255, (v >>> 8) & 255]; }
+    function u32(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+      var local = [].concat([0x50, 0x4b, 0x03, 0x04], u16(20), u16(0), u16(0), u16(0), u16(0x21), u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+      parts.push(new Uint8Array(local), name, data);
+      central.push([[].concat([0x50, 0x4b, 0x01, 0x02], u16(20), u16(20), u16(0), u16(0), u16(0), u16(0x21), u32(crc), u32(data.length), u32(data.length),
+        u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)), name]);
+      offset += local.length + name.length + data.length;
+    });
+    var cdStart = offset, cdSize = 0;
+    central.forEach(function (c) { parts.push(new Uint8Array(c[0]), c[1]); cdSize += c[0].length + c[1].length; });
+    parts.push(new Uint8Array([].concat([0x50, 0x4b, 0x05, 0x06], u16(0), u16(0), u16(files.length), u16(files.length), u32(cdSize), u32(cdStart), u16(0))));
+    var total = parts.reduce(function (s, p) { return s + p.length; }, 0), out = new Uint8Array(total), pos = 0;
+    parts.forEach(function (p) { out.set(p, pos); pos += p.length; });
+    return out;
+  }
+
+  function build(sheets) {
+    var used = {};
+    var names = sheets.map(function (s) { return sheetName(s.name, used); });
+    var files = [
+      { name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        sheets.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join('') + '</Types>' },
+      { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+      { name: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+        names.map(function (n, i) { return '<sheet name="' + esc(n) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join('') + '</sheets>' +
+        (sheets.some(function (s) { return s.rows.length; }) ? '<definedNames>' + sheets.map(function (s, i) {
+          return s.rows.length ? '<definedName name="_xlnm._FilterDatabase" localSheetId="' + i + '" hidden="1">\'' + esc(names[i]).replace(/'/g, "''") + '\'!$A$1:$' + colName(s.columns.length - 1) + '$' + (s.rows.length + 1) + '</definedName>' : '';
+        }).join('') + '</definedNames>' : '') + '</workbook>' },
+      { name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        sheets.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join('') +
+        '<Relationship Id="rId' + (sheets.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+      { name: 'xl/styles.xml', text: STYLES }
+    ];
+    sheets.forEach(function (s, i) { files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', text: sheetXml(s) }); });
+    return zip(files);
+  }
+
+  return { build: build, MIME: MIME };
+})();
+
+</script>
+  <script>
+/* js/icons.js */
+/**
+ * Hirata Cleaning Plan - icons.js
+ * Inline SVG icons (no emoji: emoji look different or break on company PCs).
+ * Markup below is static and trusted; user text never goes into innerHTML.
+ */
+window.HCP = window.HCP || {};
+window.HCP.icon = (function () {
+  'use strict';
+
+  var P = {
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    circle: '<circle cx="12" cy="12" r="8"/>',
+    target: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor"/>',
+    ban: '<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>',
+    dashed: '<circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/>',
+    left: '<path d="m15 18-6-6 6-6"/>',
+    right: '<path d="m9 18 6-6-6-6"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+    message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/>',
+    calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    printer: '<path d="M6 9V2h12v7"/><rect x="6" y="14" width="12" height="8"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    exclaim: '<path d="M12 6v8"/><path d="M12 18.5h.01"/>',
+    skip: '<path d="M5 5v14l9-7z" fill="currentColor"/><path d="M18 5v14"/>',
+    power: '<path d="M12 3v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+    calDots: '<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 15h.01M12 15h.01M16 15h.01"/>',
+    sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+    logo: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8h4M7 12h10M7 16h6"/><circle cx="16" cy="8" r="1.6" fill="currentColor"/>'
+  };
+
+  /** icon('check', 16) -> <svg> element */
+  return function icon(name, size) {
+    var s = size || 16;
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', s);
+    svg.setAttribute('height', s);
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('class', 'icon');
+    svg.innerHTML = P[name] || '';
+    return svg;
+  };
+})();
+
+</script>
+  <script>
+/* js/ui.js */
+/**
+ * Hirata Cleaning Plan - ui.js
+ * Small DOM helpers shared by all screens: element builder, modal, toast,
+ * confirmation, operator-ID field, error text.
+ */
+window.HCP = window.HCP || {};
+window.HCP.ui = (function () {
+  'use strict';
+
+  /** h('div', {class: 'x', onclick: fn}, [children or text]) */
+  function h(tag, attrs, children) {
+    var el = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k.slice(0, 2) === 'on' && typeof v === 'function') el.addEventListener(k.slice(2), v);
+      else if (k === 'class') el.className = v;
+      else if (k === 'text') el.textContent = v;
+      else if (k === 'value') el.value = v;
+      else if (k === 'checked' || k === 'disabled' || k === 'hidden' || k === 'selected') el[k] = !!v;
+      else el.setAttribute(k, v === true ? '' : v);
+    });
+    add(el, children);
+    return el;
+  }
+  function add(el, children) {
+    if (children == null) return el;
+    (Array.isArray(children) ? children : [children]).forEach(function (c) {
+      if (c == null || c === false) return;
+      el.appendChild(typeof c === 'string' || typeof c === 'number' ? document.createTextNode(String(c)) : c);
+    });
+    return el;
+  }
+  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
+
+  /* --- Toast -------------------------------------------------------- */
+
+  /** toast(msg, kind, {action: {label, fn}, ms}) - an action button (e.g. Undo) shows a countdown bar. */
+  function toast(msg, kind, opts) {
+    var o = opts || {};
+    var ms = o.ms || (kind === 'error' ? 6000 : 3500);
+    var box = document.getElementById('toasts');
+    var t = h('div', { class: 'toast ' + (kind || 'ok'), role: 'status' }, h('span', { class: 'toast-msg', text: msg }));
+    var gone = false;
+    function remove() { if (gone) return; gone = true; t.classList.add('fade'); setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 400); }
+    if (o.action) {
+      var b = h('button', { class: 'toast-action' }, [window.HCP.icon(o.action.icon || 'undo', 14), o.action.label]);
+      b.addEventListener('click', function () { b.disabled = true; remove(); o.action.fn(); });
+      t.appendChild(b);
+      var bar = h('span', { class: 'toast-bar' });
+      bar.style.animationDuration = ms + 'ms';
+      t.appendChild(bar);
+    }
+    box.appendChild(t);
+    setTimeout(remove, ms);
+  }
+
+  function errorText(e) {
+    if (!e) return 'Something went wrong.';
+    if (e.code) return e.message;
+    if (e.name === 'NotAllowedError') return 'Edge did not allow access to the data folder. Click "Connect data folder" again.';
+    return 'Something went wrong: ' + (e.message || e);
+  }
+
+  /* --- Modal -------------------------------------------------------- */
+
+  var openModal = null;
+
+  /** modal(title, bodyNode) -> {body, close}. Esc / backdrop / X close it. */
+  function modal(title, content, opts) {
+    closeModal();
+    var o = opts || {};
+    var body = h('div', { class: 'modal-body' }, content);
+    var box = h('div', { class: 'modal' + (o.wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title }, [
+      h('div', { class: 'modal-head' }, [
+        h('h2', { text: title }),
+        h('button', { class: 'icon-btn', 'aria-label': 'Close', title: 'Close (Esc)', onclick: closeModal }, window.HCP.icon('plus', 20))
+      ]),
+      body
+    ]);
+    var back = h('div', { class: 'backdrop', onmousedown: function (ev) { if (ev.target === back) closeModal(); } }, box);
+    document.body.appendChild(back);
+    openModal = { el: back, onClose: o.onClose };
+    var first = box.querySelector('input, select, textarea, button.btn');
+    if (first) setTimeout(function () { first.focus(); }, 30);
+    return { body: body, close: closeModal };
+  }
+  function closeModal() {
+    if (!openModal) return;
+    var m = openModal; openModal = null;
+    if (m.el.parentNode) m.el.parentNode.removeChild(m.el);
+    if (m.onClose) m.onClose();
+  }
+  function isModalOpen() { return !!openModal; }
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeModal(); });
+
+  /** Replace the content of an element with a "are you sure" step.
+   *  onYes returns a Promise; while it runs the buttons are disabled. */
+  function confirmStep(container, question, yesLabel, onYes, onBack, danger) {
+    var msg = h('p', { class: 'form-error', hidden: true });
+    var yes = h('button', { class: 'btn' + (danger ? ' danger' : ''), text: yesLabel });
+    var no = h('button', { class: 'btn ghost', text: 'Back' });
+    yes.addEventListener('click', function () {
+      yes.disabled = no.disabled = true;
+      yes.textContent = 'Saving…';
+      Promise.resolve().then(onYes).catch(function (e) {
+        msg.textContent = errorText(e); msg.hidden = false;
+        yes.disabled = no.disabled = false; yes.textContent = yesLabel;
+      });
+    });
+    no.addEventListener('click', onBack);
+    clear(container);
+    add(container, [h('p', { class: 'confirm-q', text: question }), msg, h('div', { class: 'actions' }, [yes, no])]);
+    yes.focus();
+  }
+
+  /** "Who are you?" list of names. value = user id. */
+  function personField(users, placeholder) {
+    var input = h('select', { class: 'person' }, [h('option', { value: '', text: placeholder || 'Choose your name…' })].concat(users.map(function (u) {
+      return h('option', { value: u.id, text: u.name });
+    })));
+    var node = users.length ? input : h('p', { class: 'form-error', text: 'No people in the list yet. An Admin adds them in Settings → Users.' });
+    return { input: input, node: node };
+  }
+
+  function field(label, control, hint) {
+    return h('label', { class: 'field' }, [h('span', { class: 'label', text: label }), control, hint ? h('span', { class: 'hint', text: hint }) : null]);
+  }
+
+  function download(name, text, type) {
+    var blob = new Blob([text], { type: type || 'text/csv;charset=utf-8' });
+    var a = h('a', { href: URL.createObjectURL(blob), download: name });
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  return { h: h, add: add, clear: clear, toast: toast, errorText: errorText, modal: modal, closeModal: closeModal,
+    isModalOpen: isModalOpen, confirmStep: confirmStep, personField: personField, field: field, download: download };
+})();
+
+</script>
+  <script>
+/* js/views/board.js */
+/**
+ * Hirata Cleaning Plan - views/board.js
+ * The weekly grid (tools x Monday-Friday), the cleaning action panel and the
+ * tool panel (Tool down / Reactivate).
+ */
+window.HCP = window.HCP || {};
+window.HCP.views = window.HCP.views || {};
+window.HCP.views.board = (function () {
+  'use strict';
+
+  var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h;
+  var ONLY_KEY = window.HCP.config.local_prefix + 'only_due';
+  var week = null;   // any date in the week shown
+
+  var I = window.HCP.icon;
+  var LABEL = {
+    done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Today'], postponed: ['skip', 'Postponed'],
+    upcoming: ['calendar', 'Scheduled'], down: ['power', 'Tool down'], projected: ['calDots', 'Next cycle'], skipped: ['ban', 'Skipped']
+  };
+  var drag = null;   // what is being dragged: {kind: 'task'|'cycle', toolId, date, taskId?, item?}
+  /** Round status badge (medallion) with the status symbol. */
+  function med(st, size) {
+    var px = size || 24;
+    var m = h('span', { class: 'med m-' + st, style: 'width:' + px + 'px;height:' + px + 'px' }, I(LABEL[st][0], Math.round(px * 0.6)));
+    return m;
+  }
+  /** Coloured tool badge with the tool letters (hue from the name, so each tool keeps its colour). */
+  function avatar(name) {
+    var hsh = 0; for (var i = 0; i < name.length; i++) hsh = (hsh * 31 + name.charCodeAt(i)) % 360;
+    return h('span', { class: 'avatar', style: '--h:' + hsh, text: name.replace(/\d+$/, '').slice(0, 3) });
+  }
+  var STATUS_TEXT = { done: 'Done', overdue: 'Overdue', today: 'Today', postponed: 'Postponed', upcoming: 'Scheduled', down: 'Tool down' };
+
+  var onlyMem = null;
+  function onlyDue() { if (onlyMem !== null) return onlyMem; try { return localStorage.getItem(ONLY_KEY) === '1'; } catch (e) { return false; } }
+  function setOnlyDue(v) { onlyMem = !!v; try { localStorage.setItem(ONLY_KEY, v ? '1' : '0'); } catch (e) { /* ignore */ } }
+  var focus = '';   // highlight one status (click a summary tile)
+
+  /** Counts for the summary strip. */
+  function summary(b, today) {
+    var c = { planned: 0, done: 0, today: 0, overdue: 0, postponed: 0, down: 0 };
+    b.rows.forEach(function (r) {
+      if (r.tool.status === 'down') c.down++;
+      r.cells.forEach(function (items) {
+        items.forEach(function (it) {
+          if (it.carried || it.skipped) return;
+          c.planned++;
+          if (it.status === 'done') c.done++;
+          else if (it.status === 'today') c.today++;
+          else if (it.status === 'overdue') c.overdue++;
+          else if (it.status === 'postponed') c.postponed++;
+        });
+      });
+    });
+    // overdue counts every open overdue cleaning (also from earlier weeks)
+    c.overdueAll = S.current().tasks.filter(function (t) {
+      var tool = S.current().tools.find(function (x) { return x.id === t.tool_id; });
+      return tool && !tool.archived && R.taskStatus(t, tool, today) === 'overdue';
+    }).length;
+    return c;
+  }
+
+  function tile(key, label, value, sub, app) {
+    return h('button', { class: 'tile t-' + key + (focus === key ? ' on' : '') + (value ? '' : ' zero'), title: 'Highlight on the board',
+      onclick: function () { focus = focus === key ? '' : key; app.render(); } }, [
+      h('span', { class: 'tile-ico' }, med(key, 38)),
+      h('span', { class: 'tile-num', text: String(value) }),
+      h('span', { class: 'tile-label', text: label }),
+      sub ? h('span', { class: 'tile-sub', text: sub }) : null
+    ]);
+  }
+
+  function render(root, app) {
+    if (!week) week = R.today();
+    var b = S.board(week);
+    var today = R.today();
+    var only = onlyDue();
+    var c = summary(b, today);
+    var pct = c.planned ? Math.round(100 * c.done / c.planned) : 0;
+
+    var bar = h('div', { class: 'board-bar' }, [
+      h('div', { class: 'week-nav' }, [
+        h('button', { class: 'btn ghost square', title: 'Previous week', 'aria-label': 'Previous week', onclick: function () { week = R.addDays(b.monday, -7); app.render(); } }, I('left', 18)),
+        h('div', { class: 'week-title' }, [
+          h('div', { class: 'week-kicker', text: b.isThisWeek ? 'This week' : (b.monday < R.mondayOf(today) ? 'Past week' : 'Coming week') }),
+          h('h2', { class: 'week-label' }, [h('span', { class: 'wk', text: 'Week ' + R.isoWeek(b.monday) }), h('span', { class: 'sep', text: ' · ' }), R.shortDate(b.days[0]) + ' – ' + R.longDate(b.days[4])])
+        ]),
+        h('button', { class: 'btn ghost square', title: 'Next week', 'aria-label': 'Next week', onclick: function () { week = R.addDays(b.monday, 7); app.render(); } }, I('right', 18)),
+        h('button', { class: 'btn ghost', disabled: b.isThisWeek, onclick: function () { week = R.today(); app.render(); } }, [I('calendar', 15), ' Today'])
+      ]),
+      h('div', { class: 'bar-right' }, [
+        h('label', { class: 'toggle' }, [
+          h('input', { type: 'checkbox', checked: only, onchange: function (ev) { setOnlyDue(ev.target.checked); app.render(); } }),
+          ' Only tools with something this week'
+        ]),
+        h('button', { class: 'btn ghost', title: 'Print this week', onclick: function () { window.print(); } }, [I('printer', 15), ' Print'])
+      ])
+    ]);
+
+    var strip = h('div', { class: 'summary' }, [
+      h('div', { class: 'progress-card' }, [
+        h('div', { class: 'ring', style: '--p:' + pct }, h('span', { text: pct + '%' })),
+        h('div', {}, [h('div', { class: 'tile-label', text: 'Week progress' }),
+          h('div', { class: 'progress-text', text: c.done + ' of ' + c.planned + ' cleanings done' })])
+      ]),
+      tile('today', 'Today', b.isThisWeek ? c.today : 0, b.isThisWeek ? R.dayName(today).slice(0, 3) + ' ' + R.shortDate(today) : 'not this week', app),
+      tile('overdue', 'Overdue', c.overdueAll, c.overdueAll ? 'needs action' : 'all on time', app),
+      tile('postponed', 'Postponed', c.postponed, 'this week', app),
+      tile('done', 'Done', c.done, 'this week', app),
+      tile('down', 'Tools down', c.down, c.down ? 'cleanings paused' : 'all running', app)
+    ]);
+
+    var rows = b.rows.filter(function (r) { return !only || r.hasItems; });
+    var table = h('table', { class: 'grid' + (focus ? ' focus focus-' + focus : '') }, [
+      h('thead', {}, h('tr', {}, [h('th', { class: 'tool-col', text: 'Tool' })].concat(b.days.map(function (d) {
+        return h('th', { class: d === today ? 'is-today' : (d < today ? 'is-past' : '') }, [
+          h('span', { class: 'dname', text: R.dayName(d).slice(0, 3) }), ' ', h('span', { class: 'dnum', text: R.shortDate(d) }),
+          d === today ? h('span', { class: 'today-pill', text: 'Today' }) : null]);
+      })))),
+      h('tbody', {}, rows.length ? rows.map(function (r) { return row(r, b, today, app); })
+        : h('tr', {}, h('td', { colspan: '6', class: 'empty' }, [I('calendar', 28), h('div', { text: b.rows.length ? 'Nothing planned this week.' : 'No tools yet. An Admin adds tools in Settings.' })])))
+    ]);
+
+    var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'down', 'projected'].map(function (st) {
+      return h('span', { class: 'legend-item' }, [med(st, 20), LABEL[st][1]]);
+    }));
+
+    dnd(table, app, today);
+    U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend,
+      h('p', { class: 'hint dnd-hint', text: 'Tip: drag a cleaning to another day in its row to postpone or move it.' + (S.currentAdmin() ? ' Admins can also drag or click a next cycle to move or skip it.' : '') })]);
+  }
+
+  function row(r, b, today, app) {
+    var t = r.tool;
+    var head = h('th', { class: 'tool-col', scope: 'row' }, [
+      h('div', { class: 'tool-line' }, [
+        avatar(t.name),
+        h('div', { class: 'tool-meta' }, [
+          h('div', { class: 'tool-top' }, [
+            h('button', { class: 'tool-name', text: t.name, title: 'Tool details', onclick: function () { toolPanel(t.id, app); } }),
+            t.status === 'down' ? h('span', { class: 'badge down', title: t.down_reason || '', text: 'DOWN' }) : h('span', { class: 'dot dot-ok', title: 'Active' })
+          ]),
+          h('div', { class: 'sched', text: R.describeSchedule(t) })
+        ])
+      ])
+    ]);
+    return h('tr', { class: t.status === 'down' ? 'is-down' : '' }, [head].concat(r.cells.map(function (items, i) {
+      var d = b.days[i];
+      return h('td', { class: d === today ? 'is-today' : (d < today ? 'is-past' : ''), 'data-tool': t.id, 'data-date': d },
+        items.map(function (it) { return chip(it, app, t); }));
+    })));
+  }
+
+  function chip(it, app, tool) {
+    var l = LABEL[it.status];
+    if (it.kind === 'projected') return cycleChip(it, app, tool);
+    var t = it.task, main = l[1], sub = '';
+    if (it.carried) { main = 'Overdue'; sub = 'since ' + R.dayName(it.date).slice(0, 3) + ' ' + R.shortDate(it.date); }
+    else if (it.status === 'done') {
+      var u = S.current().users.find(function (x) { return x.id === t.completed_by; });
+      main = u ? u.name.split(' ')[0] : 'Done';
+      sub = 'done ' + String(t.completed_at).slice(11, 16);
+    } else if (t.postpone_count > 0 && t.due_date !== t.pattern_date && !t.is_one_off) {
+      sub = 'from ' + R.dayName(t.pattern_date).slice(0, 3) + ' ' + R.shortDate(t.pattern_date);
+    }
+    var canDrag = t.status === 'open' && tool.status !== 'down';
+    return h('button', { class: 'chip s-' + it.status, title: it.status === 'done' ? 'Open details' : 'Click to complete or postpone · drag to another day',
+      draggable: canDrag ? 'true' : null,
+      ondragstart: canDrag ? function (ev) { startDrag(ev, { kind: 'task', toolId: tool.id, date: t.due_date, taskId: t.id }); } : null,
+      ondragend: endDrag,
+      onclick: function () { taskPanel(t.id, app); } }, [
+      med(it.status, 26),
+      h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null]),
+      t.is_one_off ? h('span', { class: 'tag', text: 'one-off' }) : null,
+      t.completion_comment && it.status === 'done' ? h('span', { class: 'tag', title: t.completion_comment }, I('message', 13)) : null
+    ]);
+  }
+
+  /** A future cycle (from the schedule). Admins can click or drag it to move or skip it (R19). */
+  function cycleChip(it, app, tool) {
+    var admin = !!S.currentAdmin();
+    var st = it.skipped ? 'skipped' : 'projected';
+    var sub = it.skipped ? 'not cleaned this cycle' : it.moved ? 'moved from ' + R.dayName(it.pattern).slice(0, 3) + ' ' + R.shortDate(it.pattern) : '';
+    var body = [med(st, 22), h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: LABEL[st][1] }), sub ? h('span', { class: 'chip-sub', text: sub }) : null])];
+    var cls = 'chip s-' + st + (it.moved ? ' is-moved' : '');
+    if (!admin) return h('span', { class: cls, title: 'Comes from the schedule. An Admin can move or skip it.' }, body);
+    var canDrag = !it.skipped;
+    return h('button', { class: cls + ' admin', title: 'Admin: click to move or skip' + (canDrag ? ' · drag to another day' : ''),
+      draggable: canDrag ? 'true' : null,
+      ondragstart: canDrag ? function (ev) { startDrag(ev, { kind: 'cycle', toolId: tool.id, date: it.date, item: it }); } : null,
+      ondragend: endDrag,
+      onclick: function () { cyclePanel(tool, it, app); } }, body);
+  }
+
+  /* --- Drag and drop: same row, a working day from today on; every drop opens the confirmation --- */
+
+  function startDrag(ev, info) {
+    drag = info;
+    try { ev.dataTransfer.setData('text/plain', info.toolId); ev.dataTransfer.effectAllowed = 'move'; } catch (e) { /* no dataTransfer (tests) */ }
+    var tbl = ev.target.closest('table');
+    if (tbl) tbl.classList.add('dragging');
+    var row = ev.target.closest('tr');
+    if (row) row.classList.add('drag-row');
+  }
+  function endDrag() {
+    drag = null;
+    document.querySelectorAll('.dragging, .drag-row, .drop-ok').forEach(function (el) { el.classList.remove('dragging', 'drag-row', 'drop-ok'); });
+  }
+  function dropTarget(ev, today) {
+    var td = ev.target.closest && ev.target.closest('td[data-date]');
+    if (!drag || !td) return null;
+    var d = td.getAttribute('data-date');
+    if (td.getAttribute('data-tool') !== drag.toolId || d === drag.date || d < today) return null;
+    return { td: td, date: d };
+  }
+  function dnd(table, app, today) {
+    table.addEventListener('dragover', function (ev) {
+      var t = dropTarget(ev, today);
+      if (!t) return;
+      ev.preventDefault();
+      table.querySelectorAll('.drop-ok').forEach(function (el) { if (el !== t.td) el.classList.remove('drop-ok'); });
+      t.td.classList.add('drop-ok');
+    });
+    table.addEventListener('dragleave', function (ev) {
+      var td = ev.target.closest && ev.target.closest('td');
+      if (td && !td.contains(ev.relatedTarget)) td.classList.remove('drop-ok');
+    });
+    table.addEventListener('drop', function (ev) {
+      var t = dropTarget(ev, today);
+      if (!t) return;
+      ev.preventDefault();
+      var info = drag;
+      endDrag();
+      if (info.kind === 'task') taskPanel(info.taskId, app, { moveTo: t.date });
+      else cyclePanel(S.current().tools.find(function (x) { return x.id === info.toolId; }), info.item, app, { moveTo: t.date });
+    });
+  }
+
+  /* --- Future cycle panel (Admin) ------------------------------------ */
+
+  function cyclePanel(tool, it, app, opts) {
+    var o = opts || {};
+    var area = h('div', { class: 'action-area' });
+    var title = tool.name + ' · Next cycle · ' + R.dayName(it.date).slice(0, 3) + ' ' + R.longDate(it.date);
+    var m = U.modal(title, [
+      h('dl', { class: 'facts' }, [
+        h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill' }, [med(it.skipped ? 'skipped' : 'projected', 18), it.skipped ? 'Skipped' : it.moved ? 'Moved' : 'Next cycle'])),
+        h('dt', { text: 'Normal date' }), h('dd', { text: R.dayName(it.pattern) + ' ' + R.longDate(it.pattern) }),
+        it.moved ? h('dt', { text: 'Moved to' }) : null, it.moved ? h('dd', { text: R.dayName(it.date) + ' ' + R.longDate(it.date) }) : null,
+        h('dt', { text: 'Schedule' }), h('dd', { text: R.describeSchedule(tool) })
+      ]),
+      h('p', { class: 'hint', text: 'A future cycle is not open yet. Moving or skipping it changes only this one cycle; the schedule continues as normal.' }),
+      area
+    ]);
+    function finish(msg) { m.close(); U.toast(msg); app.reload(); }
+
+    function menu() {
+      U.clear(area);
+      U.add(area, h('div', { class: 'actions' }, [
+        !it.skipped ? h('button', { class: 'btn', onclick: function () { moveForm(); } }, [I('calendar', 16), ' Move date']) : null,
+        !it.skipped ? h('button', { class: 'btn secondary', onclick: skipStep }, [I('ban', 16), ' Skip this cycle']) : null,
+        it.moved || it.skipped ? h('button', { class: 'btn ghost', onclick: restoreStep }, [I('undo', 16), ' Back to normal date']) : null
+      ]));
+    }
+    function moveForm(preset) {
+      var date = h('input', { type: 'date', min: R.today(), value: preset || it.date });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Move this cycle' }), U.field('New date', date, 'Monday to Friday, after the open cleaning.'), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var d = date.value;
+            if (!R.isDate(d) || R.isWeekend(d) || d < R.today()) { msg.textContent = 'Choose a working day, today or later.'; msg.hidden = false; return; }
+            U.confirmStep(area, 'Move the ' + tool.name + ' cycle of ' + R.shortDate(it.pattern) + ' to ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, move', function () {
+              return S.moveCycle(tool.id, it.nominal, d).then(function () { finish(tool.name + ' cycle moved to ' + R.dayName(d).slice(0, 3) + ' ' + R.shortDate(d) + '.'); });
+            }, function () { moveForm(d); });
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function skipStep() {
+      var reason = h('input', { type: 'text', maxlength: '200', placeholder: 'Why? (optional), e.g. shutdown' });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Skip this cycle' }), U.field('Reason', reason),
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn danger', text: 'Continue', onclick: function () {
+            var r = reason.value;
+            U.confirmStep(area, 'Skip the ' + tool.name + ' cleaning of ' + R.dayName(it.pattern).slice(0, 3) + ' ' + R.longDate(it.pattern) + '?', 'Yes, skip', function () {
+              return S.skipCycle(tool.id, it.nominal, r).then(function () { finish(tool.name + ': cycle of ' + R.shortDate(it.pattern) + ' skipped.'); });
+            }, skipStep, true);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function restoreStep() {
+      U.confirmStep(area, 'Put this ' + tool.name + ' cycle back on its normal date (' + R.dayName(it.pattern).slice(0, 3) + ' ' + R.shortDate(it.pattern) + ')?', 'Yes, restore', function () {
+        return S.restoreCycle(tool.id, it.nominal).then(function () { finish('Cycle back on its normal date.'); });
+      }, menu);
+    }
+    if (o.moveTo) moveForm(o.moveTo); else menu();
+  }
+
+  /* --- Cleaning panel ----------------------------------------------- */
+
+  function taskPanel(taskId, app, opts) {
+    var o = opts || {};
+    var info = S.taskDetails(taskId);
+    if (!info) { app.reload(); return; }
+    var t = info.task, tool = info.tool, isAdmin = !!S.currentAdmin();
+    var title = tool.name + ' · ' + R.dayName(t.due_date) + ' ' + R.longDate(t.due_date);
+    var area = h('div', { class: 'action-area' });
+
+    var facts = h('dl', { class: 'facts' }, [
+      h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill s-' + info.status }, [med(info.status, 18), STATUS_TEXT[info.status]])),
+      h('dt', { text: 'Schedule' }), h('dd', { text: t.is_one_off ? 'One-off cleaning' : R.describeSchedule(tool) }),
+      t.due_date !== t.pattern_date && !t.is_one_off ? h('dt', { text: 'Planned for' }) : null,
+      t.due_date !== t.pattern_date && !t.is_one_off ? h('dd', { text: R.dayName(t.pattern_date) + ' ' + R.longDate(t.pattern_date) }) : null,
+      h('dt', { text: 'Tool owner' }), h('dd', { text: tool.tool_owner || '–' }),
+      h('dt', { text: 'MNT owner' }), h('dd', { text: tool.mnt_owner || '–' }),
+      tool.status === 'down' ? h('dt', { text: 'Down since' }) : null,
+      tool.status === 'down' ? h('dd', { text: R.longDate(tool.down_since.slice(0, 10)) + (tool.down_reason ? ' – ' + tool.down_reason : '') }) : null,
+      t.status === 'completed' ? h('dt', { text: 'Completed' }) : null,
+      t.status === 'completed' ? h('dd', { text: info.completed_by + ', ' + R.longDate(t.completed_at.slice(0, 10)) + ' ' + t.completed_at.slice(11, 16) }) : null,
+      t.completion_comment ? h('dt', { text: 'Comment' }) : null,
+      t.completion_comment ? h('dd', { text: t.completion_comment }) : null
+    ]);
+
+    var events = info.events.length ? h('details', { class: 'events' }, [
+      h('summary', { text: 'History of this cleaning (' + info.events.length + ')' }),
+      h('ul', {}, info.events.map(function (e) {
+        return h('li', {}, [h('b', { text: e.label }), ' · ' + e.who + ' · ' + R.shortDate(e.at.slice(0, 10)) + ' ' + e.at.slice(11, 16),
+          e.new_date ? ' · to ' + R.shortDate(e.new_date) : '', e.reason ? ' · ' + e.reason : '', e.comment ? ' · ' + e.comment : '']);
+      }))
+    ]) : null;
+
+    var m = U.modal(title, [facts, events, area], { wide: false });
+
+    function done(msg, undoToken) {
+      m.close(); app.reload();
+      U.toast(msg, 'ok', undoToken ? { ms: 10000, action: { label: 'Undo', fn: function () {
+        S.undo(undoToken).then(function () { U.toast('Undone.'); app.reload(); }, function (e) { U.toast(U.errorText(e), 'error'); app.reload(); });
+      } } } : null);
+    }
+    function failHard(e) { if (e && e.code === 'conflict') { U.toast(e.message, 'error'); m.close(); app.reload(); return true; } return false; }
+
+    function menu() {
+      U.clear(area);
+      var buttons = [];
+      if (t.status === 'open') {
+        buttons.push(h('button', { class: 'btn', onclick: completeForm }, [I('check', 16), ' Complete']));
+        buttons.push(h('button', { class: 'btn secondary', onclick: postponeForm }, [I('clock', 16), ' Postpone']));
+      }
+      if (isAdmin && t.status === 'open') {
+        buttons.push(h('button', { class: 'btn ghost', text: 'Change date', onclick: editForm }));
+        buttons.push(h('button', { class: 'btn ghost danger-text', text: 'Delete', onclick: deleteStep }));
+      }
+      if (isAdmin && t.status === 'completed') buttons.push(h('button', { class: 'btn ghost', text: 'Reopen', onclick: reopenStep }));
+      if (!buttons.length) U.add(area, h('p', { class: 'muted', text: 'Log in as Admin to change a completed cleaning.' }));
+      U.add(area, h('div', { class: 'actions' }, buttons));
+    }
+
+    function completeForm() {
+      var op = U.personField(S.activeUsers());
+      var comment = h('textarea', { rows: '3', maxlength: '1000', placeholder: 'Any problem? Write it here (optional)' });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Complete cleaning' }), U.field('Your name', op.node), U.field('Comment', comment), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: next }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+      op.input.focus();
+      function next() {
+        var u = S.lookupOperator(op.input.value);
+        if (!u) { msg.textContent = 'Choose your name.'; msg.hidden = false; return; }
+        var opId = op.input.value, c = comment.value;
+        U.confirmStep(area, 'Confirm cleaning completed for ' + tool.name + ' by ' + u.name + '?', 'Yes, completed', function () {
+          return S.complete(t.id, opId, c).then(function (r) {
+            done(tool.name + ' completed.' + (r.next ? ' Next: ' + R.dayName(r.next.due_date).slice(0, 3) + ' ' + R.shortDate(r.next.due_date) + '.' : ''), r.undo);
+          }, function (e) { if (!failHard(e)) throw e; });
+        }, completeForm);
+      }
+    }
+
+    function postponeForm() {
+      var op = U.personField(S.activeUsers());
+      var date = h('input', { type: 'date', min: R.today(), value: o.moveTo || '' });
+      var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why? (optional), e.g. tool used by PROD' });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      var auto = R.nextWorkingDay(R.maxDate(t.due_date, R.today()));
+      U.clear(area);
+      U.add(area, [h('h3', { text: o.moveTo ? 'Move cleaning to ' + R.dayName(o.moveTo) + ' ' + R.shortDate(o.moveTo) : 'Postpone cleaning' }), U.field('Your name', op.node),
+        U.field('New date', date, 'Optional. Empty = next working day (' + R.dayName(auto) + ' ' + R.shortDate(auto) + '). A weekend date moves to Monday.'),
+        U.field('Reason', reason), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: next }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+      op.input.focus();
+      function next() {
+        var u = S.lookupOperator(op.input.value);
+        if (!u) { msg.textContent = 'Choose your name.'; msg.hidden = false; return; }
+        var d = date.value;
+        if (d && d < R.today()) { msg.textContent = 'The new date cannot be in the past.'; msg.hidden = false; return; }
+        var target = d ? R.toWorkingDay(d) : auto;
+        var opId = op.input.value, rs = reason.value;
+        U.confirmStep(area, u.name + ': postpone ' + tool.name + ' to ' + R.dayName(target) + ' ' + R.longDate(target) + '?' +
+          (d && target !== d ? ' (the chosen date is a weekend)' : ''), 'Yes, postpone', function () {
+          return S.postpone(t.id, opId, d, rs).then(function (r) {
+            done(tool.name + ' postponed to ' + R.dayName(r.task.due_date).slice(0, 3) + ' ' + R.shortDate(r.task.due_date) + '.', r.undo);
+          }, function (e) { if (!failHard(e)) throw e; });
+        }, postponeForm);
+      }
+    }
+
+    function editForm() {
+      var date = h('input', { type: 'date', value: t.due_date });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Change date (Admin)' }), U.field('New date', date, 'Monday to Friday only.'), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            if (!R.isDate(date.value) || R.isWeekend(date.value)) { msg.textContent = 'Choose a working day.'; msg.hidden = false; return; }
+            var d = date.value;
+            U.confirmStep(area, 'Move ' + tool.name + ' to ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, move', function () {
+              return S.editTask(t.id, d).then(function () { done('Date changed.'); }, function (e) { if (!failHard(e)) throw e; });
+            }, editForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+
+    function deleteStep() {
+      U.confirmStep(area, 'Delete this cleaning of ' + tool.name + '?' + (t.is_one_off ? '' : ' The schedule continues with the next date.'),
+        'Yes, delete', function () {
+          return S.deleteTask(t.id).then(function () { done('Cleaning deleted.'); }, function (e) { if (!failHard(e)) throw e; });
+        }, menu, true);
+    }
+
+    function reopenStep() {
+      U.confirmStep(area, 'Reopen this cleaning of ' + tool.name + '? It becomes open again.', 'Yes, reopen', function () {
+        return S.reopen(t.id).then(function () { done('Cleaning reopened.'); });
+      }, menu);
+    }
+
+    if (o.moveTo && t.status === 'open') postponeForm(); else menu();
+  }
+
+  /* --- Tool panel --------------------------------------------------- */
+
+  function toolPanel(toolId, app) {
+    var tool = S.current().tools.find(function (x) { return x.id === toolId; });
+    if (!tool) return;
+    var isAdmin = !!S.currentAdmin();
+    var area = h('div', { class: 'action-area' });
+    var hist = S.history({ toolId: toolId }).slice(0, 8);
+    var m = U.modal(tool.name, [
+      h('dl', { class: 'facts' }, [
+        h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill ' + (tool.status === 'down' ? 's-down' : 's-upcoming'), text: tool.status === 'down' ? 'Tool down' : 'Active' })),
+        tool.status === 'down' ? h('dt', { text: 'Down since' }) : null,
+        tool.status === 'down' ? h('dd', { text: R.longDate(tool.down_since.slice(0, 10)) + (tool.down_reason ? ' – ' + tool.down_reason : '') }) : null,
+        h('dt', { text: 'Schedule' }), h('dd', { text: R.describeSchedule(tool) }),
+        h('dt', { text: 'Tool owner' }), h('dd', { text: tool.tool_owner || '–' }),
+        h('dt', { text: 'MNT owner' }), h('dd', { text: tool.mnt_owner || '–' })
+      ]),
+      hist.length ? h('details', { class: 'events' }, [h('summary', { text: 'Recent history' }), h('ul', {}, hist.map(function (r) {
+        return h('li', {}, [h('b', { text: r.action_label }), ' · ' + (r.who || '–') + ' · ' + R.shortDate(r.date) + (r.reason ? ' · ' + r.reason : '') + (r.comment ? ' · ' + r.comment : '')]);
+      }))]) : null,
+      area
+    ]);
+    var close = function (msg) { U.toast(msg); m.close(); app.reload(); };
+
+    function menu() {
+      U.clear(area);
+      if (!isAdmin) { U.add(area, h('p', { class: 'muted', text: 'Tool down / reactivate: log in as Admin.' })); return; }
+      U.add(area, h('div', { class: 'actions' }, tool.status === 'down'
+        ? [h('button', { class: 'btn', text: 'Reactivate tool', onclick: reactivateForm })]
+        : [h('button', { class: 'btn danger', onclick: downForm }, [I('ban', 16), ' Set tool down'])]));
+    }
+    function downForm() {
+      var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why is the tool down? e.g. no use allowed, waiting for service' });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Set tool down' }), U.field('Reason', reason), h('p', { class: 'hint', text: 'Cleanings pause until the tool is reactivated.' }),
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn danger', text: 'Continue', onclick: function () {
+            var rs = reason.value;
+            U.confirmStep(area, 'Set ' + tool.name + ' down? Its cleanings pause.', 'Yes, set down', function () {
+              return S.toolDown(tool.id, rs).then(function () { close(tool.name + ' is now down.'); });
+            }, downForm, true);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function reactivateForm() {
+      var date = h('input', { type: 'date', min: R.today(), value: R.toWorkingDay(R.today()) });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Reactivate tool' }), U.field('Next cleaning on', date, 'A working day, today or later.'), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var d = date.value;
+            if (!R.isDate(d) || R.isWeekend(d) || d < R.today()) { msg.textContent = 'Choose a working day, today or later.'; msg.hidden = false; return; }
+            U.confirmStep(area, 'Reactivate ' + tool.name + ' with the next cleaning on ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, reactivate', function () {
+              return S.reactivate(tool.id, d).then(function () { close(tool.name + ' is active again.'); });
+            }, reactivateForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    menu();
+  }
+
+  return { render: render, taskPanel: taskPanel, toolPanel: toolPanel };
+})();
+
+</script>
+  <script>
+/* js/views/history.js */
+/**
+ * Hirata Cleaning Plan - views/history.js
+ * Every action (who, when, why) with filters and Export CSV for Excel.
+ */
+window.HCP = window.HCP || {};
+window.HCP.views = window.HCP.views || {};
+window.HCP.views.history = (function () {
+  'use strict';
+
+  var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h;
+  var filters = { toolId: '', action: '', from: '', to: '' };
+  var PAGE = 300;
+
+  function render(root, app) {
+    var d = S.current();
+    var toolSel = h('select', { onchange: function (e) { filters.toolId = e.target.value; app.render(); } },
+      [h('option', { value: '', text: 'All tools' })].concat(d.tools.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (t) {
+        return h('option', { value: t.id, text: t.name + (t.archived ? ' (archived)' : ''), selected: filters.toolId === t.id });
+      })));
+    var actSel = h('select', { onchange: function (e) { filters.action = e.target.value; app.render(); } },
+      [h('option', { value: '', text: 'All actions' })].concat(Object.keys(S.ACTION_LABELS).map(function (k) {
+        return h('option', { value: k, text: S.ACTION_LABELS[k], selected: filters.action === k });
+      })));
+    var from = h('input', { type: 'date', value: filters.from, onchange: function (e) { filters.from = e.target.value; app.render(); } });
+    var to = h('input', { type: 'date', value: filters.to, onchange: function (e) { filters.to = e.target.value; app.render(); } });
+
+    var rows = S.history(filters);
+    var bar = h('div', { class: 'filters' }, [
+      U.field('Tool', toolSel), U.field('Action', actSel), U.field('From', from), U.field('To', to),
+      h('div', { class: 'filter-actions' }, [
+        h('button', { class: 'btn ghost', text: 'Clear', onclick: function () { filters = { toolId: '', action: '', from: '', to: '' }; app.render(); } }),
+        h('button', { class: 'btn', disabled: !rows.length, onclick: function () {
+          U.download('hirata-cleaning-history-' + R.today() + '.csv', S.historyCsv(filters));
+        } }, [window.HCP.icon('download', 15), ' Export CSV'])
+      ])
+    ]);
+
+    var table = h('table', { class: 'list' }, [
+      h('thead', {}, h('tr', {}, ['Date', 'Time', 'Tool', 'Action', 'Who', 'Dates', 'Reason / comment'].map(function (c) { return h('th', { text: c }); }))),
+      h('tbody', {}, rows.length ? rows.slice(0, PAGE).map(function (r) {
+        var dates = r.old_date && r.new_date ? R.shortDate(r.old_date) + ' → ' + R.shortDate(r.new_date) : r.old_date ? R.shortDate(r.old_date) : r.new_date ? R.shortDate(r.new_date) : '';
+        return h('tr', {}, [
+          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', { class: 'strong', text: r.tool || '–' }),
+          h('td', {}, h('span', { class: 'act a-' + r.action, text: r.action_label })),
+          h('td', { text: r.who || '–' }), h('td', { text: dates }),
+          h('td', { class: 'wrap', text: [r.reason, r.comment].filter(Boolean).join(' · ') })
+        ]);
+      }) : h('tr', {}, h('td', { colspan: '7', class: 'empty', text: 'No history for these filters.' })))
+    ]);
+
+    U.add(root, [h('h2', { text: 'History' }), bar,
+      h('p', { class: 'muted' }, ['One row per action. For one row per cleaning (planned, done, days late, who) and the Excel workbook, see ', h('a', { href: '#analytics', text: 'Analytics' }), '.']),
+      h('p', { class: 'muted', text: rows.length + ' entries' + (rows.length > PAGE ? ' (showing the newest ' + PAGE + '; Export CSV has all)' : '') }),
+      h('div', { class: 'grid-wrap' }, table)]);
+  }
+
+  return { render: render };
+})();
+
+</script>
+  <script>
+/* js/views/analytics.js */
+/**
+ * Hirata Cleaning Plan - views/analytics.js
+ * KPIs and charts for a period, plus the downloads (Excel workbook, cleaning report CSV).
+ */
+window.HCP = window.HCP || {};
+window.HCP.views = window.HCP.views || {};
+window.HCP.views.analytics = (function () {
+  'use strict';
+
+  var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, A = window.HCP.analytics, I = window.HCP.icon, h = U.h;
+  var preset = 'weeks4';
+  var custom = null;   // {from, to}
+
+  function range() {
+    if (preset === 'custom' && custom) return custom;
+    return A.period(preset === 'weeks4' ? 'weeks' : preset, R.today());
+  }
+
+  function render(root, app) {
+    var r = range();
+    var st = A.stats(S.current(), r.from, r.to, R.today());
+    var k = st.kpi;
+
+    var presets = [['weeks4', 'Last 4 weeks'], ['quarter', '3 months'], ['year', '12 months'], ['custom', 'Custom']];
+    var seg = h('div', { class: 'segmented' }, presets.map(function (p) {
+      return h('button', { class: preset === p[0] ? 'on' : '', text: p[1], onclick: function () {
+        preset = p[0]; if (p[0] === 'custom' && !custom) custom = range(); app.render();
+      } });
+    }));
+    var from = h('input', { type: 'date', value: r.from, onchange: function (e) { preset = 'custom'; custom = { from: e.target.value, to: (custom || r).to }; app.render(); } });
+    var to = h('input', { type: 'date', value: r.to, onchange: function (e) { preset = 'custom'; custom = { from: (custom || r).from, to: e.target.value }; app.render(); } });
+    var fname = 'hirata-cleaning-' + r.from + '_to_' + r.to;
+
+    var head = h('div', { class: 'an-head' }, [
+      h('div', {}, [h('h2', { text: 'Analytics' }), h('p', { class: 'muted', text: R.longDate(r.from) + ' – ' + R.longDate(r.to) + ' · "on time" = done on or before the planned day' })]),
+      h('div', { class: 'an-controls' }, [seg, preset === 'custom' ? h('span', { class: 'range' }, [from, ' – ', to]) : null]),
+      h('div', { class: 'an-downloads' }, [
+        h('button', { class: 'btn', onclick: function () {
+          U.download(fname + '.xlsx', S.workbook(r.from, r.to), window.HCP.xlsx.MIME);
+        } }, [I('download', 15), ' Excel workbook (.xlsx)']),
+        h('button', { class: 'btn ghost', onclick: function () { U.download(fname + '-report.csv', S.reportCsv(r.from, r.to)); } }, [I('download', 15), ' Cleaning report (CSV)'])
+      ])
+    ]);
+
+    var kpis = h('div', { class: 'an-kpis' }, [
+      kpi('Cleanings in period', k.planned, 'planned or done', 'calendar'),
+      kpi('Done', k.done, k.planned ? Math.round(100 * k.done / k.planned) + '% of planned' : '–', 'check'),
+      ringKpi('On time', k.onTimePct),
+      kpi('Avg days late', k.avgLate == null ? '–' : k.avgLate, 'per done cleaning', 'clock'),
+      kpi('Postponements', k.postponements, 'in period', 'skip'),
+      kpi('Overdue now', k.overdueNow, k.overdueNow ? 'needs action' : 'all on track', 'exclaim', k.overdueNow ? 'bad' : '')
+    ]);
+
+    if (!st.rows.length) {
+      U.add(root, [head, kpis, h('div', { class: 'card empty-card' }, [I('calendar', 30), h('p', { text: 'No cleanings in this period yet. Charts appear once cleanings are completed or postponed.' })])]);
+      return;
+    }
+
+    var grid = h('div', { class: 'an-grid' }, [
+      card('Done per week', 'On time vs late, by the week it was done', weekChart(st.byWeek)),
+      card('On-time rate per tool', 'Done on or before the planned day', bars(st.byTool.filter(function (t) { return t.done; }).map(function (t) {
+        return { label: t.tool, value: t.onTimePct, text: t.onTimePct + '%', note: t.done + ' done', tone: t.onTimePct >= 90 ? 'good' : t.onTimePct >= 70 ? 'warn' : 'bad' };
+      }), 100, 'No completed cleanings yet.')),
+      card('Top postpone reasons', 'Every postponement counts once', bars(st.topReasons.map(function (x) {
+        return { label: x.reason, value: x.count, text: String(x.count), tone: 'warn' };
+      }), null, 'No postponements in this period.')),
+      card('Cleanings per operator', 'Completed in the period', bars(st.byOperator.map(function (o) {
+        return { label: o.who, value: o.done, text: String(o.done), note: o.onTime + ' on time', tone: 'blue' };
+      }), null, 'No completed cleanings yet.'))
+    ]);
+
+    var table = h('div', { class: 'card' }, [h('h3', { text: 'Per tool' }), h('div', { class: 'grid-wrap flat' }, h('table', { class: 'list' }, [
+      h('thead', {}, h('tr', {}, ['Tool', 'Cleanings', 'Done', 'On time %', 'Avg days late', 'Times postponed', 'Overdue now'].map(function (c) { return h('th', { text: c }); }))),
+      h('tbody', {}, st.byTool.map(function (t) {
+        return h('tr', {}, [h('td', { class: 'strong', text: t.tool }), h('td', { text: String(t.total) }), h('td', { text: String(t.done) }),
+          h('td', {}, t.onTimePct == null ? '–' : h('span', { class: 'pct ' + (t.onTimePct >= 90 ? 'good' : t.onTimePct >= 70 ? 'warn' : 'bad'), text: t.onTimePct + '%' })),
+          h('td', { text: t.avgLate == null ? '–' : String(t.avgLate) }), h('td', { text: String(t.postponed) }),
+          h('td', { class: t.overdue ? 'bad-text' : '', text: String(t.overdue) })]);
+      }))
+    ]))]);
+
+    U.add(root, [head, kpis, grid, table]);
+  }
+
+  function kpi(label, value, sub, icon, tone) {
+    return h('div', { class: 'an-kpi ' + (tone || '') }, [h('span', { class: 'an-ico' }, I(icon, 18)),
+      h('div', {}, [h('div', { class: 'tile-label', text: label }), h('div', { class: 'an-num', text: String(value) }), h('div', { class: 'tile-sub', text: sub })])]);
+  }
+  function ringKpi(label, p) {
+    return h('div', { class: 'an-kpi' }, [h('div', { class: 'ring', style: '--p:' + (p || 0) }, h('span', { text: p == null ? '–' : p + '%' })),
+      h('div', {}, [h('div', { class: 'tile-label', text: label }), h('div', { class: 'tile-sub', text: p == null ? 'nothing done yet' : 'of done cleanings' })])]);
+  }
+  function card(title, sub, body) {
+    return h('section', { class: 'card an-card' }, [h('h3', { text: title }), h('p', { class: 'muted small', text: sub }), body]);
+  }
+
+  /** Horizontal bars: [{label, value, text, note, tone}] */
+  function bars(items, max, emptyText) {
+    if (!items.length) return h('p', { class: 'muted', text: emptyText });
+    var m = max || Math.max.apply(null, items.map(function (i) { return i.value; })) || 1;
+    return h('div', { class: 'bars' }, items.map(function (i) {
+      return h('div', { class: 'bar-row', title: i.label + ': ' + i.text + (i.note ? ' (' + i.note + ')' : '') }, [
+        h('span', { class: 'bar-label', text: i.label }),
+        h('span', { class: 'bar-track' }, h('span', { class: 'bar-fill ' + (i.tone || 'blue'), style: 'width:' + Math.max(2, Math.round(100 * i.value / m)) + '%' })),
+        h('span', { class: 'bar-val' }, [h('b', { text: i.text }), i.note ? h('small', { text: ' ' + i.note }) : null])
+      ]);
+    }));
+  }
+
+  /** Stacked columns per week (SVG). */
+  function weekChart(weeks) {
+    var W = 560, H = 200, pad = 26, n = weeks.length || 1;
+    var max = Math.max(1, Math.max.apply(null, weeks.map(function (w) { return w.onTime + w.late; })));
+    var bw = Math.min(38, (W - pad * 2) / n * 0.6), step = (W - pad * 2) / n;
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('class', 'week-chart'); svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Cleanings done per week');
+    function el(tag, attrs, text) { var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); if (text != null) e.textContent = text; svg.appendChild(e); return e; }
+    var base = H - 24, top = 12, scale = (base - top) / max;
+    [0, 0.5, 1].forEach(function (f) { var y = base - f * (base - top); el('line', { x1: pad, x2: W - 6, y1: y, y2: y, class: 'gridline' }); el('text', { x: pad - 6, y: y + 4, class: 'axis', 'text-anchor': 'end' }, String(Math.round(f * max))); });
+    weeks.forEach(function (w, i) {
+      var x = pad + i * step + (step - bw) / 2;
+      var hOn = w.onTime * scale, hLate = w.late * scale;
+      if (hOn) el('rect', { x: x, y: base - hOn, width: bw, height: hOn, rx: 3, class: 'col-ontime' }).appendChild(title(w.onTime + ' on time'));
+      if (hLate) el('rect', { x: x, y: base - hOn - hLate, width: bw, height: hLate, rx: 3, class: 'col-late' }).appendChild(title(w.late + ' late'));
+      if (w.onTime + w.late) el('text', { x: x + bw / 2, y: base - hOn - hLate - 4, class: 'col-num', 'text-anchor': 'middle' }, String(w.onTime + w.late));
+      el('text', { x: x + bw / 2, y: H - 8, class: 'axis', 'text-anchor': 'middle' }, 'W' + w.week);
+    });
+    function title(t) { var e = document.createElementNS(NS, 'title'); e.textContent = t; return e; }
+    return h('div', {}, [svg, h('div', { class: 'chart-legend' }, [h('span', { class: 'sw ontime' }), 'On time', h('span', { class: 'sw late' }), 'Late'])]);
+  }
+
+  return { render: render };
+})();
+
+</script>
+  <script>
+/* js/views/settings.js */
+/**
+ * Hirata Cleaning Plan - views/settings.js  (Admin only)
+ * Tabs: Tools, Users, One-off cleaning, General.
+ */
+window.HCP = window.HCP || {};
+window.HCP.views = window.HCP.views || {};
+window.HCP.views.settings = (function () {
+  'use strict';
+
+  var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h;
+  var tab = 'tools';
+  var showArchived = false;
+
+  function render(root, app) {
+    var tabs = [['tools', 'Tools'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
+    var nav = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
+      return h('button', { class: 'tab' + (tab === t[0] ? ' active' : ''), role: 'tab', 'aria-selected': String(tab === t[0]), text: t[1],
+        onclick: function () { tab = t[0]; app.render(); } });
+    }));
+    var body = h('div', { class: 'tab-body' });
+    U.add(root, [h('h2', { text: 'Settings' }), nav, body]);
+    ({ tools: tools, users: users, oneoff: oneoff, general: general })[tab](body, app);
+  }
+
+  /* --- Tools -------------------------------------------------------- */
+
+  function nextCleaning(toolId) {
+    var t = S.current().tasks.filter(function (x) { return x.tool_id === toolId && x.status === 'open'; })
+      .sort(function (a, b) { return a.due_date < b.due_date ? -1 : 1; })[0];
+    return t ? R.dayName(t.due_date).slice(0, 3) + ' ' + R.longDate(t.due_date) : '–';
+  }
+
+  function tools(body, app) {
+    var list = S.current().tools.filter(function (t) { return showArchived || !t.archived; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+    U.add(body, [
+      h('div', { class: 'row-bar' }, [
+        h('button', { class: 'btn', text: '+ Add tool', onclick: function () { toolForm(null, app); } }),
+        h('label', { class: 'toggle' }, [h('input', { type: 'checkbox', checked: showArchived, onchange: function (e) { showArchived = e.target.checked; app.render(); } }), ' Show archived tools'])
+      ]),
+      h('div', { class: 'grid-wrap' }, h('table', { class: 'list' }, [
+        h('thead', {}, h('tr', {}, ['Tool', 'Schedule', 'Next cleaning', 'Tool owner', 'MNT owner', 'Status', ''].map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, list.length ? list.map(function (t) {
+          return h('tr', { class: t.archived ? 'is-archived' : '' }, [
+            h('td', { class: 'strong', text: t.name }), h('td', { text: R.describeSchedule(t) }),
+            h('td', { text: t.archived ? '–' : nextCleaning(t.id) }), h('td', { text: t.tool_owner || '–' }), h('td', { text: t.mnt_owner || '–' }),
+            h('td', {}, t.archived ? h('span', { class: 'pill s-projected', text: 'Archived' })
+              : h('span', { class: 'pill ' + (t.status === 'down' ? 's-down' : 's-upcoming'), text: t.status === 'down' ? 'Down' : 'Active' })),
+            h('td', { class: 'row-actions' }, [
+              h('button', { class: 'btn small ghost', text: 'Edit', onclick: function () { toolForm(t, app); } }),
+              !t.archived ? h('button', { class: 'btn small ghost', text: t.status === 'down' ? 'Reactivate' : 'Tool down', onclick: function () { window.HCP.views.board.toolPanel(t.id, app); } }) : null,
+              h('button', { class: 'btn small ghost', text: t.archived ? 'Restore' : 'Archive', onclick: function () { archive(t, app); } })
+            ])
+          ]);
+        }) : h('tr', {}, h('td', { colspan: '7', class: 'empty', text: 'No tools.' })))
+      ]))
+    ]);
+  }
+
+  function archive(t, app) {
+    var area = h('div');
+    U.modal((t.archived ? 'Restore ' : 'Archive ') + t.name, area);
+    U.confirmStep(area, t.archived ? 'Restore ' + t.name + '? It comes back on the board with its schedule.'
+      : 'Archive ' + t.name + '? It disappears from the board. Its history is kept and it can be restored.',
+      t.archived ? 'Yes, restore' : 'Yes, archive', function () {
+        return S.archiveTool(t.id, !t.archived).then(function () { U.closeModal(); U.toast(t.name + (t.archived ? ' restored.' : ' archived.')); app.reload(); });
+      }, U.closeModal, !t.archived);
+  }
+
+  function toolForm(t, app) {
+    var isNew = !t;
+    t = t || { name: '', tool_owner: '', mnt_owner: '', schedule_type: 'weeks', interval: 2, weekday: 2, month_day: 1, start_date: R.today() };
+    var name = h('input', { type: 'text', value: t.name, maxlength: '40', placeholder: 'e.g. LAC901' });
+    var owner = h('input', { type: 'text', value: t.tool_owner, maxlength: '80' });
+    var mnt = h('input', { type: 'text', value: t.mnt_owner, maxlength: '80' });
+    var type = h('select', {}, [h('option', { value: 'weeks', text: 'Weeks', selected: t.schedule_type === 'weeks' }), h('option', { value: 'months', text: 'Months', selected: t.schedule_type === 'months' })]);
+    var interval = h('input', { type: 'number', min: '1', max: '52', step: '1', value: t.interval, class: 'num' });
+    var weekday = h('select', {}, [1, 2, 3, 4, 5].map(function (n) { return h('option', { value: n, text: R.DAY_NAMES[n], selected: t.weekday === n }); }));
+    var monthDay = h('input', { type: 'number', min: '1', max: '31', step: '1', value: t.month_day || 1, class: 'num' });
+    var start = h('input', { type: 'date', value: t.start_date });
+    var wdField = U.field('On weekday', weekday);
+    var mdField = U.field('On day of month', monthDay, '29–31: last day in shorter months. Weekend → next Monday.');
+    var preview = h('p', { class: 'preview' });
+    var msg = h('p', { class: 'form-error', hidden: true });
+
+    function values() {
+      return { id: isNew ? undefined : t.id, name: name.value, tool_owner: owner.value, mnt_owner: mnt.value,
+        schedule_type: type.value, interval: parseInt(interval.value, 10), weekday: parseInt(weekday.value, 10),
+        month_day: parseInt(monthDay.value, 10), start_date: start.value };
+    }
+    function update() {
+      var v = values();
+      wdField.hidden = v.schedule_type !== 'weeks';
+      mdField.hidden = v.schedule_type !== 'months';
+      var probe = { schedule_type: v.schedule_type, interval: v.interval, weekday: v.schedule_type === 'weeks' ? v.weekday : null,
+        month_day: v.schedule_type === 'months' ? v.month_day : null, start_date: v.start_date };
+      var e = R.validateSchedule(probe);
+      preview.textContent = e ? e : R.describeSchedule(probe) + '. Next cleanings: ' +
+        R.previewDates(probe, isNew ? v.start_date : R.maxDate(v.start_date, R.today()), 5).map(function (d) { return R.dayName(d).slice(0, 3) + ' ' + R.shortDate(d); }).join(', ');
+      preview.className = 'preview' + (e ? ' bad' : '');
+    }
+    [type, interval, weekday, monthDay, start].forEach(function (el) { el.addEventListener('input', update); el.addEventListener('change', update); });
+
+    var save = h('button', { class: 'btn', text: isNew ? 'Add tool' : 'Save changes' });
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      S.saveTool(values()).then(function (saved) {
+        U.closeModal(); U.toast(saved.name + (isNew ? ' added.' : ' saved.')); app.reload();
+      }).catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; save.disabled = false; });
+    });
+
+    U.modal(isNew ? 'Add tool' : 'Edit ' + t.name, [
+      h('div', { class: 'form-grid' }, [
+        U.field('Tool name', name), U.field('Tool owner', owner), U.field('MNT owner', mnt),
+        U.field('Repeat in', type), U.field('Every', interval, 'weeks or months'), wdField, mdField,
+        U.field('Start date', start, isNew ? 'The first cleaning is the first schedule date on or after this.' : 'Changing the schedule moves the open cleaning to the new pattern.')
+      ]),
+      preview, msg,
+      h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])
+    ], { wide: true });
+    update();
+  }
+
+  /* --- Users -------------------------------------------------------- */
+
+  function users(body, app) {
+    var list = S.current().users.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    U.add(body, [
+      h('div', { class: 'row-bar' }, [h('button', { class: 'btn', text: '+ Add user', onclick: function () { userForm(null, app); } })]),
+      h('p', { class: 'muted', text: 'Everyone in this list appears in the name list when completing or postponing a cleaning. Admins log in with their name and PIN.' }),
+      h('div', { class: 'grid-wrap' }, h('table', { class: 'list' }, [
+        h('thead', {}, h('tr', {}, ['Name', 'Role', 'Status', 'Short ID', ''].map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, list.map(function (u) {
+          return h('tr', { class: u.active ? '' : 'is-archived' }, [
+            h('td', { class: 'strong', text: u.name }),
+            h('td', { text: u.role === 'admin' ? 'Admin' : 'Operator' }), h('td', { text: u.active ? 'Active' : 'Inactive' }),
+            h('td', { class: 'mono muted', text: u.operator_id }),
+            h('td', { class: 'row-actions' }, h('button', { class: 'btn small ghost', text: 'Edit', onclick: function () { userForm(u, app); } }))
+          ]);
+        }))
+      ]))
+    ]);
+  }
+
+  function userForm(u, app) {
+    var isNew = !u;
+    u = u || { operator_id: '', name: '', role: 'operator', active: true, pin_hash: null };
+    var opId = h('input', { type: 'text', value: u.operator_id, maxlength: '20', placeholder: 'automatic', class: 'mono' });
+    var name = h('input', { type: 'text', value: u.name, maxlength: '80' });
+    var role = h('select', {}, [h('option', { value: 'operator', text: 'Operator', selected: u.role !== 'admin' }), h('option', { value: 'admin', text: 'Admin', selected: u.role === 'admin' })]);
+    var active = h('input', { type: 'checkbox', checked: u.active });
+    var pin = h('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'new-password' });
+    var pinField = U.field('PIN (4–8 digits)', pin, u.pin_hash ? 'Leave empty to keep the current PIN.' : 'Needed for Admins.');
+    var msg = h('p', { class: 'form-error', hidden: true });
+    function update() { pinField.hidden = role.value !== 'admin'; }
+    role.addEventListener('change', update);
+    var save = h('button', { class: 'btn', text: isNew ? 'Add user' : 'Save' });
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      S.saveUser({ id: isNew ? undefined : u.id, operator_id: opId.value, name: name.value, role: role.value, active: active.checked,
+        pin: role.value === 'admin' ? pin.value : '' })
+        .then(function (saved) { U.closeModal(); U.toast(saved.name + ' saved.'); app.reload(); })
+        .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; save.disabled = false; });
+    });
+    U.modal(isNew ? 'Add user' : 'Edit ' + u.name, [
+      h('div', { class: 'form-grid' }, [U.field('Name', name, 'As it should appear in the list, e.g. Marco Trummer.'), U.field('Role', role), pinField,
+        U.field('Short ID (optional)', opId, 'Filled in automatically; used in exports.'),
+        h('label', { class: 'toggle' }, [active, ' Active (can complete and postpone)'])]),
+      msg, h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])
+    ]);
+    update();
+  }
+
+  /* --- One-off ------------------------------------------------------ */
+
+  function oneoff(body, app) {
+    var list = S.current().tools.filter(function (t) { return !t.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var tool = h('select', {}, list.map(function (t) { return h('option', { value: t.id, text: t.name }); }));
+    var date = h('input', { type: 'date', min: R.today(), value: R.toWorkingDay(R.today()) });
+    var note = h('input', { type: 'text', maxlength: '200', placeholder: 'Optional note, e.g. extra cleaning after service' });
+    var msg = h('p', { class: 'form-error', hidden: true });
+    var area = h('div');
+    function form() {
+      U.clear(area);
+      U.add(area, [h('div', { class: 'form-grid' }, [U.field('Tool', tool), U.field('Date', date, 'Monday to Friday.'), U.field('Note', note)]), msg,
+        h('div', { class: 'actions' }, h('button', { class: 'btn', text: 'Add one-off cleaning', disabled: !list.length, onclick: function () {
+          var d = date.value, t = list.find(function (x) { return x.id === tool.value; });
+          if (!R.isDate(d) || R.isWeekend(d) || d < R.today()) { msg.textContent = 'Choose a working day, today or later.'; msg.hidden = false; return; }
+          msg.hidden = true;
+          U.confirmStep(area, 'Add a one-off cleaning of ' + t.name + ' on ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, add', function () {
+            return S.addOneOff(t.id, d, note.value).then(function () { U.toast('One-off cleaning added.'); app.reload(); });
+          }, form);
+        } }))]);
+    }
+    U.add(body, [h('p', { class: 'muted', text: 'A single extra cleaning outside the tool\'s schedule. It does not change the schedule.' }), area]);
+    form();
+  }
+
+  /* --- General ------------------------------------------------------ */
+
+  function general(body, app) {
+    var d = S.current();
+    var url = h('input', { type: 'url', value: d.settings.teams_webhook_url || '', placeholder: 'https://… (empty = off)', class: 'wide' });
+    var theme = h('select', {}, [h('option', { value: 'white', text: 'Light', selected: d.settings.theme_default !== 'teal' }),
+      h('option', { value: 'teal', text: 'Dark (graphite)', selected: d.settings.theme_default === 'teal' })]);
+    var msg = h('p', { class: 'form-error', hidden: true });
+    U.add(body, [
+      h('section', { class: 'card' }, [
+        h('h3', { text: 'Teams reminder' }),
+        h('p', { class: 'muted', text: 'Once per working day, the first person who opens the app sends "due today and overdue" to this Teams channel. Create the URL in Teams: channel → Workflows → "Post to a channel when a webhook request is received".' }),
+        U.field('Teams webhook URL', url),
+        U.field('Default theme', theme, 'Each person can still switch with the button in the top bar.'),
+        msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Save', onclick: function () {
+            S.saveSettings({ teams_webhook_url: url.value, theme_default: theme.value })
+              .then(function () { U.toast('Settings saved.'); app.reload(); })
+              .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; });
+          } }),
+          h('button', { class: 'btn ghost', text: 'Send test message', disabled: !d.settings.teams_webhook_url, onclick: function () {
+            var s = R.dailySummary(S.current(), R.today());
+            app.postTeams(d.settings.teams_webhook_url, S.teamsPayload(s, R.today()))
+              .then(function () { U.toast('Test message sent. Check the Teams channel.'); })
+              .catch(function (e) { U.toast(U.errorText(e), 'error'); });
+          } })
+        ])
+      ]),
+      h('section', { class: 'card' }, [
+        h('h3', { text: 'Data' }),
+        h('dl', { class: 'facts' }, [
+          h('dt', { text: 'Data folder' }), h('dd', { text: app.folderLabel() || '–' }),
+          h('dt', { text: 'Last saved' }), h('dd', { text: (d.saved_at || '').replace('T', ' ') + (d.saved_by ? ' by ' + d.saved_by : '') }),
+          h('dt', { text: 'Revision' }), h('dd', { text: String(d.revision) }),
+          h('dt', { text: 'Contents' }), h('dd', { text: d.tools.length + ' tools, ' + d.users.length + ' users, ' + d.tasks.length + ' cleanings, ' + d.history.length + ' history entries' })
+        ]),
+        h('p', { class: 'muted', text: 'Backup: every save keeps the previous version as hirata_data.prev.json. For a full backup, copy the data folder.' }),
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn ghost', text: 'Add missing standard operators (' + S.SEED_OPERATORS.length + ' names)', onclick: function () {
+            S.addStandardOperators().then(function (added) { U.toast(added.length ? 'Added ' + added.join(', ') + '.' : 'All standard operators are already in the list.'); app.reload(); })
+              .catch(function (e) { U.toast(U.errorText(e), 'error'); });
+          } })
+        ])
+      ])
+    ]);
+  }
+
+  return { render: render };
+})();
+
+</script>
+  <script>
+/* js/app.js */
+/**
+ * Hirata Cleaning Plan - app.js
+ * Start-up (browser check, data folder, first run), top bar, navigation,
+ * Admin login, theme, auto refresh (R18) and the daily Teams message.
+ */
+(function () {
+  'use strict';
+
+  var HCP = window.HCP, cfg = HCP.config, R = HCP.rules, S = HCP.store, U = HCP.ui, h = U.h;
+  var storage = HCP.adapters.storageFolder;
+  var THEME_KEY = cfg.local_prefix + 'theme';
+  var ADMIN_KEY = cfg.local_prefix + 'admin';
+  var REFRESH_MS = 60000;
+
+  var main = document.getElementById('main');
+  var topbar = document.getElementById('topbar-right');
+  var view = 'board';
+  var lastRevision = null;
+  var lastDay = R.today();
+
+  S.setAdapter(storage);
+
+  var app = {
+    render: render,
+    reload: reload,
+    folderLabel: function () { return storage.label(); },
+    postTeams: postTeams
+  };
+
+  /* --- Theme -------------------------------------------------------- */
+
+  var themeChoice = null;   // this visit (also kept in localStorage when allowed)
+  function theme() {
+    var t = themeChoice;
+    if (!t) { try { t = localStorage.getItem(THEME_KEY); } catch (e) { /* ignore */ } }
+    var d = S.current();
+    return t || (d && d.settings && d.settings.theme_default) || 'white';
+  }
+  function applyTheme() { document.documentElement.setAttribute('data-theme', theme()); }
+  function toggleTheme() {
+    themeChoice = theme() === 'teal' ? 'white' : 'teal';
+    try { localStorage.setItem(THEME_KEY, themeChoice); } catch (e) { /* ignore */ }
+    applyTheme(); renderTop();
+  }
+
+  /* --- Start-up ----------------------------------------------------- */
+
+  function screen(nodes) { U.clear(main); U.add(main, h('div', { class: 'center-card' }, nodes)); }
+
+  function start() {
+    applyTheme();
+    document.getElementById('version').textContent = 'v' + cfg.version;
+    document.getElementById('logo').appendChild(HCP.icon('logo', 26));
+    if (!storage.isSupported()) { screen([h('h2', { text: 'Please use Microsoft Edge' }), h('p', { text: storage.unsupportedMessage() })]); return; }
+    storage.reconnect({ silent: true }).then(function (ok) {
+      if (ok) return open();
+      return storage.savedLabel().then(connectScreen);
+    }).catch(function (e) { connectScreen(null, e); });
+  }
+
+  function connectScreen(savedName, error) {
+    renderTop();
+    var btn = h('button', { class: 'btn big', text: savedName ? 'Reconnect data folder' : 'Connect data folder' });
+    btn.addEventListener('click', function () {
+      storage.reconnect({ silent: false }).then(function (ok) { return ok ? null : storage.connect(); })
+        .then(open)
+        .catch(function (e) { if (e && e.name === 'AbortError') return; connectScreen(savedName, e); });
+    });
+    screen([
+      h('h2', { text: 'Hirata Cleaning Plan' }),
+      savedName ? h('p', { text: 'Click the button to reopen the data folder "' + savedName + '". Edge asks once per session.' })
+        : h('p', {}, ['First time on this PC: click the button and choose the ', h('b', { text: 'data' }), ' folder next to index.html on the shared drive. Edge remembers it.']),
+      error ? h('p', { class: 'form-error', text: U.errorText(error) }) : null,
+      btn
+    ]);
+  }
+
+  function open() {
+    return S.load().then(function (d) {
+      if (!d) { firstRun(); return; }
+      if (S.wasRecovered()) U.toast('The plan file was damaged; the backup copy was loaded. Ask the Admin to check.', 'error');
+      lastRevision = d.revision;
+      var savedAdmin = null;
+      try { savedAdmin = sessionStorage.getItem(ADMIN_KEY); } catch (e) { /* ignore */ }
+      if (savedAdmin) S.resumeAdmin(savedAdmin);
+      applyTheme();
+      route();
+      startRefresh();
+      sendDaily();
+    }).catch(function (e) { connectScreen(storage.label(), e); });
+  }
+
+  function firstRun() {
+    renderTop();
+    var pin = h('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'new-password' });
+    var pin2 = h('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'new-password' });
+    var msg = h('p', { class: 'form-error', hidden: true });
+    var btn = h('button', { class: 'btn big', text: 'Create new plan' });
+    btn.addEventListener('click', function () {
+      if (pin.value !== pin2.value) { msg.textContent = 'The two PINs are not the same.'; msg.hidden = false; return; }
+      btn.disabled = true;
+      S.createPlan(pin.value).then(function () { return S.adminLogin('ADMIN01', pin.value); })
+        .then(function (u) { rememberAdmin(u); U.toast('Plan created with 12 tools. You are logged in as Admin.'); location.hash = '#settings'; open(); })
+        .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; btn.disabled = false; });
+    });
+    screen([
+      h('h2', { text: 'Create a new cleaning plan' }),
+      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools and the first Admin (Khurana). Add the operators afterwards in Settings → Users.' }),
+      h('p', { class: 'muted', text: 'If your team already has a plan, you chose the wrong folder: reload the page and pick the shared data folder.' }),
+      U.field('Admin PIN (4–8 digits)', pin), U.field('Repeat PIN', pin2), msg, btn
+    ]);
+  }
+
+  /* --- Navigation --------------------------------------------------- */
+
+  function route() {
+    var hash = (location.hash || '#board').slice(1);
+    view = ['board', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
+    render();
+  }
+  window.addEventListener('hashchange', function () { if (S.current()) route(); });
+
+  function renderTop() {
+    U.clear(topbar);
+    var d = S.current();
+    var adminUser = S.currentAdmin();
+    if (d) {
+      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Board'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
+        return h('a', { href: '#' + n[0], class: view === n[0] ? 'active' : '', text: n[1] });
+      })));
+      U.add(topbar, adminUser
+        ? h('span', { class: 'admin-chip' }, [HCP.icon('user', 14), 'Admin: ' + adminUser.name, h('button', { class: 'link', text: 'Log out', onclick: logout })])
+        : h('button', { class: 'btn small ghost on-dark', onclick: loginDialog }, [HCP.icon('user', 14), ' Admin login']));
+    }
+    var teal = theme() === 'teal';
+    U.add(topbar, h('button', { class: 'theme-btn', title: 'Switch to ' + (teal ? 'Light' : 'Dark') + ' theme', 'aria-label': 'Switch theme', onclick: toggleTheme },
+      [HCP.icon(teal ? 'sun' : 'moon', 15), teal ? ' Light' : ' Dark']));
+  }
+
+  function render() {
+    if (!S.current()) return;
+    renderTop();
+    U.clear(main);
+    if (view === 'settings' && !S.currentAdmin()) {
+      U.add(main, h('div', { class: 'center-card' }, [h('h2', { text: 'Settings' }), h('p', { text: 'Settings are for Admins.' }),
+        h('button', { class: 'btn', text: 'Admin login', onclick: loginDialog })]));
+      return;
+    }
+    HCP.views[view].render(main, app);
+  }
+
+  /** Re-read the file (another PC may have saved) and redraw. */
+  function reload() {
+    return S.load().then(function (d) {
+      if (!d) { firstRun(); return; }
+      lastRevision = d.revision;
+      if (S.currentAdmin() === null) forgetAdmin();
+      render();
+    }).catch(function (e) { U.toast(U.errorText(e), 'error'); });
+  }
+
+  /* --- Admin login -------------------------------------------------- */
+
+  function rememberAdmin(u) { try { sessionStorage.setItem(ADMIN_KEY, u.id); } catch (e) { /* ignore */ } }
+  function forgetAdmin() { try { sessionStorage.removeItem(ADMIN_KEY); } catch (e) { /* ignore */ } }
+
+  function loginDialog() {
+    var who = U.personField(S.admins(), 'Choose your name…');
+    var id = who.input;
+    var pin = h('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'current-password' });
+    var msg = h('p', { class: 'form-error', hidden: true });
+    var btn = h('button', { class: 'btn', text: 'Log in' });
+    function go() {
+      btn.disabled = true;
+      S.adminLogin(id.value, pin.value).then(function (u) {
+        rememberAdmin(u); U.closeModal(); U.toast('Logged in as ' + u.name + '.'); render();
+      }).catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; btn.disabled = false; pin.value = ''; pin.focus(); });
+    }
+    btn.addEventListener('click', go);
+    pin.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') go(); });
+    U.modal('Admin login', [U.field('Name', who.node), U.field('PIN', pin), msg,
+      h('p', { class: 'hint', text: 'The login lasts until you log out or close this tab.' }),
+      h('div', { class: 'actions' }, [btn, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])]);
+  }
+
+  function logout() {
+    S.adminLogout(); forgetAdmin(); U.toast('Logged out.');
+    if (view === 'settings') location.hash = '#board'; else render();
+  }
+
+  /* --- Auto refresh (R18) ------------------------------------------- */
+
+  function refreshIfChanged() {
+    if (!S.current() || U.isModalOpen() || document.hidden) return;
+    var dayChanged = R.today() !== lastDay;
+    lastDay = R.today();
+    S.load().then(function (d) {
+      if (!d) return;
+      if (d.revision !== lastRevision || dayChanged) { lastRevision = d.revision; render(); }
+      if (dayChanged) sendDaily();
+    }).catch(function () { /* share briefly unreachable: try again next time */ });
+  }
+
+  var refreshTimer = null;
+  function startRefresh() {
+    if (refreshTimer) return;
+    refreshTimer = setInterval(refreshIfChanged, REFRESH_MS);
+    window.addEventListener('focus', refreshIfChanged);
+  }
+
+  /* --- Teams -------------------------------------------------------- */
+
+  /** Fire-and-forget POST (no-cors: the page cannot read the answer). */
+  function postTeams(url, payload) {
+    return fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) })
+      .then(function () { return true; }, function () { throw new Error('Could not reach Teams. Check the webhook URL and the network.'); });
+  }
+
+  function sendDaily() {
+    S.maybeSendDaily(postTeams).catch(function () { /* never block the board for a reminder */ });
+  }
+
+  start();
+})();
+
+</script>
+</body>
+</html>

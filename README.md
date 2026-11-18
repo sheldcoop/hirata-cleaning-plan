@@ -8,6 +8,13 @@ Replaces the Excel "Hirata Cleaning Plan": a weekly grid of tool cleanings. Oper
 
 Same approach as the Metrology Request Tracker: plain files on a shared drive, opened in **Microsoft Edge**. No server, no Node, no npm, no internet. The data is one file, `data\hirata_data.json`.
 
+## Single-file version (for shares that block .js files)
+
+`dist/Hirata-Cleaning-Plan.html` is the whole app in **one HTML file** (no .js/.css files, no .cmd needed).
+Put that one file and a `data` folder on the shared drive and open the file in **Microsoft Edge**
+(right-click → Open with → Microsoft Edge, or set Edge as default for .html).
+After a code change, rebuild it with `python tools/build-single.py` (or ask for it to be rebuilt).
+
 ## Set up (once)
 
 1. Copy the whole folder to the shared drive, e.g. `Z:\Tools\Hirata Cleaning Plan\`. Everyone who uses it needs read/write access to the `data` folder.

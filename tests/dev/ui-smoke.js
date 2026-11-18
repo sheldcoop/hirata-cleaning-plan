@@ -55,10 +55,8 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($$('.tab').length === 4, 'settings tabs shown');
 
   step = 'settings: users';
-  await click($$('.tab').find(t => t.textContent === 'General'));
-  await click(btn('Add demo operators'), 300);
   await click($$('.tab').find(t => t.textContent === 'Users'));
-  ok(d.body.textContent.includes('OP001'), 'demo operator listed');
+  ok(d.body.textContent.includes('Talal AL-EFFAH') && !d.body.textContent.includes('Test Operator'), 'real operators listed, no demo names');
 
   step = 'settings: add tool';
   await click($$('.tab').find(t => t.textContent === 'Tools'));
@@ -91,11 +89,11 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(btn('Continue'));
   ok($('.form-error') && !$('.form-error').hidden, 'name required');
   const pick = (name) => { const sel = $('.modal select.person'); const o = [...sel.options].find(x => x.textContent === name); ok(o, 'name in list: ' + name); type(sel, o.value); };
-  ok([...$('.modal select.person').options].length === 4, 'list has 3 names + placeholder');
-  pick('Test Operator 1');
+  ok([...$('.modal select.person').options].length === 8, 'list has 7 names + placeholder');
+  pick('Mohamed Ibrahem');
   type($('.modal textarea'), 'Filter dirty, replaced');
   await click(btn('Continue'));
-  ok($('.confirm-q').textContent.includes('Test Operator 1'), 'confirmation shows name');
+  ok($('.confirm-q').textContent.includes('Mohamed Ibrahem'), 'confirmation shows name');
   await click(btn('Yes, completed'), 400);
   ok(!$('.modal'), 'modal closed after complete');
   ok($$('.chip.s-done').length === 1, 'done chip on the board');
@@ -104,7 +102,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   const open2 = $$('button.chip').find(c => !c.classList.contains('s-done'));
   await click(open2);
   await click(btn('🕓 Postpone'));
-  pick('Test Operator 2');
+  pick('Anja KRALJ');
   await click(btn('Continue'));
   await click(btn('Yes, postpone'), 400);
   ok($$('.toast').some(t => t.textContent.includes('postponed to')), 'postpone toast');

@@ -235,8 +235,8 @@ window.HCP.views.settings = (function () {
         ]),
         h('p', { class: 'muted', text: 'Backup: every save keeps the previous version as hirata_data.prev.json. For a full backup, copy the data folder.' }),
         h('div', { class: 'actions' }, [
-          h('button', { class: 'btn ghost', text: 'Add demo operators (Test Operator 1 and 2)', onclick: function () {
-            S.loadDemo().then(function (added) { U.toast(added.length ? 'Added ' + added.join(', ') + '.' : 'Demo operators already exist.'); app.reload(); })
+          h('button', { class: 'btn ghost', text: 'Add missing standard operators (' + S.SEED_OPERATORS.length + ' names)', onclick: function () {
+            S.addStandardOperators().then(function (added) { U.toast(added.length ? 'Added ' + added.join(', ') + '.' : 'All standard operators are already in the list.'); app.reload(); })
               .catch(function (e) { U.toast(U.errorText(e), 'error'); });
           } })
         ])

@@ -38,6 +38,9 @@ window.HCP.store = (function () {
     ['CPM901', 'Petar Jurjevic', 'De Los Santos Tristan', 2]
   ];
 
+  // The real operators (from the cleaning plan Excel). Admins can add/edit/deactivate in Settings.
+  var SEED_OPERATORS = ['Valeriia Kyrychenko', 'Mohamed Ibrahem', 'Kent Derrens Plugio', 'Anja KRALJ', 'Volodymyr SAMBURSKYI', 'Talal AL-EFFAH'];
+
   /* --- Small helpers ------------------------------------------------ */
 
   function err(code, msg) { var e = new Error(msg); e.code = code; return e; }
@@ -221,7 +224,10 @@ window.HCP.store = (function () {
       var start = R.firstRuleDate({ schedule_type: 'weeks', weekday: 2 }, R.today()).pattern;
       var d = {
         schema_version: SCHEMA_VERSION, revision: 1, created_at: stamp, saved_at: stamp, saved_by: 'ADMIN01',
-        users: [{ id: newId('user'), operator_id: 'ADMIN01', name: 'Khurana', role: 'admin', pin_hash: pinHash, active: true }],
+        users: [{ id: newId('user'), operator_id: 'ADMIN01', name: 'Khurana', role: 'admin', pin_hash: pinHash, active: true }]
+          .concat(SEED_OPERATORS.map(function (n, i) {
+            return { id: newId('user'), operator_id: 'OP00' + (i + 1), name: n, role: 'operator', pin_hash: null, active: true };
+          })),
         tools: [], tasks: [], history: [],
         settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white' }
       };
@@ -549,16 +555,17 @@ window.HCP.store = (function () {
     }, 'admin');
   }
 
-  function loadDemo() {
+  /** Adds any of the standard operators that are missing (by name). For plans created before the list existed. */
+  function addStandardOperators() {
     return mutate(function (d) {
       var a = requireAdmin(d);
       var added = [];
-      [['OP001', 'Test Operator 1'], ['OP002', 'Test Operator 2']].forEach(function (x) {
-        if (d.users.some(function (u) { return u.operator_id === x[0]; })) return;
-        d.users.push({ id: newId('user'), operator_id: x[0], name: x[1], role: 'operator', pin_hash: null, active: true });
-        added.push(x[0]);
+      SEED_OPERATORS.forEach(function (n) {
+        if (d.users.some(function (u) { return u.name.toLowerCase() === n.toLowerCase(); })) return;
+        d.users.push({ id: newId('user'), operator_id: nextShortId(d), name: n, role: 'operator', pin_hash: null, active: true });
+        added.push(n);
       });
-      if (added.length) hist(d, { action: 'user_changed', user_id: a.id, comment: 'Demo operators added: ' + added.join(', ') });
+      if (added.length) hist(d, { action: 'user_changed', user_id: a.id, comment: 'Standard operators added: ' + added.join(', ') });
       return added;
     }, 'admin');
   }
@@ -658,7 +665,7 @@ window.HCP.store = (function () {
     adminLogin: adminLogin, resumeAdmin: resumeAdmin, adminLogout: adminLogout, currentAdmin: currentAdmin,
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
-    saveUser: saveUser, saveSettings: saveSettings, loadDemo: loadDemo,
+    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin

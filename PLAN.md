@@ -88,7 +88,7 @@ The file holds one object: `{ schema_version, revision, saved_at, saved_by, user
 | Column | Type | Notes |
 |---|---|---|
 | id | integer PK | |
-| operator_id | text, unique | what people type, for example `OP001` |
+| operator_id | text, unique | automatic short ID, e.g. `OP001` (used in exports) |
 | name | text | shown in the app and in history |
 | role | text | `operator` or `admin` |
 | pin_hash | text, nullable | only for admins. Salted SHA-256 via the browser's built-in Web Crypto (PBKDF2). Never store the PIN in plain text. |
@@ -282,7 +282,7 @@ Tools to pre-load (from the old Excel; the Admin can change everything in Settin
 | TLA901 | Lukas Bursch | Aboutahir Fatima Zahra | 4 |
 | CPM901 | Petar Jurjevic | De Los Santos Tristan | 2 |
 
-A "Load demo data" button (Admin, Settings) adds test operators `OP001`, `OP002`; never in the real file unless chosen.
+The 6 real operators are created too (OP001–OP006): Valeriia Kyrychenko, Mohamed Ibrahem, Kent Derrens Plugio, Anja KRALJ, Volodymyr SAMBURSKYI, Talal AL-EFFAH. No demo/test people. Settings → General has "Add missing standard operators" for a plan created before this list existed.
 
 ## 11. Phases and milestones
 

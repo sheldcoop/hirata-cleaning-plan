@@ -9,15 +9,17 @@
     S.setAdapter(mem);
     S.adminLogout();
     return S.createPlan('1234').then(function () { return S.adminLogin('ADMIN01', '1234'); })
-      .then(function () { return S.loadDemo(); }).then(function () { return mem; });
+      .then(function () { return mem; });
   }
   function tool(name) { return S.current().tools.find(function (t) { return t.name === name; }); }
   function openTask(name) { var id = tool(name).id; return S.current().tasks.find(function (t) { return t.tool_id === id && t.status === 'open'; }); }
   function day(d) { cfg.fixed_today = d; }
 
-  test('first run creates Admin + 12 tools, each with one open cleaning on Tuesday', function () {
+  test('first run creates Admin, the 6 real operators and 12 tools, each with one open cleaning on Tuesday', function () {
     return setup().then(function (mem) {
       var d = JSON.parse(mem.files['hirata_data.json']);
+      eq(d.users.filter(function (u) { return u.role === 'operator'; }).map(function (u) { return u.name; }), S.SEED_OPERATORS);
+      eq(d.users.some(function (u) { return /test/i.test(u.name); }), false);
       eq(d.tools.length, 12);
       eq(d.tasks.length, 12);
       eq(d.users[0].operator_id, 'ADMIN01');
@@ -32,7 +34,7 @@
       day('2026-11-26');
       return S.complete(openTask('AOP901').id, 'op001', 'all fine');
     }).then(function (r) {
-      eq(r.user.name, 'Test Operator 1');
+      eq(r.user.name, 'Valeriia Kyrychenko');
       eq(r.next.due_date, '2026-12-08');
       var h = S.history({ action: 'completed' });
       eq(h.length, 1); eq(h[0].comment, 'all fine'); eq(h[0].operator_id, 'OP001');
@@ -164,12 +166,23 @@
       .then(function (u) { eq(u.name, 'Second'); });
   });
 
+  test('add missing standard operators: adds only the missing ones, no duplicates', function () {
+    return setup().then(function (mem) {
+      var d = JSON.parse(mem.files['hirata_data.json']);
+      d.users = d.users.filter(function (u) { return u.name !== 'Anja KRALJ'; });   // an older plan without her
+      mem.files['hirata_data.json'] = JSON.stringify(d);
+      return S.addStandardOperators();
+    }).then(function (added) { eq(added, ['Anja KRALJ']); return S.addStandardOperators(); })
+      .then(function (added) { eq(added, []); eq(S.activeUsers().length, 7); });
+  });
+
   test('names: complete by choosing a name (user id); new people get a short ID automatically; same name refused', function () {
     var lac;
     return setup().then(function () { return S.saveUser({ name: 'Marco Trummer', role: 'operator' }); })
       .then(function (u) {
-        eq(u.operator_id, 'OP003');
-        eq(S.activeUsers().map(function (x) { return x.name; }), ['Khurana', 'Marco Trummer', 'Test Operator 1', 'Test Operator 2']);
+        eq(u.operator_id, 'OP007');
+        eq(S.activeUsers().length, 8);
+        eq(S.activeUsers()[0].name, 'Anja KRALJ');
         lac = openTask('LAC901').id;
         return S.complete(lac, u.id, 'by name');
       })

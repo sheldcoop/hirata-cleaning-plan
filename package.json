@@ -1,0 +1,14 @@
+{
+  "name": "hirata-cleaning-plan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Weekly cleaning plan for Hirata tools",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

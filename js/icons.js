@@ -27,6 +27,12 @@ window.HCP.icon = (function () {
     plus: '<path d="M12 5v14M5 12h14"/>',
     printer: '<path d="M6 9V2h12v7"/><rect x="6" y="14" width="12" height="8"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    exclaim: '<path d="M12 6v8"/><path d="M12 18.5h.01"/>',
+    skip: '<path d="M5 5v14l9-7z" fill="currentColor"/><path d="M18 5v14"/>',
+    power: '<path d="M12 3v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>',
+    calDots: '<rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 15h.01M12 15h.01M16 15h.01"/>',
+    sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
     logo: '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8h4M7 12h10M7 16h6"/><circle cx="16" cy="8" r="1.6" fill="currentColor"/>'
   };
 

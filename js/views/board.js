@@ -14,9 +14,20 @@ window.HCP.views.board = (function () {
 
   var I = window.HCP.icon;
   var LABEL = {
-    done: ['check', 'Done'], overdue: ['alert', 'Overdue'], today: ['target', 'Due today'], postponed: ['clock', 'Postponed'],
-    upcoming: ['circle', 'Due'], down: ['ban', 'Tool down'], projected: ['dashed', 'Planned']
+    done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Due today'], postponed: ['skip', 'Postponed'],
+    upcoming: ['calendar', 'Due'], down: ['power', 'Tool down'], projected: ['calDots', 'Planned']
   };
+  /** Round status badge (medallion) with the status symbol. */
+  function med(st, size) {
+    var px = size || 24;
+    var m = h('span', { class: 'med m-' + st, style: 'width:' + px + 'px;height:' + px + 'px' }, I(LABEL[st][0], Math.round(px * 0.6)));
+    return m;
+  }
+  /** Coloured tool badge with the tool letters (hue from the name, so each tool keeps its colour). */
+  function avatar(name) {
+    var hsh = 0; for (var i = 0; i < name.length; i++) hsh = (hsh * 31 + name.charCodeAt(i)) % 360;
+    return h('span', { class: 'avatar', style: '--h:' + hsh, text: name.replace(/\d+$/, '').slice(0, 3) });
+  }
   var STATUS_TEXT = { done: 'Done', overdue: 'Overdue', today: 'Due today', postponed: 'Postponed', upcoming: 'Upcoming', down: 'Tool down' };
 
   var onlyMem = null;
@@ -51,7 +62,7 @@ window.HCP.views.board = (function () {
   function tile(key, label, value, sub, app) {
     return h('button', { class: 'tile t-' + key + (focus === key ? ' on' : '') + (value ? '' : ' zero'), title: 'Highlight on the board',
       onclick: function () { focus = focus === key ? '' : key; app.render(); } }, [
-      h('span', { class: 'tile-ico' }, I(LABEL[key === 'planned' ? 'upcoming' : key][0], 18)),
+      h('span', { class: 'tile-ico' }, med(key, 38)),
       h('span', { class: 'tile-num', text: String(value) }),
       h('span', { class: 'tile-label', text: label }),
       sub ? h('span', { class: 'tile-sub', text: sub }) : null
@@ -110,7 +121,7 @@ window.HCP.views.board = (function () {
     ]);
 
     var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'down', 'projected'].map(function (st) {
-      return h('span', { class: 'chip static s-' + st }, [I(LABEL[st][0], 14), LABEL[st][1]]);
+      return h('span', { class: 'legend-item' }, [med(st, 20), LABEL[st][1]]);
     }));
 
     U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend]);
@@ -120,11 +131,15 @@ window.HCP.views.board = (function () {
     var t = r.tool;
     var head = h('th', { class: 'tool-col', scope: 'row' }, [
       h('div', { class: 'tool-line' }, [
-        h('span', { class: 'dot ' + (t.status === 'down' ? 'dot-down' : 'dot-ok'), title: t.status === 'down' ? 'Tool down' : 'Active' }),
-        h('button', { class: 'tool-name', text: t.name, title: 'Tool details', onclick: function () { toolPanel(t.id, app); } }),
-        t.status === 'down' ? h('span', { class: 'badge down', title: t.down_reason || '', text: 'DOWN' }) : null
-      ]),
-      h('div', { class: 'sched', text: R.describeSchedule(t) })
+        avatar(t.name),
+        h('div', { class: 'tool-meta' }, [
+          h('div', { class: 'tool-top' }, [
+            h('button', { class: 'tool-name', text: t.name, title: 'Tool details', onclick: function () { toolPanel(t.id, app); } }),
+            t.status === 'down' ? h('span', { class: 'badge down', title: t.down_reason || '', text: 'DOWN' }) : h('span', { class: 'dot dot-ok', title: 'Active' })
+          ]),
+          h('div', { class: 'sched', text: R.describeSchedule(t) })
+        ])
+      ])
     ]);
     return h('tr', { class: t.status === 'down' ? 'is-down' : '' }, [head].concat(r.cells.map(function (items, i) {
       var d = b.days[i];
@@ -134,8 +149,9 @@ window.HCP.views.board = (function () {
 
   function chip(it, app) {
     var l = LABEL[it.status];
-    if (it.kind === 'projected') return h('span', { class: 'chip s-projected', title: 'Planned by the schedule' }, [I(l[0], 14), h('span', { class: 'chip-main', text: l[1] })]);
+    if (it.kind === 'projected') return h('span', { class: 'chip s-projected', title: 'Planned by the schedule' }, [med('projected', 22), h('span', { class: 'chip-main', text: l[1] })]);
     var t = it.task, main = l[1], sub = '';
+    if (it.status === 'upcoming') main = 'Due';
     if (it.carried) { main = 'Overdue'; sub = 'since ' + R.dayName(it.date).slice(0, 3) + ' ' + R.shortDate(it.date); }
     else if (it.status === 'done') {
       var u = S.current().users.find(function (x) { return x.id === t.completed_by; });
@@ -146,7 +162,7 @@ window.HCP.views.board = (function () {
     }
     return h('button', { class: 'chip s-' + it.status, title: 'Open ' + (it.status === 'done' ? 'details' : 'to complete or postpone'),
       onclick: function () { taskPanel(t.id, app); } }, [
-      I(l[0], 14),
+      med(it.status, 26),
       h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null]),
       t.is_one_off ? h('span', { class: 'tag', text: 'one-off' }) : null,
       t.completion_comment && it.status === 'done' ? h('span', { class: 'tag', title: t.completion_comment }, I('message', 13)) : null
@@ -163,7 +179,7 @@ window.HCP.views.board = (function () {
     var area = h('div', { class: 'action-area' });
 
     var facts = h('dl', { class: 'facts' }, [
-      h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill s-' + info.status, text: STATUS_TEXT[info.status] })),
+      h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill s-' + info.status }, [med(info.status, 18), STATUS_TEXT[info.status]])),
       h('dt', { text: 'Schedule' }), h('dd', { text: t.is_one_off ? 'One-off cleaning' : R.describeSchedule(tool) }),
       t.due_date !== t.pattern_date && !t.is_one_off ? h('dt', { text: 'Planned for' }) : null,
       t.due_date !== t.pattern_date && !t.is_one_off ? h('dd', { text: R.dayName(t.pattern_date) + ' ' + R.longDate(t.pattern_date) }) : null,

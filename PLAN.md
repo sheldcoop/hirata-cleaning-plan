@@ -369,6 +369,13 @@ Each phase ends with a **milestone**. Do not start the next phase until the owne
 
 Summary strip with week progress ring and clickable status tiles (highlight on the board); drawn SVG icons instead of emoji (`js/icons.js`); richer cells (who and time on Done, "since" on overdue, "from" on postponed); today column marker; status dot and red stripe for tools down; sticky tool column; Undo (10 s) after Complete/Postpone (`store.undo`, refused if changed meanwhile, history action `undone`); print layout; modal and toast motion (off with reduced motion).
 
+## 13c. Version 0.5 additions
+
+- **Names:** Scheduled (open, day not reached), Today, Overdue, Postponed, Done, Tool down, **Next cycle** (future date from the schedule), Skipped.
+- **White theme:** AT&S blue header and Scheduled colour (`--ats-blue: #0057a8` in `css/app.css`, one place to change), light blue-grey page, blue today band.
+- **R19 Future cycles (Admin):** click or drag a Next cycle to **move** it to another working day (after the open cleaning) or **skip** it, and **Back to normal date** to undo. Stored in `exceptions` `{id, tool_id, nominal, action: move|skip, new_date}`; used (and removed) when that cycle becomes the open cleaning; Undo/Reopen give them back; a schedule change clears the tool's exceptions. History: `cycle_moved`, `cycle_skipped`, `cycle_restored`.
+- **Drag and drop:** drag an open cleaning to another day in the same row (today or later, Mon–Fri) → the Postpone/Move form opens with the date filled in; nothing is saved without the name and confirmation. Admins can drag a Next cycle → the Move form. Mouse only; the date field still works for other weeks.
+
 ## 14. Open items (owner to confirm during the build)
 
 1. Start date for each seeded tool (placeholder: next Tuesday).

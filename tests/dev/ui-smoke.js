@@ -116,6 +116,35 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click($('.tile.t-done'));
   ok($('table.grid').classList.contains('focus-done'), 'tile highlights status');
 
+  step = 'drag and drop';
+  const fire = (el, type) => el.dispatchEvent(new w.Event(type, { bubbles: true, cancelable: true }));
+  let dragChip = null, target = null;
+  for (const c of $$('button.chip[draggable="true"]')) {
+    const tr = c.closest('tr'), from = c.closest('td').getAttribute('data-date');
+    const td = [...tr.querySelectorAll('td[data-date]')].find(x => x.getAttribute('data-date') > from);
+    if (td) { dragChip = c; target = td; break; }
+  }
+  if (!dragChip) { await click($('[aria-label="Next week"]')); for (const c of $$('button.chip[draggable="true"]')) { const tr = c.closest('tr'), from = c.closest('td').getAttribute('data-date'); const td = [...tr.querySelectorAll('td[data-date]')].find(x => x.getAttribute('data-date') > from); if (td) { dragChip = c; target = td; break; } } }
+  ok(dragChip && target, 'a draggable cleaning with a later day in its row');
+  fire(dragChip, 'dragstart'); fire(target, 'dragover'); ok(target.classList.contains('drop-ok'), 'drop target highlighted'); fire(target, 'drop'); await wait(150);
+  ok($('.modal h3') && $('.modal h3').textContent.startsWith('Move cleaning to'), 'drop opens the move form');
+  ok($('.modal input[type=date]').value === target.getAttribute('data-date'), 'date prefilled from the drop');
+  pick('Kent Derrens Plugio'); await click(btn('Continue')); await click(btn('Yes, postpone'), 400);
+  ok($$('.toast').some(t => t.textContent.includes('postponed to')), 'moved by drag');
+
+  step = 'future cycle';
+  await click(btn('Today'));
+  let g2 = 0; while (!$('button.chip.admin.s-projected') && g2++ < 4) await click($('[aria-label="Next week"]'));
+  const cyc = $('button.chip.admin.s-projected');
+  ok(cyc, 'admin can click a next cycle');
+  await click(cyc);
+  ok($('.modal-head h2').textContent.includes('Next cycle'), 'cycle panel');
+  await click(btn('Skip this cycle')); await click(btn('Continue')); await click(btn('Yes, skip'), 400);
+  ok($('button.chip.s-skipped'), 'skipped cycle shown');
+  await click($('button.chip.s-skipped')); await click(btn('Back to normal date')); await click(btn('Yes, restore'), 400);
+  ok(!$('button.chip.s-skipped'), 'restored');
+  await click(btn('Today'));
+
   step = 'tool down';
   await click($('.tool-name'));
   await click(btn('Set tool down'));

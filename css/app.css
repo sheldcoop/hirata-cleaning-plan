@@ -1,8 +1,9 @@
 /* Hirata Cleaning Plan - styles. Two themes: Pure White (default) and Dark Teal. */
 
 :root, [data-theme="white"] {
-  --bg: #f6f8fa; --surface: #ffffff; --surface-2: #f0f3f6; --text: #1f2933; --muted: #637083; --line: #dde3ea;
-  --brand: #0f4c5c; --brand-2: #136476; --on-brand: #ffffff; --focus: #2b8a9e;
+  --ats-blue: #0057a8;   /* AT&S blue - change here if the brand guide gives another code */
+  --bg: #f2f6fa; --surface: #ffffff; --surface-2: #eef3f8; --text: #1b2733; --muted: #5f6f82; --line: #dce4ee;
+  --brand: var(--ats-blue); --brand-2: #0a63c2; --on-brand: #ffffff; --focus: #1a7cf5;
   --upcoming-bg: #eef2f6; --upcoming-fg: #3e4c59;
   --today-bg: #e2f0fb; --today-fg: #0b5394;
   --overdue-bg: #fde4e4; --overdue-fg: #a61b1b;
@@ -10,10 +11,10 @@
   --done-bg: #dff3e6; --done-fg: #17663a;
   --down-bg: #2f3a45; --down-fg: #ffffff;
   --projected-fg: #9aa5b1;
-  --today-col: #f3f9ff;
+  --today-col: #eaf3ff;
   --danger: #c0392b;
   --shadow: 0 8px 30px rgba(15, 35, 50, .18);
-  --c-upcoming: #5b6b7d; --c-today: #1769e0; --c-overdue: #d93025; --c-postponed: #e8900c; --c-done: #1e9e57; --c-down: #3a4552; --c-projected: #a3adb8;
+  --c-upcoming: var(--ats-blue); --c-today: #1a7cf5; --c-overdue: #d93025; --c-postponed: #e8900c; --c-done: #1e9e57; --c-down: #3a4552; --c-projected: #8fb2da; --c-skipped: #9aa7b5;
   --card-shadow: 0 1px 2px rgba(16, 40, 56, .06), 0 4px 16px rgba(16, 40, 56, .06);
   --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(19, 100, 118, .10), transparent 60%), radial-gradient(900px 400px at 100% 0%, rgba(23, 105, 224, .07), transparent 60%);
 }
@@ -31,7 +32,7 @@
   --today-col: #133a46;
   --danger: #ff6b5e;
   --shadow: 0 8px 30px rgba(0, 0, 0, .5);
-  --c-upcoming: #7f9aa6; --c-today: #3d8bfd; --c-overdue: #ff5a4e; --c-postponed: #f5a524; --c-done: #2ecc71; --c-down: #8a96a3; --c-projected: #557580;
+  --c-upcoming: #5aa9e6; --c-today: #3d8bfd; --c-overdue: #ff5a4e; --c-postponed: #f5a524; --c-done: #2ecc71; --c-down: #8a96a3; --c-projected: #557580; --c-skipped: #6b8189;
   --card-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
   --page-glow: radial-gradient(1200px 400px at 10% -10%, rgba(79, 209, 197, .10), transparent 60%), radial-gradient(900px 400px at 100% 0%, rgba(61, 139, 253, .08), transparent 60%);
 }
@@ -46,7 +47,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Top bar */
 .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 70%, #1b7f92)); color: var(--on-brand); padding: 10px 24px;
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 65%, #1a7cf5)); color: var(--on-brand); padding: 10px 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, .15); }
 .brand { font-size: 17px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .logo { display: inline-flex; width: 34px; height: 34px; border-radius: 9px; align-items: center; justify-content: center; background: rgba(255,255,255,.12); }
@@ -343,3 +344,23 @@ tr.is-down .avatar { filter: grayscale(1) opacity(.6); }
 @media print { .med { animation: none !important; box-shadow: none !important; } .avatar { box-shadow: none; } body { background-image: none; } }
 .grid .tool-col { min-width: 220px; width: 16%; }
 .sched { white-space: nowrap; }
+
+
+/* ---------- v0.5: names, AT&S blue, future cycles, drag and drop ---------- */
+[data-theme="teal"] .topbar { background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 70%, #1b7f92)); }
+.chip.s-upcoming { background: linear-gradient(135deg, color-mix(in srgb, var(--c-upcoming) 8%, var(--surface)), var(--surface)); }
+.chip.s-upcoming .chip-main { color: var(--c-upcoming); }
+.chip.s-today { border-color: color-mix(in srgb, var(--c-today) 45%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--c-today) 18%, var(--surface)), color-mix(in srgb, var(--c-today) 5%, var(--surface))); }
+.chip.s-projected { border-color: color-mix(in srgb, var(--c-projected) 70%, transparent); background: color-mix(in srgb, var(--c-projected) 6%, transparent); }
+.chip.s-projected .chip-main { color: color-mix(in srgb, var(--c-projected) 60%, var(--muted)); }
+.chip.s-projected.is-moved { border-style: solid; }
+.chip.s-skipped { background: transparent; border: 1px dashed var(--line); color: var(--muted); box-shadow: none !important; text-decoration: none; }
+.chip.s-skipped .chip-main { text-decoration: line-through; }
+.m-skipped { --c: var(--c-skipped); background: transparent; color: var(--c-skipped); box-shadow: inset 0 0 0 1.5px var(--c-skipped); }
+button.chip.admin { cursor: pointer; }
+.chip[draggable="true"] { cursor: grab; }
+.chip[draggable="true"]:active { cursor: grabbing; }
+.grid.dragging tr:not(.drag-row) td { opacity: .45; }
+.grid.dragging tr.drag-row td:not(.is-past) { outline: 1px dashed color-mix(in srgb, var(--brand-2) 40%, transparent); outline-offset: -4px; }
+.grid td.drop-ok { background: color-mix(in srgb, var(--brand-2) 14%, var(--surface)) !important; outline: 2px solid var(--brand-2) !important; outline-offset: -3px; }
+.dnd-hint { margin-top: 6px; }

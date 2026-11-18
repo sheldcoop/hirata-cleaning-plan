@@ -130,10 +130,22 @@ window.HCP.store = (function () {
   /** R2/R4: create the next scheduled task unless one is already open. */
   function ensureNext(d, tool, prev, completionDate) {
     if (openScheduled(d, tool.id)) return null;
-    var n = makeTask(tool.id, R.nextAfterCompletion(tool, prev, completionDate));
+    var r = R.nextAfterCompletion(tool, prev, completionDate, d.exceptions);
+    var n = makeTask(tool.id, r);
+    n.due_date = r.due;
     n.generated_from = prev.id;
+    if (r.used.length) {
+      n.used_exceptions = (d.exceptions || []).filter(function (e) { return r.used.indexOf(e.id) >= 0; });
+      d.exceptions = (d.exceptions || []).filter(function (e) { return r.used.indexOf(e.id) < 0; });
+    }
     d.tasks.push(n);
     return n;
+  }
+
+  /** Remove a generated task and give back the cycle exceptions it used. */
+  function removeGenerated(d, task) {
+    d.tasks.splice(d.tasks.indexOf(task), 1);
+    if (task.used_exceptions && task.used_exceptions.length) d.exceptions = (d.exceptions || []).concat(task.used_exceptions);
   }
 
   /* --- PIN hashing (PBKDF2, browser Web Crypto) ---------------------- */
@@ -231,7 +243,7 @@ window.HCP.store = (function () {
           .concat(SEED_OPERATORS.map(function (n, i) {
             return { id: newId('user'), operator_id: 'OP00' + (i + 1), name: n, role: 'operator', pin_hash: null, active: true };
           })),
-        tools: [], tasks: [], history: [],
+        tools: [], tasks: [], history: [], exceptions: [],
         settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white' }
       };
       SEED_TOOLS.forEach(function (s) {
@@ -312,7 +324,7 @@ window.HCP.store = (function () {
         if (t.status !== 'completed' || t.completed_by !== token.userId) throw changed;
         var next = token.nextId ? find(d.tasks, token.nextId) : null;
         if (next && (next.status !== 'open' || next.postpone_count)) throw changed;
-        if (next) d.tasks.splice(d.tasks.indexOf(next), 1);
+        if (next) removeGenerated(d, next);
         Object.assign(t, token.before);
         hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'undone', user_id: token.userId, comment: 'Undo of Completed' });
       } else if (token.kind === 'postpone') {
@@ -364,7 +376,7 @@ window.HCP.store = (function () {
         .sort(function (x, y) { return x.completed_at < y.completed_at ? 1 : -1; })[0];
       if (latest.id !== t.id) throw err('notlatest', 'Only the most recent completed cleaning of a tool can be reopened.');
       var gen = d.tasks.find(function (x) { return x.generated_from === t.id && x.status === 'open' && !x.postpone_count; });
-      if (gen) d.tasks.splice(d.tasks.indexOf(gen), 1);
+      if (gen) removeGenerated(d, gen);
       var by = t.completed_by;
       t.status = 'open'; t.completed_by = null; t.completed_at = null; t.completion_comment = '';
       hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'reopened', user_id: a.id, comment: 'Was completed by ' + userName(d, by) });
@@ -413,6 +425,62 @@ window.HCP.store = (function () {
       d.tasks.push(t);
       hist(d, { tool_id: tool.id, task_id: t.id, action: 'task_added', user_id: a.id, new_date: date, comment: comment || 'One-off cleaning' });
       return t;
+    }, 'admin');
+  }
+
+  /* --- Admin: future cycles (R19) ---------------------------------- */
+
+  /** Check that `nominal` is a real future cycle of the tool (after its open cleaning). */
+  function futureCycle(d, tool, nominal) {
+    var open = openScheduled(d, tool.id);
+    if (!open) throw err('invalid', 'This tool has no open cleaning.');
+    var r = { nominal: open.nominal_date || open.pattern_date };
+    for (var i = 0; i < 600; i++) {
+      r = R.stepRule(tool, r.nominal);
+      if (r.nominal === nominal) return { open: open, cycle: r };
+      if (r.nominal > nominal) break;
+    }
+    throw err('invalid', 'This is not a future cycle of ' + tool.name + '.');
+  }
+
+  function moveCycle(toolId, nominal, newDate) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool || tool.archived) throw err('notfound', 'This tool no longer exists.');
+      var fc = futureCycle(d, tool, nominal);
+      if (!R.isDate(newDate) || R.isWeekend(newDate)) throw err('baddate', 'Choose a working day (Monday to Friday).');
+      if (newDate < R.today()) throw err('baddate', 'The date cannot be in the past.');
+      if (newDate <= fc.open.due_date) throw err('baddate', 'The new date must be after the open cleaning (' + R.longDate(fc.open.due_date) + ').');
+      d.exceptions = (d.exceptions || []).filter(function (e) { return !(e.tool_id === toolId && e.nominal === nominal); });
+      if (newDate !== fc.cycle.pattern) d.exceptions.push({ id: newId('ex'), tool_id: toolId, nominal: nominal, action: 'move', new_date: newDate });
+      hist(d, { tool_id: toolId, action: 'cycle_moved', user_id: a.id, old_date: fc.cycle.pattern, new_date: newDate, comment: 'Future cycle moved' });
+      return { from: fc.cycle.pattern, to: newDate };
+    }, 'admin');
+  }
+
+  function skipCycle(toolId, nominal, reason) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var tool = find(d.tools, toolId);
+      if (!tool || tool.archived) throw err('notfound', 'This tool no longer exists.');
+      var fc = futureCycle(d, tool, nominal);
+      d.exceptions = (d.exceptions || []).filter(function (e) { return !(e.tool_id === toolId && e.nominal === nominal); });
+      d.exceptions.push({ id: newId('ex'), tool_id: toolId, nominal: nominal, action: 'skip', new_date: null });
+      hist(d, { tool_id: toolId, action: 'cycle_skipped', user_id: a.id, old_date: fc.cycle.pattern, reason: reason });
+      return fc.cycle.pattern;
+    }, 'admin');
+  }
+
+  /** Undo a move or skip of a future cycle: back to the normal schedule date. */
+  function restoreCycle(toolId, nominal) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var before = (d.exceptions || []).length;
+      d.exceptions = (d.exceptions || []).filter(function (e) { return !(e.tool_id === toolId && e.nominal === nominal); });
+      if (d.exceptions.length === before) throw err('conflict', 'Nothing to restore: this cycle is already on its normal date.');
+      hist(d, { tool_id: toolId, action: 'cycle_restored', user_id: a.id, new_date: R.toWorkingDay(nominal), comment: 'Back to the normal schedule' });
+      return true;
     }, 'admin');
   }
 
@@ -466,6 +534,7 @@ window.HCP.store = (function () {
       var scheduleChanged = changes.some(function (f) { return ['schedule_type', 'interval', 'weekday', 'month_day', 'start_date'].indexOf(f) >= 0; });
       var before = R.describeSchedule(old);
       Object.assign(old, t);
+      if (scheduleChanged) d.exceptions = (d.exceptions || []).filter(function (e) { return e.tool_id !== old.id; });
       if (scheduleChanged && old.status !== 'down') {
         var open = openScheduled(d, old.id);
         if (open) {
@@ -611,7 +680,8 @@ window.HCP.store = (function () {
   var ACTION_LABELS = {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
     reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Cleaning deleted',
-    tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone'
+    tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
+    cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
   };
 
   /** filters: {toolId, action, from, to} (dates inclusive) */
@@ -696,6 +766,7 @@ window.HCP.store = (function () {
     complete: complete, postpone: postpone, undo: undo,
     adminLogin: adminLogin, resumeAdmin: resumeAdmin, adminLogout: adminLogout, currentAdmin: currentAdmin,
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
+    moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
     saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,

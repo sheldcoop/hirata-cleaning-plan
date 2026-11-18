@@ -217,6 +217,29 @@
       .then(function () { return rejects(S.undo(tok), 'conflict'); });
   });
 
+  test('R19: Admin moves and skips future cycles; they apply when the cycle comes; restore and permissions', function () {
+    var id;
+    return setup().then(function () {
+      id = tool('LAC901').id;                                             // weekly Tue, open 24 Nov
+      return rejects(S.moveCycle(id, '2026-12-01', '2026-11-24'), 'baddate');   // not after the open one
+    }).then(function () { return S.skipCycle(id, '2026-12-01', 'shutdown'); })
+      .then(function () { return S.moveCycle(id, '2026-12-08', '2026-12-10'); })
+      .then(function () {
+        var b = S.board('2026-12-07');
+        var row = b.rows.find(function (r) { return r.tool.id === id; });
+        eq(row.cells[3][0].moved, true);                                  // Thu 10 Dec
+        eq(row.cells[1].length, 0);                                       // Tue 8 Dec empty
+        day('2026-11-24'); return S.complete(openTask('LAC901').id, 'OP001');
+      })
+      .then(function (r) {
+        eq(r.next.due_date, '2026-12-10'); eq(r.next.pattern_date, '2026-12-08');
+        eq(S.current().exceptions.length, 0, 'exceptions consumed');
+        return S.undo(r.undo);
+      })
+      .then(function () { eq(S.current().exceptions.length, 2, 'undo gives the exceptions back'); return S.restoreCycle(id, '2026-12-01'); })
+      .then(function () { eq(S.current().exceptions.length, 1); S.adminLogout(); return rejects(S.skipCycle(id, '2026-12-15'), 'forbidden'); });
+  });
+
   test('14b. two PCs complete the same cleaning: only one succeeds', function () {
     var mem, id;
     return setup().then(function (m) { mem = m; id = openTask('LAC901').id; })

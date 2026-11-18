@@ -86,24 +86,46 @@ window.HCP.rules = (function () {
     return { pattern: p, nominal: p };
   }
 
-  /** R4: next pattern date after a completion - back to the pattern, and
-   *  strictly after the completion date. */
-  function nextAfterCompletion(tool, task, completionDate) {
-    var r = stepRule(tool, task.nominal_date || task.pattern_date);
-    var guard = 0;
-    while (r.pattern <= completionDate && guard++ < 2000) r = stepRule(tool, r.nominal);
-    return r;
+  /** Exceptions (R19): an Admin moved or skipped one future cycle of a tool.
+   *  exception: {id, tool_id, nominal, action: 'move'|'skip', new_date} - matched by the cycle's nominal date. */
+  function exceptionFor(exceptions, toolId, nominal) {
+    return (exceptions || []).find(function (e) { return e.tool_id === toolId && e.nominal === nominal; }) || null;
   }
 
-  /** R13: projected rule dates in [from, to] after the open task. */
-  function projected(tool, openTask, from, to) {
+  /** R4: next cleaning after a completion - back to the pattern, strictly after the completion date,
+   *  with exceptions applied (skipped cycles are passed over, a moved cycle gets its new date).
+   *  -> {pattern, nominal, due, used: [exception ids consumed]} */
+  function nextAfterCompletion(tool, task, completionDate, exceptions) {
+    var used = [];
+    var r = stepRule(tool, task.nominal_date || task.pattern_date);
+    for (var guard = 0; guard < 2000; guard++) {
+      if (r.pattern <= completionDate) { r = stepRule(tool, r.nominal); continue; }
+      var ex = exceptionFor(exceptions, tool.id, r.nominal);
+      if (ex && ex.action === 'skip') { used.push(ex.id); r = stepRule(tool, r.nominal); continue; }
+      if (ex && ex.action === 'move') {
+        used.push(ex.id);
+        if (ex.new_date > completionDate) return { pattern: r.pattern, nominal: r.nominal, due: ex.new_date, used: used };
+      }
+      break;
+    }
+    return { pattern: r.pattern, nominal: r.nominal, due: r.pattern, used: used };
+  }
+
+  /** R13: future cycles in [from, to] after the open task, with exceptions.
+   *  -> [{date, pattern, nominal, moved, skipped}] (skipped ones are listed so an Admin can restore them) */
+  function projected(tool, openTask, from, to, exceptions) {
     var out = [];
     if (!openTask) return out;
     var r = { nominal: openTask.nominal_date || openTask.pattern_date };
     for (var i = 0; i < 400; i++) {
       r = stepRule(tool, r.nominal);
-      if (r.pattern > to) break;
-      if (r.pattern >= from && r.pattern > openTask.due_date) out.push(r.pattern);
+      if (r.pattern > addDays(to, 400)) break;
+      var ex = exceptionFor(exceptions, tool.id, r.nominal);
+      var date = ex && ex.action === 'move' ? ex.new_date : r.pattern;
+      if (r.pattern > to && date > to) { if (r.pattern > addDays(to, 60)) break; continue; }
+      if (date >= from && date <= to && date > openTask.due_date) {
+        out.push({ date: date, pattern: r.pattern, nominal: r.nominal, moved: !!(ex && ex.action === 'move'), skipped: !!(ex && ex.action === 'skip') });
+      }
     }
     return out;
   }
@@ -187,8 +209,8 @@ window.HCP.rules = (function () {
       });
 
       if (tool.status !== 'down' && openScheduled) {
-        projected(tool, openScheduled, monday, friday).forEach(function (d) {
-          cells[days.indexOf(d)].push({ kind: 'projected', date: d, status: 'projected' });
+        projected(tool, openScheduled, monday, friday, data.exceptions).forEach(function (p) {
+          cells[days.indexOf(p.date)].push({ kind: 'projected', date: p.date, status: 'projected', pattern: p.pattern, nominal: p.nominal, moved: p.moved, skipped: p.skipped });
         });
       }
       var hasItems = cells.some(function (c) { return c.length > 0; });
@@ -218,7 +240,7 @@ window.HCP.rules = (function () {
     toWorkingDay: toWorkingDay, nextWorkingDay: nextWorkingDay, toPrevWorkingDay: toPrevWorkingDay,
     mondayOf: mondayOf, monthDate: monthDate, maxDate: maxDate, today: today, isoWeek: isoWeek,
     shortDate: shortDate, longDate: longDate, dayName: dayName, DAY_NAMES: DAY_NAMES,
-    firstRuleDate: firstRuleDate, stepRule: stepRule, nextAfterCompletion: nextAfterCompletion,
+    firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
     validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
     dailySummary: dailySummary

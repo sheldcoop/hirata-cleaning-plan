@@ -14,9 +14,10 @@ window.HCP.views.board = (function () {
 
   var I = window.HCP.icon;
   var LABEL = {
-    done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Due today'], postponed: ['skip', 'Postponed'],
-    upcoming: ['calendar', 'Due'], down: ['power', 'Tool down'], projected: ['calDots', 'Planned']
+    done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Today'], postponed: ['skip', 'Postponed'],
+    upcoming: ['calendar', 'Scheduled'], down: ['power', 'Tool down'], projected: ['calDots', 'Next cycle'], skipped: ['ban', 'Skipped']
   };
+  var drag = null;   // what is being dragged: {kind: 'task'|'cycle', toolId, date, taskId?, item?}
   /** Round status badge (medallion) with the status symbol. */
   function med(st, size) {
     var px = size || 24;
@@ -28,7 +29,7 @@ window.HCP.views.board = (function () {
     var hsh = 0; for (var i = 0; i < name.length; i++) hsh = (hsh * 31 + name.charCodeAt(i)) % 360;
     return h('span', { class: 'avatar', style: '--h:' + hsh, text: name.replace(/\d+$/, '').slice(0, 3) });
   }
-  var STATUS_TEXT = { done: 'Done', overdue: 'Overdue', today: 'Due today', postponed: 'Postponed', upcoming: 'Upcoming', down: 'Tool down' };
+  var STATUS_TEXT = { done: 'Done', overdue: 'Overdue', today: 'Today', postponed: 'Postponed', upcoming: 'Scheduled', down: 'Tool down' };
 
   var onlyMem = null;
   function onlyDue() { if (onlyMem !== null) return onlyMem; try { return localStorage.getItem(ONLY_KEY) === '1'; } catch (e) { return false; } }
@@ -42,7 +43,7 @@ window.HCP.views.board = (function () {
       if (r.tool.status === 'down') c.down++;
       r.cells.forEach(function (items) {
         items.forEach(function (it) {
-          if (it.carried) return;
+          if (it.carried || it.skipped) return;
           c.planned++;
           if (it.status === 'done') c.done++;
           else if (it.status === 'today') c.today++;
@@ -102,7 +103,7 @@ window.HCP.views.board = (function () {
         h('div', {}, [h('div', { class: 'tile-label', text: 'Week progress' }),
           h('div', { class: 'progress-text', text: c.done + ' of ' + c.planned + ' cleanings done' })])
       ]),
-      tile('today', 'Due today', b.isThisWeek ? c.today : 0, b.isThisWeek ? R.dayName(today).slice(0, 3) + ' ' + R.shortDate(today) : 'not this week', app),
+      tile('today', 'Today', b.isThisWeek ? c.today : 0, b.isThisWeek ? R.dayName(today).slice(0, 3) + ' ' + R.shortDate(today) : 'not this week', app),
       tile('overdue', 'Overdue', c.overdueAll, c.overdueAll ? 'needs action' : 'all on time', app),
       tile('postponed', 'Postponed', c.postponed, 'this week', app),
       tile('done', 'Done', c.done, 'this week', app),
@@ -124,7 +125,9 @@ window.HCP.views.board = (function () {
       return h('span', { class: 'legend-item' }, [med(st, 20), LABEL[st][1]]);
     }));
 
-    U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend]);
+    dnd(table, app, today);
+    U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend,
+      h('p', { class: 'hint dnd-hint', text: 'Tip: drag a cleaning to another day in its row to postpone or move it.' + (S.currentAdmin() ? ' Admins can also drag or click a next cycle to move or skip it.' : '') })]);
   }
 
   function row(r, b, today, app) {
@@ -143,15 +146,15 @@ window.HCP.views.board = (function () {
     ]);
     return h('tr', { class: t.status === 'down' ? 'is-down' : '' }, [head].concat(r.cells.map(function (items, i) {
       var d = b.days[i];
-      return h('td', { class: d === today ? 'is-today' : (d < today ? 'is-past' : '') }, items.map(function (it) { return chip(it, app); }));
+      return h('td', { class: d === today ? 'is-today' : (d < today ? 'is-past' : ''), 'data-tool': t.id, 'data-date': d },
+        items.map(function (it) { return chip(it, app, t); }));
     })));
   }
 
-  function chip(it, app) {
+  function chip(it, app, tool) {
     var l = LABEL[it.status];
-    if (it.kind === 'projected') return h('span', { class: 'chip s-projected', title: 'Planned by the schedule' }, [med('projected', 22), h('span', { class: 'chip-main', text: l[1] })]);
+    if (it.kind === 'projected') return cycleChip(it, app, tool);
     var t = it.task, main = l[1], sub = '';
-    if (it.status === 'upcoming') main = 'Due';
     if (it.carried) { main = 'Overdue'; sub = 'since ' + R.dayName(it.date).slice(0, 3) + ' ' + R.shortDate(it.date); }
     else if (it.status === 'done') {
       var u = S.current().users.find(function (x) { return x.id === t.completed_by; });
@@ -160,7 +163,11 @@ window.HCP.views.board = (function () {
     } else if (t.postpone_count > 0 && t.due_date !== t.pattern_date && !t.is_one_off) {
       sub = 'from ' + R.dayName(t.pattern_date).slice(0, 3) + ' ' + R.shortDate(t.pattern_date);
     }
-    return h('button', { class: 'chip s-' + it.status, title: 'Open ' + (it.status === 'done' ? 'details' : 'to complete or postpone'),
+    var canDrag = t.status === 'open' && tool.status !== 'down';
+    return h('button', { class: 'chip s-' + it.status, title: it.status === 'done' ? 'Open details' : 'Click to complete or postpone · drag to another day',
+      draggable: canDrag ? 'true' : null,
+      ondragstart: canDrag ? function (ev) { startDrag(ev, { kind: 'task', toolId: tool.id, date: t.due_date, taskId: t.id }); } : null,
+      ondragend: endDrag,
       onclick: function () { taskPanel(t.id, app); } }, [
       med(it.status, 26),
       h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null]),
@@ -169,9 +176,132 @@ window.HCP.views.board = (function () {
     ]);
   }
 
+  /** A future cycle (from the schedule). Admins can click or drag it to move or skip it (R19). */
+  function cycleChip(it, app, tool) {
+    var admin = !!S.currentAdmin();
+    var st = it.skipped ? 'skipped' : 'projected';
+    var sub = it.skipped ? 'not cleaned this cycle' : it.moved ? 'moved from ' + R.dayName(it.pattern).slice(0, 3) + ' ' + R.shortDate(it.pattern) : '';
+    var body = [med(st, 22), h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: LABEL[st][1] }), sub ? h('span', { class: 'chip-sub', text: sub }) : null])];
+    var cls = 'chip s-' + st + (it.moved ? ' is-moved' : '');
+    if (!admin) return h('span', { class: cls, title: 'Comes from the schedule. An Admin can move or skip it.' }, body);
+    var canDrag = !it.skipped;
+    return h('button', { class: cls + ' admin', title: 'Admin: click to move or skip' + (canDrag ? ' · drag to another day' : ''),
+      draggable: canDrag ? 'true' : null,
+      ondragstart: canDrag ? function (ev) { startDrag(ev, { kind: 'cycle', toolId: tool.id, date: it.date, item: it }); } : null,
+      ondragend: endDrag,
+      onclick: function () { cyclePanel(tool, it, app); } }, body);
+  }
+
+  /* --- Drag and drop: same row, a working day from today on; every drop opens the confirmation --- */
+
+  function startDrag(ev, info) {
+    drag = info;
+    try { ev.dataTransfer.setData('text/plain', info.toolId); ev.dataTransfer.effectAllowed = 'move'; } catch (e) { /* no dataTransfer (tests) */ }
+    var tbl = ev.target.closest('table');
+    if (tbl) tbl.classList.add('dragging');
+    var row = ev.target.closest('tr');
+    if (row) row.classList.add('drag-row');
+  }
+  function endDrag() {
+    drag = null;
+    document.querySelectorAll('.dragging, .drag-row, .drop-ok').forEach(function (el) { el.classList.remove('dragging', 'drag-row', 'drop-ok'); });
+  }
+  function dropTarget(ev, today) {
+    var td = ev.target.closest && ev.target.closest('td[data-date]');
+    if (!drag || !td) return null;
+    var d = td.getAttribute('data-date');
+    if (td.getAttribute('data-tool') !== drag.toolId || d === drag.date || d < today) return null;
+    return { td: td, date: d };
+  }
+  function dnd(table, app, today) {
+    table.addEventListener('dragover', function (ev) {
+      var t = dropTarget(ev, today);
+      if (!t) return;
+      ev.preventDefault();
+      table.querySelectorAll('.drop-ok').forEach(function (el) { if (el !== t.td) el.classList.remove('drop-ok'); });
+      t.td.classList.add('drop-ok');
+    });
+    table.addEventListener('dragleave', function (ev) {
+      var td = ev.target.closest && ev.target.closest('td');
+      if (td && !td.contains(ev.relatedTarget)) td.classList.remove('drop-ok');
+    });
+    table.addEventListener('drop', function (ev) {
+      var t = dropTarget(ev, today);
+      if (!t) return;
+      ev.preventDefault();
+      var info = drag;
+      endDrag();
+      if (info.kind === 'task') taskPanel(info.taskId, app, { moveTo: t.date });
+      else cyclePanel(S.current().tools.find(function (x) { return x.id === info.toolId; }), info.item, app, { moveTo: t.date });
+    });
+  }
+
+  /* --- Future cycle panel (Admin) ------------------------------------ */
+
+  function cyclePanel(tool, it, app, opts) {
+    var o = opts || {};
+    var area = h('div', { class: 'action-area' });
+    var title = tool.name + ' · Next cycle · ' + R.dayName(it.date).slice(0, 3) + ' ' + R.longDate(it.date);
+    var m = U.modal(title, [
+      h('dl', { class: 'facts' }, [
+        h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill' }, [med(it.skipped ? 'skipped' : 'projected', 18), it.skipped ? 'Skipped' : it.moved ? 'Moved' : 'Next cycle'])),
+        h('dt', { text: 'Normal date' }), h('dd', { text: R.dayName(it.pattern) + ' ' + R.longDate(it.pattern) }),
+        it.moved ? h('dt', { text: 'Moved to' }) : null, it.moved ? h('dd', { text: R.dayName(it.date) + ' ' + R.longDate(it.date) }) : null,
+        h('dt', { text: 'Schedule' }), h('dd', { text: R.describeSchedule(tool) })
+      ]),
+      h('p', { class: 'hint', text: 'A future cycle is not open yet. Moving or skipping it changes only this one cycle; the schedule continues as normal.' }),
+      area
+    ]);
+    function finish(msg) { m.close(); U.toast(msg); app.reload(); }
+
+    function menu() {
+      U.clear(area);
+      U.add(area, h('div', { class: 'actions' }, [
+        !it.skipped ? h('button', { class: 'btn', onclick: function () { moveForm(); } }, [I('calendar', 16), ' Move date']) : null,
+        !it.skipped ? h('button', { class: 'btn secondary', onclick: skipStep }, [I('ban', 16), ' Skip this cycle']) : null,
+        it.moved || it.skipped ? h('button', { class: 'btn ghost', onclick: restoreStep }, [I('undo', 16), ' Back to normal date']) : null
+      ]));
+    }
+    function moveForm(preset) {
+      var date = h('input', { type: 'date', min: R.today(), value: preset || it.date });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Move this cycle' }), U.field('New date', date, 'Monday to Friday, after the open cleaning.'), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var d = date.value;
+            if (!R.isDate(d) || R.isWeekend(d) || d < R.today()) { msg.textContent = 'Choose a working day, today or later.'; msg.hidden = false; return; }
+            U.confirmStep(area, 'Move the ' + tool.name + ' cycle of ' + R.shortDate(it.pattern) + ' to ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, move', function () {
+              return S.moveCycle(tool.id, it.nominal, d).then(function () { finish(tool.name + ' cycle moved to ' + R.dayName(d).slice(0, 3) + ' ' + R.shortDate(d) + '.'); });
+            }, function () { moveForm(d); });
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function skipStep() {
+      var reason = h('input', { type: 'text', maxlength: '200', placeholder: 'Why? (optional), e.g. shutdown' });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Skip this cycle' }), U.field('Reason', reason),
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn danger', text: 'Continue', onclick: function () {
+            var r = reason.value;
+            U.confirmStep(area, 'Skip the ' + tool.name + ' cleaning of ' + R.dayName(it.pattern).slice(0, 3) + ' ' + R.longDate(it.pattern) + '?', 'Yes, skip', function () {
+              return S.skipCycle(tool.id, it.nominal, r).then(function () { finish(tool.name + ': cycle of ' + R.shortDate(it.pattern) + ' skipped.'); });
+            }, skipStep, true);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function restoreStep() {
+      U.confirmStep(area, 'Put this ' + tool.name + ' cycle back on its normal date (' + R.dayName(it.pattern).slice(0, 3) + ' ' + R.shortDate(it.pattern) + ')?', 'Yes, restore', function () {
+        return S.restoreCycle(tool.id, it.nominal).then(function () { finish('Cycle back on its normal date.'); });
+      }, menu);
+    }
+    if (o.moveTo) moveForm(o.moveTo); else menu();
+  }
+
   /* --- Cleaning panel ----------------------------------------------- */
 
-  function taskPanel(taskId, app) {
+  function taskPanel(taskId, app, opts) {
+    var o = opts || {};
     var info = S.taskDetails(taskId);
     if (!info) { app.reload(); return; }
     var t = info.task, tool = info.tool, isAdmin = !!S.currentAdmin();
@@ -251,12 +381,12 @@ window.HCP.views.board = (function () {
 
     function postponeForm() {
       var op = U.personField(S.activeUsers());
-      var date = h('input', { type: 'date', min: R.today() });
+      var date = h('input', { type: 'date', min: R.today(), value: o.moveTo || '' });
       var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why? (optional), e.g. tool used by PROD' });
       var msg = h('p', { class: 'form-error', hidden: true });
       var auto = R.nextWorkingDay(R.maxDate(t.due_date, R.today()));
       U.clear(area);
-      U.add(area, [h('h3', { text: 'Postpone cleaning' }), U.field('Your name', op.node),
+      U.add(area, [h('h3', { text: o.moveTo ? 'Move cleaning to ' + R.dayName(o.moveTo) + ' ' + R.shortDate(o.moveTo) : 'Postpone cleaning' }), U.field('Your name', op.node),
         U.field('New date', date, 'Optional. Empty = next working day (' + R.dayName(auto) + ' ' + R.shortDate(auto) + '). A weekend date moves to Monday.'),
         U.field('Reason', reason), msg,
         h('div', { class: 'actions' }, [
@@ -308,7 +438,7 @@ window.HCP.views.board = (function () {
       }, menu);
     }
 
-    menu();
+    if (o.moveTo && t.status === 'open') postponeForm(); else menu();
   }
 
   /* --- Tool panel --------------------------------------------------- */

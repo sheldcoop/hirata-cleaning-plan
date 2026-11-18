@@ -21,9 +21,11 @@ Every PC must connect the **same** `data` folder on the share to see the same pl
 ## Daily use
 
 - **Board:** one week, tools as rows, Monday–Friday as columns. ‹ › change the week, **Today** jumps back.
-  Colours: ○ Due · ● Due today · ⚠ Overdue · 🕓 Postponed · ✓ Done · ⛔ Tool down · dashed = planned (future).
+  Statuses: Scheduled · Today · Overdue · Postponed · Done · Tool down · Next cycle (future date from the schedule) · Skipped.
 - Click a cleaning → **Complete** (choose your name + optional comment) or **Postpone** (optional new date and reason; empty date = next working day).
 - Overdue cleanings from earlier weeks also show in today's column.
+- **Drag** a cleaning to another day in its row to postpone or move it (you still choose your name and confirm).
+- **Admin:** click or drag a *Next cycle* to move or skip that one future cleaning; *Back to normal date* undoes it.
 - Click a tool name → details; Admin can set **Tool down** / **Reactivate**.
 - **History:** filter and **Export CSV** (opens in Excel).
 - **Admin login** (top right): choose your name + PIN. Settings: Tools, Users, One-off cleaning, General (Teams reminder, default theme).

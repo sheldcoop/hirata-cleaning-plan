@@ -56,8 +56,19 @@
   test('projected dates skip anything on or before the open task due date', function () {
     var weekly = { schedule_type: 'weeks', interval: 1, weekday: 2 };
     var open = { pattern_date: '2026-11-24', nominal_date: '2026-11-24', due_date: '2026-12-02' }; // postponed past next Tue
-    eq(R.projected(weekly, open, '2026-11-30', '2026-12-04'), []);
-    eq(R.projected(weekly, open, '2026-12-07', '2026-12-11'), ['2026-12-08']);
+    var dates = function (a) { return a.map(function (x) { return x.date; }); };
+    eq(dates(R.projected(weekly, open, '2026-11-30', '2026-12-04')), []);
+    eq(dates(R.projected(weekly, open, '2026-12-07', '2026-12-11')), ['2026-12-08']);
+  });
+
+  test('R19 exceptions: skipped cycle passed over, moved cycle keeps the pattern but gets the new date', function () {
+    var weekly = { id: 'a', schedule_type: 'weeks', interval: 1, weekday: 2 };
+    var task = { pattern_date: '2026-11-24', nominal_date: '2026-11-24' };
+    var ex = [{ id: 'e1', tool_id: 'a', nominal: '2026-12-01', action: 'skip' }, { id: 'e2', tool_id: 'a', nominal: '2026-12-08', action: 'move', new_date: '2026-12-10' }];
+    eq(R.nextAfterCompletion(weekly, task, '2026-11-24', ex), { pattern: '2026-12-08', nominal: '2026-12-08', due: '2026-12-10', used: ['e1', 'e2'] });
+    var open = { pattern_date: '2026-11-24', nominal_date: '2026-11-24', due_date: '2026-11-24' };
+    var p = R.projected(weekly, open, '2026-11-30', '2026-12-11', ex);
+    eq(p.map(function (x) { return [x.date, x.skipped, x.moved]; }), [['2026-12-01', true, false], ['2026-12-10', false, true]]);
   });
 
   test('validateSchedule catches bad input', function () {

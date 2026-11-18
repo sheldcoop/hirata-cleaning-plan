@@ -29,6 +29,9 @@
       eq(openTask('TLA901').due_date, '2026-11-30');   // every 4 weeks, Monday, starts in 2 weeks
       var days = {}; d.tools.forEach(function (t) { days[t.weekday] = 1; });
       eq(Object.keys(days).length, 5, 'Monday to Friday all used');
+      d.tools.forEach(function (t) { eq(t.start_date, d.tasks.find(function (x) { return x.tool_id === t.id; }).due_date, t.name + ' start = first cleaning'); });
+      var starts = {}; d.tools.forEach(function (t) { starts[t.start_date] = 1; });
+      ok(Object.keys(starts).length >= 8, 'start dates differ between tools');
       return rejects(S.createPlan('1234'), 'exists');
     });
   });

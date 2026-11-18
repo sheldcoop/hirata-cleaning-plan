@@ -240,6 +240,7 @@ window.HCP.store = (function () {
           schedule_type: 'weeks', interval: s[3], weekday: s[4], month_day: null,
           start_date: R.maxDate(R.today(), R.addDays(thisMonday, 7 * s[5])), status: 'active', down_reason: '', down_since: null, archived: false
         };
+        tool.start_date = R.firstRuleDate(tool, tool.start_date).pattern;   // start date = first cleaning, so each tool shows its own date
         d.tools.push(tool);
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
       });

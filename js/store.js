@@ -54,20 +54,41 @@ window.HCP.store = (function () {
   function current() { return data; }
   function wasRecovered() { return recovered; }
 
-  function userByOperatorId(d, opId) {
-    var key = clean(opId).toUpperCase();
-    if (!key) throw err('noid', 'Enter your operator ID.');
-    var u = d.users.find(function (x) { return x.operator_id.toUpperCase() === key; });
-    if (!u) throw err('badid', 'Unknown operator ID "' + clean(opId) + '".');
-    if (!u.active) throw err('badid', 'Operator ID "' + u.operator_id + '" is deactivated.');
+  /** Find a person by user id (what the name list sends) or by short ID. */
+  function findUser(d, ref) {
+    var key = clean(ref).toUpperCase();
+    if (!key) return null;
+    return d.users.find(function (x) { return x.id === clean(ref); }) ||
+      d.users.find(function (x) { return x.operator_id.toUpperCase() === key; }) || null;
+  }
+
+  function userByOperatorId(d, ref) {
+    if (!clean(ref)) throw err('noid', 'Choose your name.');
+    var u = findUser(d, ref);
+    if (!u) throw err('badid', 'This person is not in the list any more. The board will refresh.');
+    if (!u.active) throw err('badid', u.name + ' is deactivated.');
     return u;
   }
 
-  /** Name lookup for screens (no error). */
-  function lookupOperator(opId) {
+  /** Lookup for screens (no error). */
+  function lookupOperator(ref) {
     if (!data) return null;
-    var key = clean(opId).toUpperCase();
-    return data.users.find(function (x) { return x.operator_id.toUpperCase() === key && x.active; }) || null;
+    var u = findUser(data, ref);
+    return u && u.active ? u : null;
+  }
+
+  /** Active people for the name list, sorted by name. */
+  function activeUsers() {
+    if (!data) return [];
+    return data.users.filter(function (u) { return u.active; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+  }
+  function admins() { return activeUsers().filter(function (u) { return u.role === 'admin'; }); }
+
+  /** Next free short ID like OP003 (people never need to type it). */
+  function nextShortId(d) {
+    var n = 1;
+    while (d.users.some(function (u) { return u.operator_id === 'OP' + (n < 10 ? '00' : n < 100 ? '0' : '') + n; })) n++;
+    return 'OP' + (n < 10 ? '00' : n < 100 ? '0' : '') + n;
   }
 
   function requireAdmin(d) {
@@ -271,11 +292,10 @@ window.HCP.store = (function () {
   function adminLogin(operatorId, pin) {
     return load().then(function (d) {
       if (!d) throw err('nofile', 'No plan file.');
-      var key = clean(operatorId).toUpperCase();
-      var u = d.users.find(function (x) { return x.operator_id.toUpperCase() === key; });
-      if (!u || !u.active || u.role !== 'admin') throw err('badlogin', 'Wrong Admin ID or PIN.');
+      var u = findUser(d, operatorId);
+      if (!u || !u.active || u.role !== 'admin') throw err('badlogin', 'Wrong name or PIN.');
       return verifyPin(pin, u.pin_hash).then(function (ok) {
-        if (!ok) throw err('badlogin', 'Wrong Admin ID or PIN.');
+        if (!ok) throw err('badlogin', 'Wrong name or PIN.');
         admin = { user_id: u.id };
         return u;
       });
@@ -489,14 +509,17 @@ window.HCP.store = (function () {
     return pinStep.then(function (pinHash) {
       return mutate(function (d) {
         var a = requireAdmin(d);
-        var opId = clean(input.operator_id).toUpperCase();
         var name = clean(input.name);
+        var existing = input.id ? find(d.users, input.id) : null;
+        var opId = clean(input.operator_id).toUpperCase() || (existing ? existing.operator_id : nextShortId(d));
         var role = input.role === 'admin' ? 'admin' : 'operator';
         var active = input.active !== false;
-        if (!/^[A-Z0-9_-]{2,20}$/.test(opId)) throw err('invalid', 'Operator ID: 2 to 20 letters, digits, - or _.');
         if (!name) throw err('invalid', 'Enter the name.');
+        if (!/^[A-Z0-9_-]{2,20}$/.test(opId)) throw err('invalid', 'Short ID: 2 to 20 letters, digits, - or _.');
+        var sameName = d.users.find(function (x) { return x.id !== input.id && x.name.toLowerCase() === name.toLowerCase(); });
+        if (sameName) throw err('invalid', '"' + name + '" is already in the list. Use a different name (e.g. add the first letter of the surname).');
         var dup = d.users.find(function (x) { return x.id !== input.id && x.operator_id.toUpperCase() === opId; });
-        if (dup) throw err('invalid', 'Operator ID "' + opId + '" is already used by ' + dup.name + '.');
+        if (dup) throw err('invalid', 'Short ID "' + opId + '" is already used by ' + dup.name + '.');
         var u = input.id ? find(d.users, input.id) : null;
         if (input.id && !u) throw err('notfound', 'This user no longer exists.');
         var hasPin = pinHash || (u && u.pin_hash);
@@ -579,7 +602,7 @@ window.HCP.store = (function () {
 
   /** UTF-8 with BOM so Excel shows umlauts correctly. */
   function historyCsv(filters) {
-    var head = ['Date', 'Time', 'Tool', 'Action', 'Who', 'Operator ID', 'Old date', 'New date', 'Reason', 'Comment'];
+    var head = ['Date', 'Time', 'Tool', 'Action', 'Who', 'Short ID', 'Old date', 'New date', 'Reason', 'Comment'];
     var lines = [head.join(',')].concat(history(filters).map(function (r) {
       return [r.date, r.time, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
     }));
@@ -636,7 +659,7 @@ window.HCP.store = (function () {
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
     saveUser: saveUser, saveSettings: saveSettings, loadDemo: loadDemo,
-    board: board, history: history, historyCsv: historyCsv, taskDetails: taskDetails, lookupOperator: lookupOperator,
+    board: board, history: history, historyCsv: historyCsv, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin
   };

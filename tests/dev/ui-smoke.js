@@ -89,9 +89,10 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(chip);
   await click(btn('✓ Complete'));
   await click(btn('Continue'));
-  ok($('.form-error') && !$('.form-error').hidden, 'operator ID required');
-  type($('.modal .opid'), 'op001');
-  ok($('.modal .who').textContent === 'Test Operator 1', 'name shown for ID');
+  ok($('.form-error') && !$('.form-error').hidden, 'name required');
+  const pick = (name) => { const sel = $('.modal select.person'); const o = [...sel.options].find(x => x.textContent === name); ok(o, 'name in list: ' + name); type(sel, o.value); };
+  ok([...$('.modal select.person').options].length === 4, 'list has 3 names + placeholder');
+  pick('Test Operator 1');
   type($('.modal textarea'), 'Filter dirty, replaced');
   await click(btn('Continue'));
   ok($('.confirm-q').textContent.includes('Test Operator 1'), 'confirmation shows name');
@@ -103,7 +104,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   const open2 = $$('button.chip').find(c => !c.classList.contains('s-done'));
   await click(open2);
   await click(btn('🕓 Postpone'));
-  type($('.modal .opid'), 'OP002');
+  pick('Test Operator 2');
   await click(btn('Continue'));
   await click(btn('Yes, postpone'), 400);
   ok($$('.toast').some(t => t.textContent.includes('postponed to')), 'postpone toast');
@@ -132,7 +133,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
 
   step = 'admin login';
   await click(btn('Admin login'));
-  type($('.modal input[type=text]'), 'admin01'); type($('.modal input[type=password]'), '1234');
+  pick('Khurana'); type($('.modal input[type=password]'), '1234');
   await click(btn('Log in'), 800);
   ok(d.body.textContent.includes('Admin: Khurana'), 'logged in again');
 

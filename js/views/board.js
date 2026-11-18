@@ -77,7 +77,7 @@ window.HCP.views.board = (function () {
     if (it.carried) text = 'Overdue since ' + R.shortDate(it.date);
     if (it.status === 'done') {
       var u = S.current().users.find(function (x) { return x.id === t.completed_by; });
-      text = 'Done' + (u ? ' · ' + u.operator_id : '');
+      text = 'Done' + (u ? ' · ' + u.name.split(' ')[0] : '');
     }
     return h('button', { class: 'chip s-' + it.status, title: 'Open', onclick: function () { taskPanel(t.id, app); } }, [
       h('span', { class: 'ico', text: l[0] }), text,
@@ -140,19 +140,18 @@ window.HCP.views.board = (function () {
     }
 
     function completeForm() {
-      var op = U.operatorField(S.lookupOperator);
+      var op = U.personField(S.activeUsers());
       var comment = h('textarea', { rows: '3', maxlength: '1000', placeholder: 'Any problem? Write it here (optional)' });
       var msg = h('p', { class: 'form-error', hidden: true });
       U.clear(area);
-      U.add(area, [h('h3', { text: 'Complete cleaning' }), U.field('Operator ID', op.node), U.field('Comment', comment), msg,
+      U.add(area, [h('h3', { text: 'Complete cleaning' }), U.field('Your name', op.node), U.field('Comment', comment), msg,
         h('div', { class: 'actions' }, [
           h('button', { class: 'btn', text: 'Continue', onclick: next }),
           h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
       op.input.focus();
-      op.input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') next(); });
       function next() {
         var u = S.lookupOperator(op.input.value);
-        if (!u) { msg.textContent = op.input.value.trim() ? 'Unknown operator ID.' : 'Enter your operator ID.'; msg.hidden = false; return; }
+        if (!u) { msg.textContent = 'Choose your name.'; msg.hidden = false; return; }
         var opId = op.input.value, c = comment.value;
         U.confirmStep(area, 'Confirm cleaning completed for ' + tool.name + ' by ' + u.name + '?', 'Yes, completed', function () {
           return S.complete(t.id, opId, c).then(function (r) {
@@ -163,13 +162,13 @@ window.HCP.views.board = (function () {
     }
 
     function postponeForm() {
-      var op = U.operatorField(S.lookupOperator);
+      var op = U.personField(S.activeUsers());
       var date = h('input', { type: 'date', min: R.today() });
       var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why? (optional), e.g. tool used by PROD' });
       var msg = h('p', { class: 'form-error', hidden: true });
       var auto = R.nextWorkingDay(R.maxDate(t.due_date, R.today()));
       U.clear(area);
-      U.add(area, [h('h3', { text: 'Postpone cleaning' }), U.field('Operator ID', op.node),
+      U.add(area, [h('h3', { text: 'Postpone cleaning' }), U.field('Your name', op.node),
         U.field('New date', date, 'Optional. Empty = next working day (' + R.dayName(auto) + ' ' + R.shortDate(auto) + '). A weekend date moves to Monday.'),
         U.field('Reason', reason), msg,
         h('div', { class: 'actions' }, [
@@ -178,12 +177,12 @@ window.HCP.views.board = (function () {
       op.input.focus();
       function next() {
         var u = S.lookupOperator(op.input.value);
-        if (!u) { msg.textContent = op.input.value.trim() ? 'Unknown operator ID.' : 'Enter your operator ID.'; msg.hidden = false; return; }
+        if (!u) { msg.textContent = 'Choose your name.'; msg.hidden = false; return; }
         var d = date.value;
         if (d && d < R.today()) { msg.textContent = 'The new date cannot be in the past.'; msg.hidden = false; return; }
         var target = d ? R.toWorkingDay(d) : auto;
         var opId = op.input.value, rs = reason.value;
-        U.confirmStep(area, 'Postpone ' + tool.name + ' to ' + R.dayName(target) + ' ' + R.longDate(target) + '?' +
+        U.confirmStep(area, u.name + ': postpone ' + tool.name + ' to ' + R.dayName(target) + ' ' + R.longDate(target) + '?' +
           (d && target !== d ? ' (the chosen date is a weekend)' : ''), 'Yes, postpone', function () {
           return S.postpone(t.id, opId, d, rs).then(function (r) {
             done(tool.name + ' postponed to ' + R.dayName(r.task.due_date) + ' ' + R.longDate(r.task.due_date) + '.');

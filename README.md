@@ -14,7 +14,7 @@ Same approach as the Metrology Request Tracker: plain files on a shared drive, o
 2. Double-click **`Hirata Cleaning Plan.cmd`** (or open `index.html` in Edge).
 3. Click **Connect data folder** and choose the `data` folder next to `index.html`. Edge remembers it on this PC (it may ask "allow" once per session).
 4. The first time, the folder is empty: click **Create new plan** and choose the Admin PIN. The plan starts with the 12 loader tools (every 1/2/4 weeks on Tuesday) and Admin **Khurana, ID `ADMIN01`**.
-5. In **Settings → Users**, add the operators (ID + name). In **Settings → Tools**, set each tool's real schedule.
+5. In **Settings → Users**, add the operators (just the name; a short ID is filled in automatically). In **Settings → Tools**, set each tool's real schedule.
 
 Every PC must connect the **same** `data` folder on the share to see the same plan.
 
@@ -22,11 +22,11 @@ Every PC must connect the **same** `data` folder on the share to see the same pl
 
 - **Board:** one week, tools as rows, Monday–Friday as columns. ‹ › change the week, **Today** jumps back.
   Colours: ○ Due · ● Due today · ⚠ Overdue · 🕓 Postponed · ✓ Done · ⛔ Tool down · dashed = planned (future).
-- Click a cleaning → **Complete** (operator ID + optional comment) or **Postpone** (optional new date and reason; empty date = next working day).
+- Click a cleaning → **Complete** (choose your name + optional comment) or **Postpone** (optional new date and reason; empty date = next working day).
 - Overdue cleanings from earlier weeks also show in today's column.
 - Click a tool name → details; Admin can set **Tool down** / **Reactivate**.
 - **History:** filter and **Export CSV** (opens in Excel).
-- **Admin login** (top right): ID + PIN. Settings: Tools, Users, One-off cleaning, General (Teams reminder, default theme).
+- **Admin login** (top right): choose your name + PIN. Settings: Tools, Users, One-off cleaning, General (Teams reminder, default theme).
 - The board refreshes every minute, so changes from other PCs appear.
 
 ## Teams reminder (optional)
@@ -44,5 +44,5 @@ Developers with Node can also run `node tests/run-node.js`; `tests/dev/ui-smoke.
 
 ## Known limits (v1)
 
-- Identity is "soft": operators type their ID; anyone with write access to the share could edit the data file by hand. Admin actions need the PIN.
+- Identity is "soft": people choose their name from a list; anyone with write access to the share could edit the data file by hand. Admin actions need the PIN.
 - No public holidays, no PM tasks, no email/Webex reminders (see PLAN.md section 4).

@@ -147,10 +147,7 @@ input.wide { width: 100%; }
 textarea { width: 100%; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0 16px; }
 .form-error { color: var(--danger); font-weight: 600; margin: 6px 0; }
-.opid-row { display: flex; align-items: center; gap: 10px; }
-.opid { width: 140px; font-family: Consolas, monospace; text-transform: uppercase; }
-.who { font-weight: 600; }
-.who.good { color: var(--done-fg); } .who.bad { color: var(--danger); }
+.person { min-width: 260px; font-size: 15px; padding: 9px 10px; }
 .preview { background: var(--surface-2); border-radius: 6px; padding: 8px 10px; font-size: 13px; }
 .preview.bad { color: var(--danger); }
 .confirm-q { font-size: 15px; font-weight: 600; }

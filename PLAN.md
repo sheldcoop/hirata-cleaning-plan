@@ -24,7 +24,7 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 | Cleaning (task) | One planned cleaning of one tool on one date. |
 | Pattern date | The date a cleaning *should* happen according to the tool's schedule. Never changes. |
 | Due date | The date the cleaning is currently planned for. Starts equal to the pattern date. Changes when postponed. |
-| Operator | A person who cleans tools. Identified by an operator ID. |
+| Operator | A person who cleans tools. Chooses their name from a list (added by the Admin in Settings → Users). |
 | Admin | A person who manages tools, users and schedules. Identified by an ID and a PIN. |
 | Tool owner / MNT owner | Names shown for information on a tool. Not logins. |
 | Schedule rule | Set per tool: "every N weeks on weekday W" **or** "every N months on day D". |
@@ -42,11 +42,11 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 
 **Users**
 - About 5–6 operators and 10–12 tools at the start. Operators use their own work PCs (some PCs may be shared).
-- **Operators** identify themselves with an **operator ID only** (no PIN in v1). Design so a PIN can be added later without changing other parts.
-- **Admin** logs in with **ID + PIN**. At the start the only Admin is Khurana.
+- **Operators** identify themselves by **choosing their name from a list** (no PIN in v1). Each person also gets an automatic short ID (OP001…) used in exports. Design so a PIN can be added later without changing other parts.
+- **Admin** logs in by choosing their name + **PIN**. At the start the only Admin is Khurana.
 - Any operator can clean any tool.
 - The Admin can create users and set their role (Operator or Admin) in Settings.
-- **Operators do not log in.** The board is open to everyone; the operator ID is typed in each Complete/Postpone action. Only Admins log in (ID + PIN).
+- **Operators do not log in.** The board is open to everyone; the person chooses their name in each Complete/Postpone action. Only Admins log in (name + PIN).
 - Real company login (SSO) comes later, only if IT hosts it on a server.
 
 **Main screen: weekly grid**
@@ -57,7 +57,7 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 - Clicking a cell opens a small panel with the actions.
 
 **Actions**
-- **Complete:** operator ID (required) + comment (optional, used for problems). Records who and when.
+- **Complete:** name from the list (required) + comment (optional, used for problems). Records who and when.
 - **Postpone:** reason is free text and **optional**. New date is **optional**. If no date is given, the due date moves to the **next working day**. A chosen weekend date moves to the following Monday, and the user is told.
 - **Tool Down:** Admin only in v1 (tool owners are names, not logins). Cleanings pause. On reactivation the Admin chooses a new start date.
 - **Admin only:** reopen a completed cleaning, reactivate a Tool Down, add a one-off, edit or delete a single cleaning.
@@ -170,7 +170,7 @@ These are exact. Implement and test them literally.
 - Update `due_date`, add 1 to `postpone_count`, store `last_postpone_reason`, add a history row. `pattern_date` does not change.
 
 **R6. Complete.**
-- Requires a valid active user (operator ID). Comment optional.
+- Requires a valid active user (chosen from the name list). Comment optional.
 - Set `status = completed`, `completed_by`, `completed_at`, `completion_comment`. Add a history row. Then apply R4 (unless one-off).
 - A completed task cannot be completed again.
 

@@ -104,7 +104,7 @@
     });
     screen([
       h('h2', { text: 'Create a new cleaning plan' }),
-      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools and the first Admin (Khurana, ID ADMIN01).' }),
+      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools and the first Admin (Khurana). Add the operators afterwards in Settings → Users.' }),
       h('p', { class: 'muted', text: 'If your team already has a plan, you chose the wrong folder: reload the page and pick the shared data folder.' }),
       U.field('Admin PIN (4–8 digits)', pin), U.field('Repeat PIN', pin2), msg, btn
     ]);
@@ -162,7 +162,8 @@
   function forgetAdmin() { try { sessionStorage.removeItem(ADMIN_KEY); } catch (e) { /* ignore */ } }
 
   function loginDialog() {
-    var id = h('input', { type: 'text', maxlength: '20', autocomplete: 'username', class: 'mono', placeholder: 'ADMIN01' });
+    var who = U.personField(S.admins(), 'Choose your name…');
+    var id = who.input;
     var pin = h('input', { type: 'password', inputmode: 'numeric', maxlength: '8', autocomplete: 'current-password' });
     var msg = h('p', { class: 'form-error', hidden: true });
     var btn = h('button', { class: 'btn', text: 'Log in' });
@@ -174,7 +175,7 @@
     }
     btn.addEventListener('click', go);
     pin.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') go(); });
-    U.modal('Admin login', [U.field('Admin ID', id), U.field('PIN', pin), msg,
+    U.modal('Admin login', [U.field('Name', who.node), U.field('PIN', pin), msg,
       h('p', { class: 'hint', text: 'The login lasts until you log out or close this tab.' }),
       h('div', { class: 'actions' }, [btn, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])]);
   }

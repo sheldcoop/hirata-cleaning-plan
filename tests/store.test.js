@@ -164,6 +164,21 @@
       .then(function (u) { eq(u.name, 'Second'); });
   });
 
+  test('names: complete by choosing a name (user id); new people get a short ID automatically; same name refused', function () {
+    var lac;
+    return setup().then(function () { return S.saveUser({ name: 'Marco Trummer', role: 'operator' }); })
+      .then(function (u) {
+        eq(u.operator_id, 'OP003');
+        eq(S.activeUsers().map(function (x) { return x.name; }), ['Khurana', 'Marco Trummer', 'Test Operator 1', 'Test Operator 2']);
+        lac = openTask('LAC901').id;
+        return S.complete(lac, u.id, 'by name');
+      })
+      .then(function (r) { eq(r.user.name, 'Marco Trummer'); eq(S.history({ action: 'completed' })[0].who, 'Marco Trummer'); })
+      .then(function () { return rejects(S.saveUser({ name: 'marco trummer', role: 'operator' }), 'invalid'); })
+      .then(function () { var a = S.admins()[0]; S.adminLogout(); return S.adminLogin(a.id, '1234'); })
+      .then(function (u) { eq(u.name, 'Khurana'); });
+  });
+
   test('14b. two PCs complete the same cleaning: only one succeeds', function () {
     var mem, id;
     return setup().then(function (m) { mem = m; id = openTask('LAC901').id; })

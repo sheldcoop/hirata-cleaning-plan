@@ -124,16 +124,17 @@ window.HCP.views.settings = (function () {
   /* --- Users -------------------------------------------------------- */
 
   function users(body, app) {
-    var list = S.current().users.slice().sort(function (a, b) { return a.operator_id.localeCompare(b.operator_id); });
+    var list = S.current().users.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
     U.add(body, [
       h('div', { class: 'row-bar' }, [h('button', { class: 'btn', text: '+ Add user', onclick: function () { userForm(null, app); } })]),
-      h('p', { class: 'muted', text: 'Operators type their operator ID when they complete or postpone. Admins log in with their ID and PIN.' }),
+      h('p', { class: 'muted', text: 'Everyone in this list appears in the name list when completing or postponing a cleaning. Admins log in with their name and PIN.' }),
       h('div', { class: 'grid-wrap' }, h('table', { class: 'list' }, [
-        h('thead', {}, h('tr', {}, ['Operator ID', 'Name', 'Role', 'Status', ''].map(function (c) { return h('th', { text: c }); }))),
+        h('thead', {}, h('tr', {}, ['Name', 'Role', 'Status', 'Short ID', ''].map(function (c) { return h('th', { text: c }); }))),
         h('tbody', {}, list.map(function (u) {
           return h('tr', { class: u.active ? '' : 'is-archived' }, [
-            h('td', { class: 'strong mono', text: u.operator_id }), h('td', { text: u.name }),
+            h('td', { class: 'strong', text: u.name }),
             h('td', { text: u.role === 'admin' ? 'Admin' : 'Operator' }), h('td', { text: u.active ? 'Active' : 'Inactive' }),
+            h('td', { class: 'mono muted', text: u.operator_id }),
             h('td', { class: 'row-actions' }, h('button', { class: 'btn small ghost', text: 'Edit', onclick: function () { userForm(u, app); } }))
           ]);
         }))
@@ -144,7 +145,7 @@ window.HCP.views.settings = (function () {
   function userForm(u, app) {
     var isNew = !u;
     u = u || { operator_id: '', name: '', role: 'operator', active: true, pin_hash: null };
-    var opId = h('input', { type: 'text', value: u.operator_id, maxlength: '20', placeholder: 'e.g. OP003', class: 'mono' });
+    var opId = h('input', { type: 'text', value: u.operator_id, maxlength: '20', placeholder: 'automatic', class: 'mono' });
     var name = h('input', { type: 'text', value: u.name, maxlength: '80' });
     var role = h('select', {}, [h('option', { value: 'operator', text: 'Operator', selected: u.role !== 'admin' }), h('option', { value: 'admin', text: 'Admin', selected: u.role === 'admin' })]);
     var active = h('input', { type: 'checkbox', checked: u.active });
@@ -162,7 +163,8 @@ window.HCP.views.settings = (function () {
         .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; save.disabled = false; });
     });
     U.modal(isNew ? 'Add user' : 'Edit ' + u.name, [
-      h('div', { class: 'form-grid' }, [U.field('Operator ID', opId), U.field('Name', name), U.field('Role', role), pinField,
+      h('div', { class: 'form-grid' }, [U.field('Name', name, 'As it should appear in the list, e.g. Marco Trummer.'), U.field('Role', role), pinField,
+        U.field('Short ID (optional)', opId, 'Filled in automatically; used in exports.'),
         h('label', { class: 'toggle' }, [active, ' Active (can complete and postpone)'])]),
       msg, h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])
     ]);
@@ -233,7 +235,7 @@ window.HCP.views.settings = (function () {
         ]),
         h('p', { class: 'muted', text: 'Backup: every save keeps the previous version as hirata_data.prev.json. For a full backup, copy the data folder.' }),
         h('div', { class: 'actions' }, [
-          h('button', { class: 'btn ghost', text: 'Add demo operators (OP001, OP002)', onclick: function () {
+          h('button', { class: 'btn ghost', text: 'Add demo operators (Test Operator 1 and 2)', onclick: function () {
             S.loadDemo().then(function (added) { U.toast(added.length ? 'Added ' + added.join(', ') + '.' : 'Demo operators already exist.'); app.reload(); })
               .catch(function (e) { U.toast(U.errorText(e), 'error'); });
           } })

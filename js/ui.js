@@ -102,17 +102,13 @@ window.HCP.ui = (function () {
     yes.focus();
   }
 
-  /** Operator ID input that shows the matching name live. */
-  function operatorField(lookup) {
-    var input = h('input', { type: 'text', autocomplete: 'off', placeholder: 'e.g. OP001', maxlength: '20', class: 'opid', spellcheck: 'false' });
-    var who = h('span', { class: 'who muted', text: 'Type your operator ID' });
-    input.addEventListener('input', function () {
-      var v = input.value.trim();
-      var u = v ? lookup(v) : null;
-      who.textContent = !v ? 'Type your operator ID' : u ? u.name : 'Unknown ID';
-      who.className = 'who ' + (!v ? 'muted' : u ? 'good' : 'bad');
-    });
-    return { input: input, node: h('div', { class: 'opid-row' }, [input, who]) };
+  /** "Who are you?" list of names. value = user id. */
+  function personField(users, placeholder) {
+    var input = h('select', { class: 'person' }, [h('option', { value: '', text: placeholder || 'Choose your name…' })].concat(users.map(function (u) {
+      return h('option', { value: u.id, text: u.name });
+    })));
+    var node = users.length ? input : h('p', { class: 'form-error', text: 'No people in the list yet. An Admin adds them in Settings → Users.' });
+    return { input: input, node: node };
   }
 
   function field(label, control, hint) {
@@ -127,5 +123,5 @@ window.HCP.ui = (function () {
   }
 
   return { h: h, add: add, clear: clear, toast: toast, errorText: errorText, modal: modal, closeModal: closeModal,
-    isModalOpen: isModalOpen, confirmStep: confirmStep, operatorField: operatorField, field: field, download: download };
+    isModalOpen: isModalOpen, confirmStep: confirmStep, personField: personField, field: field, download: download };
 })();

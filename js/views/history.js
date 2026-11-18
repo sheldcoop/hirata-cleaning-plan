@@ -42,7 +42,7 @@ window.HCP.views.history = (function () {
         return h('tr', {}, [
           h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', { class: 'strong', text: r.tool || '–' }),
           h('td', {}, h('span', { class: 'act a-' + r.action, text: r.action_label })),
-          h('td', { text: r.who ? r.who + ' (' + r.operator_id + ')' : '–' }), h('td', { text: dates }),
+          h('td', { text: r.who || '–' }), h('td', { text: dates }),
           h('td', { class: 'wrap', text: [r.reason, r.comment].filter(Boolean).join(' · ') })
         ]);
       }) : h('tr', {}, h('td', { colspan: '7', class: 'empty', text: 'No history for these filters.' })))

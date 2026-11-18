@@ -1,7 +1,7 @@
 # Hirata Cleaning Plan App: Project Plan
 
 **Owner:** Prince Khurana (Admin)
-**Status:** Plan approved, build not started
+**Status:** Version 1 built (all phases 0–8). Awaiting the owner's test on the real share.
 **Read this first.** This document is the single source of truth. Anyone (human or AI agent) building this app must follow it. If something is unclear or missing, **ask the owner. Do not guess.**
 
 ---
@@ -117,7 +117,9 @@ The file holds one object: `{ schema_version, revision, saved_at, saved_by, user
 | id | integer PK | |
 | tool_id | integer FK | |
 | task_type | text | default `cleaning` |
-| pattern_date | date | immutable |
+| pattern_date | date | the schedule date (only changed by R7/R11) |
+| nominal_date | date | monthly rules: the date before the weekend shift, so the pattern never drifts |
+| generated_from | id, nullable | the completed task this one was created from (used by R8) |
 | due_date | date | changes on postpone |
 | status | text | `open` or `completed` (only these two are stored) |
 | is_one_off | integer 0/1 | one-offs do not generate a next cleaning |
@@ -133,7 +135,7 @@ The file holds one object: `{ schema_version, revision, saved_at, saved_by, user
 | id | integer PK | |
 | tool_id | integer FK | |
 | task_id | integer FK, nullable | |
-| action | text | `completed`, `postponed`, `tool_down`, `reactivated`, `reopened`, `task_added`, `task_deleted`, `tool_changed` |
+| action | text | `completed`, `postponed`, `tool_down`, `reactivated`, `reopened`, `task_added`, `task_edited`, `task_deleted`, `tool_changed`, `user_changed` |
 | user_id | integer FK | who did it |
 | at | text | timestamp |
 | reason | text, nullable | |
@@ -164,7 +166,7 @@ These are exact. Implement and test them literally.
 
 **R5. Postpone.**
 - Reason and new date are both optional.
-- New date: if given and it is a weekend, move it to the following Monday. If not given, use the next working day after the *current due date*.
+- New date: if given and it is a weekend, move it to the following Monday. If not given, use the next working day after the current due date, or after today if the cleaning is already overdue.
 - Update `due_date`, add 1 to `postpone_count`, store `last_postpone_reason`, add a history row. `pattern_date` does not change.
 
 **R6. Complete.**

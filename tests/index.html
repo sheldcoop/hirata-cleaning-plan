@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hirata Cleaning Plan - tests</title>
+  <style>
+    body { font: 14px "Segoe UI", Arial, sans-serif; margin: 24px; }
+    .pass { color: #17663a; } .fail { color: #a61b1b; font-weight: 600; }
+    pre { margin: 2px 0 8px 22px; color: #a61b1b; white-space: pre-wrap; }
+    #summary { font-size: 18px; font-weight: 700; margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <h1>Hirata Cleaning Plan - tests</h1>
+  <p>Runs all rule and store tests in memory. Your real data folder is not touched.</p>
+  <div id="summary">Running…</div>
+  <div id="out"></div>
+  <script src="../js/config.js"></script>
+  <script src="../js/rules.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="memory-storage.js"></script>
+  <script src="harness.js"></script>
+  <script src="rules.test.js"></script>
+  <script src="store.test.js"></script>
+  <script>
+    var out = document.getElementById('out');
+    T.run(function (name, ok, msg) {
+      var d = document.createElement('div');
+      d.className = ok ? 'pass' : 'fail';
+      d.textContent = (ok ? '✓ ' : '✗ ') + name;
+      out.appendChild(d);
+      if (!ok) { var p = document.createElement('pre'); p.textContent = msg; out.appendChild(p); }
+    }).then(function (r) {
+      var bad = r.filter(function (x) { return !x.ok; }).length;
+      var s = document.getElementById('summary');
+      s.textContent = (r.length - bad) + ' passed, ' + bad + ' failed';
+      s.className = bad ? 'fail' : 'pass';
+    });
+  </script>
+</body>
+</html>

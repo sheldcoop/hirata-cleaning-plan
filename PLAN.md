@@ -34,7 +34,10 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 ## 3. Locked decisions (do not change without asking the owner)
 
 **Platform**
-- Local web app first: **Node.js + Express + SQLite + plain HTML/CSS/JavaScript** (no framework). Start with `npm start`. IT will host the same folder later.
+- **Zero install, same approach as the Metrology Request Tracker:** static HTML/CSS/JavaScript files on a **shared network drive**, opened in **Microsoft Edge**. No server, no Node, no npm, no build step, no internet.
+- Data is **one JSON file** (`hirata_data.json`) in a `data\` folder next to `index.html` on the share, read and written by the page through Edge's File System Access API. The folder is picked once per PC; Edge remembers it.
+- A launcher `Hirata Cleaning Plan.cmd` opens the app in Edge.
+- All file access goes through one **storage adapter** with a fixed interface, so it can be swapped for a server API later (if IT hosts it) without changing screens or rules.
 - Private GitHub repo `hirata-cleaning-plan`.
 
 **Users**
@@ -44,7 +47,7 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 - Any operator can clean any tool.
 - The Admin can create users and set their role (Operator or Admin) in Settings.
 - **Operators do not log in.** The board is open to everyone; the operator ID is typed in each Complete/Postpone action. Only Admins log in (ID + PIN).
-- Real company login (SSO) comes later from IT.
+- Real company login (SSO) comes later, only if IT hosts it on a server.
 
 **Main screen: weekly grid**
 - Tools are **rows**. Monday–Friday are **columns**. A cell shows the cleaning for that tool on that day.
@@ -77,9 +80,9 @@ The app must stay **simple**. When in doubt, choose the simpler option.
 
 Do **not** build: PM (preventive maintenance) tasks, drag-and-drop, reminders sent by email or Webex, real SSO login, mobile layout, public holidays, multiple sites, attachments or photos, a PIN for operators, reports and charts. Keep a `task_type` column (default `cleaning`) so PM can be added later.
 
-## 5. Data model (SQLite)
+## 5. Data model (one JSON file)
 
-All timestamps are stored as ISO 8601 text. All dates are `YYYY-MM-DD` (local date, Europe/Vienna).
+The file holds one object: `{ schema_version, revision, saved_at, saved_by, users: [], tools: [], tasks: [], history: [], settings: {} }`. Each list below is an array of records with the listed fields (designed so they map 1:1 to database tables later). IDs are text, e.g. `tool_ab12cd`. All timestamps are stored as ISO 8601 text. All dates are `YYYY-MM-DD` (local date, Europe/Vienna).
 
 **users**
 | Column | Type | Notes |
@@ -88,7 +91,7 @@ All timestamps are stored as ISO 8601 text. All dates are `YYYY-MM-DD` (local da
 | operator_id | text, unique | what people type, for example `OP001` |
 | name | text | shown in the app and in history |
 | role | text | `operator` or `admin` |
-| pin_hash | text, nullable | only for admins in v1. Use a proper password hash (scrypt or bcrypt). Never store the PIN in plain text. |
+| pin_hash | text, nullable | only for admins. Salted SHA-256 via the browser's built-in Web Crypto (PBKDF2). Never store the PIN in plain text. |
 | active | integer 0/1 | inactive users cannot act but stay in history |
 
 **tools**
@@ -138,8 +141,8 @@ All timestamps are stored as ISO 8601 text. All dates are `YYYY-MM-DD` (local da
 | old_date | date, nullable | |
 | new_date | date, nullable | |
 
-**settings** (key / value)
-`teams_webhook_url` (default empty = off), `theme_default` (`white` or `teal`).
+**settings** (key / value object)
+`teams_webhook_url`, `last_daily_message_date` (default empty = off), `theme_default` (`white` or `teal`).
 
 ## 6. Business rules
 
@@ -193,7 +196,11 @@ These are exact. Implement and test them literally.
 
 **R15. Weekends.** No cleaning is ever stored or shown with a weekend date.
 
-**R16. Time zone.** Use the server's local time, Europe/Vienna, for "today".
+**R16. Time zone.** Use the PC's local date (Europe/Vienna) for "today".
+
+**R17. Saving safely (several people, one file).** Every action is saved like this: (1) re-read the file from the share, (2) apply the action to that fresh copy (re-checking it is still allowed, e.g. the task is still open), (3) increase `revision`, (4) copy the old file to `hirata_data.prev.json`, (5) write. If step 2 fails because someone else already changed it (e.g. already completed), tell the user and refresh the board. If the live file is unreadable, load the `.prev.json` copy and warn. Never keep a long-lived copy in memory as the truth.
+
+**R18. Refresh.** The board re-reads the file every 60 seconds and when the window gets focus, so everyone sees others' changes.
 
 ## 7. Screens
 
@@ -207,50 +214,54 @@ These are exact. Implement and test them literally.
    - **One-offs:** add a single cleaning for a tool and date.
    - **General:** Teams webhook URL, default theme.
 
-## 8. API (all JSON under `/api`)
+## 8. Store and storage (instead of a server API)
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/board?week=YYYY-MM-DD` | tools + stored and projected cells for the week containing that date |
-| POST | `/api/tasks/:id/complete` | R6 |
-| POST | `/api/tasks/:id/postpone` | R5 |
-| POST | `/api/tasks/:id/reopen` | R8 (Admin) |
-| PATCH | `/api/tasks/:id` | R10 edit (Admin) |
-| DELETE | `/api/tasks/:id` | R10 delete (Admin) |
-| POST | `/api/tasks` | R9 one-off (Admin) |
-| GET/POST/PATCH | `/api/tools`, `/api/tools/:id` | list, add, edit, archive (Admin for changes) |
-| POST | `/api/tools/:id/down`, `/api/tools/:id/reactivate` | R7 (Admin) |
-| GET/POST/PATCH | `/api/users`, `/api/users/:id` | Admin |
-| POST | `/api/login` | admin ID + PIN → session cookie |
-| GET | `/api/history?...` and `/api/history.csv?...` | history and export |
-| GET/PATCH | `/api/settings` | Admin |
+All screens call **one module, `js/store.js`**, never the file directly. Store functions (all return Promises):
 
-Every write checks permissions on the **server** (hiding buttons in the UI is not security).
+| Function | Purpose |
+|---|---|
+| `load()` | read the file (R17 fallback) |
+| `board(weekDate)` | tools + stored, overdue (R14b) and projected cells for that week |
+| `complete(taskId, operatorId, comment)` | R6 |
+| `postpone(taskId, operatorId, newDate?, reason?)` | R5 |
+| `reopen`, `editTask`, `deleteTask`, `addOneOff` | R8, R10, R9 (Admin) |
+| `saveTool`, `archiveTool`, `toolDown`, `reactivate` | tools, R11, R12, R7 (Admin) |
+| `saveUser`, `setPin` | users (Admin) |
+| `adminLogin(id, pin)` | checks the PIN, keeps an admin session in this browser tab only |
+| `history(filters)`, `historyCsv(filters)` | history and export |
+| `saveSettings` | Admin |
+
+The store uses the **storage adapter** `js/adapters/storage-folder.js` (copied from the Metrology Request Tracker): `isSupported, hasSaved, connect, reconnect, read, write, list, remove`.
+
+**Security note (accepted for a small team, as in the Metrology tracker):** with a shared file there is no server to enforce rights; the app checks roles and the Admin PIN, but someone with write access to the share could edit the file by hand. Real enforcement comes only if IT hosts it on a server later.
 
 ## 9. Repo structure
 
 ```
 hirata-cleaning-plan/
-  PLAN.md            (this file)
-  README.md          (how to run, how to back up, how to hand over to IT)
-  package.json
-  server/
-    index.js         (Express app)
-    db.js            (SQLite setup, migrations)
-    rules.js         (ALL business rules R1–R16 live here, pure functions)
-    routes/          (one file per area)
-  public/
-    index.html, css/, js/   (Board, History, Settings pages)
-  data/              (SQLite file, git-ignored)
-  seed/seed.js       (creates the starting tools and the first Admin)
-  tests/             (tests for rules.js and the API)
+  PLAN.md                     (this file)
+  README.md                   (how to install on the share, use, back up)
+  index.html                  (the app, opened in Edge)
+  Hirata Cleaning Plan.cmd    (launcher)
+  css/                        (styles, two themes)
+  js/
+    config.js                 (file names, constants)
+    rules.js                  (ALL business rules R1–R16, pure functions, no file access)
+    store.js                  (load/save R17, actions, uses rules.js)
+    adapters/storage-folder.js
+    views/                    (board.js, history.js, settings.js)
+    app.js                    (start-up, connect folder, navigation)
+  tests/
+    index.html                (open in Edge: runs all rule tests, shows pass/fail)
+    rules.test.js
+  data/                       (git-ignored: the live data file on the share)
 ```
 
-Rule: **all date and schedule logic lives only in `server/rules.js`** and has tests. The UI never calculates schedule dates itself.
+Rule: **all date and schedule logic lives only in `js/rules.js`** and has tests. Views never calculate schedule dates.
 
 ## 10. Starting data (seed)
 
-First Admin: **Khurana**, operator ID `ADMIN01`, role `admin`. The PIN is **not** in the repo. The seed script asks for it when run.
+**First run:** when the app opens a data folder with no data file, it offers "Create new plan": it asks for the first Admin's PIN and creates the file with the Admin and the tools below. First Admin: **Khurana**, operator ID `ADMIN01`, role `admin`. The PIN is never in the repo.
 
 Tools to pre-load (from the old Excel; the Admin can change everything in Settings). Weekday and start date are **to be confirmed by the Admin**; use Tuesday and the next Tuesday as placeholders.
 
@@ -269,19 +280,19 @@ Tools to pre-load (from the old Excel; the Admin can change everything in Settin
 | TLA901 | Lukas Bursch | Aboutahir Fatima Zahra | 4 |
 | CPM901 | Petar Jurjevic | De Los Santos Tristan | 2 |
 
-Create 2 test operators (`OP001`, `OP002`) **only in a development seed**, never in a production database.
+A "Load demo data" button (Admin, Settings) adds test operators `OP001`, `OP002`; never in the real file unless chosen.
 
 ## 11. Phases and milestones
 
 Each phase ends with a **milestone**. Do not start the next phase until the owner has seen the milestone and approved it.
 
 ### Phase 0: Repo and skeleton → M0
-- Create the repo, add this PLAN.md, README, `.gitignore` (ignore `data/` and `node_modules/`), empty project that starts with `npm start` and shows "Hirata Cleaning Plan".
-- **Done when:** `npm start` opens a page in the browser, and the repo is private on GitHub.
+- Repo, PLAN.md, README, `.gitignore` (ignore `data/`), launcher, `index.html`, storage adapter, a start page that connects a data folder and reads/writes a test file.
+- **Done when:** double-clicking the launcher opens the page in Edge, the person picks the `data` folder once, the page shows "Data folder connected" and survives a reload without asking again.
 
 ### Phase 1: Database and rules (no screens yet) → M1
-- Create the tables, `rules.js` with R1–R16, the seed script, and tests.
-- **Done when:** all tests in section 12 pass and the seed creates the Admin and 12 tools.
+- `rules.js` (R1–R16), `store.js` with load/save (R17), first-run creation, tests page.
+- **Done when:** `tests/index.html` shows all rule tests green, and first run creates the file with the Admin and 12 tools.
 
 ### Phase 2: Read-only weekly grid → M2
 - Board page with the grid, week arrows, Today button, status colors, projected cells, "only tools due" toggle.
@@ -308,7 +319,7 @@ Each phase ends with a **milestone**. Do not start the next phase until the owne
 - **Done when:** both themes look right and every error message is understandable to an operator.
 
 ### Phase 8: Teams hook and handover → M8
-- Teams webhook sender (daily "due today and overdue" message), **off** until a URL is set. README section for IT: how to run, port, backup of the SQLite file, where logs are, and what is needed for SSO.
+- Teams webhook sender (daily "due today and overdue" message), **off** until a URL is set. Sent from the browser: the first person to open the app on a working day sends the day's message and records `last_daily_message_date` so it goes only once. README: how to put it on the share, backups (the `.prev.json` copy plus copying the data folder), and what changes if IT later hosts it on a server.
 - **Done when:** with a test webhook URL, a message posts to the Teams channel; with no URL nothing is sent.
 
 ## 12. Test checklist (must pass before each milestone is approved)
@@ -328,7 +339,9 @@ Each phase ends with a **milestone**. Do not start the next phase until the owne
 12. Change a tool's weekday → open task moves to the new weekday, no weekend date ever saved.
 12b. Months type, every 1 month on day 31 → Apr 30; day 15 falling on Saturday → Monday 17th; the next month goes back to day 15 (no drift).
 13. Archive a tool → gone from the grid, history intact.
-14. An operator calling an admin-only API → 403.
+14. Admin-only actions are refused without a valid Admin login (in the store, not only by hiding buttons).
+14b. Two browsers complete the same task at nearly the same time → only one succeeds, the other is told and refreshed (R17).
+14c. Corrupt live file → app loads `.prev.json` and warns.
 
 **Screens**
 15. Week arrows and Today button work; the week label is correct (Monday–Friday).
@@ -342,12 +355,12 @@ Each phase ends with a **milestone**. Do not start the next phase until the owne
 - Follow this plan literally. If a rule is missing or unclear, **stop and ask the owner**. Do not invent behavior.
 - Do not add features from section 4 (out of scope).
 - Work **one phase at a time**. At the end of each phase, run the tests, summarize what changed in plain words, and wait for approval.
-- Keep all schedule and status logic in `server/rules.js`. No date math in the UI or in route files.
+- Keep all schedule and status logic in `js/rules.js`. No date math in views or in the store's file code.
 - Use small commits with clear messages. Do not rewrite or reformat unrelated files.
-- Never commit real data, PINs, webhook URLs or the SQLite file.
-- Always enforce permissions on the server.
+- Never commit real data, PINs, webhook URLs or the data file.
+- Check roles in `store.js` for every action (not only in the UI). Follow the save rule R17 for every write.
 - Never delete history rows.
-- Keep dependencies few: Express, SQLite driver, a password hashing library, a test runner.
+- **Zero install:** no npm, no build, no CDN, no internet. Only plain files that run in Edge. Any library must be a single vendored file and approved by the owner.
 - Keep the UI plain and fast. No frameworks.
 
 ## 14. Open items (owner to confirm during the build)
@@ -355,6 +368,6 @@ Each phase ends with a **milestone**. Do not start the next phase until the owne
 1. Start date for each seeded tool (placeholder: next Tuesday).
 2. Real schedules per tool (seeded as weeks type, Tuesday; the Admin sets the real ones in Settings).
 4. Operator IDs format and the list of real operators.
-5. When IT hosts it: login method (SSO), server address, backups.
+5. The share path for the app and the data folder, and who has write access to it.
 6. Teams channel and webhook URL (after v1 works).
 7. A decision on whether Tool Owner (as a person) may later set Tool Down. Not in v1.

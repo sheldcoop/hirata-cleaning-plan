@@ -1,0 +1,12 @@
+body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: #fff; color: #1f2933; }
+.topbar { background: #0f4c5c; color: #fff; padding: 12px 24px; display: flex; align-items: baseline; gap: 12px; }
+.topbar h1 { margin: 0; font-size: 20px; font-weight: 600; }
+.version { font-size: 12px; opacity: .7; }
+main { padding: 24px; max-width: 720px; }
+.status { padding: 10px 14px; border-radius: 6px; font-size: 14px; }
+.status.ok { background: #e3f5ec; color: #135c3a; }
+.status.wait { background: #fdf6e3; color: #7a5a00; }
+.status.error { background: #fde8e8; color: #9b1c1c; }
+.btn { background: #0f4c5c; color: #fff; border: 0; border-radius: 6px; padding: 10px 16px; font-size: 14px; cursor: pointer; }
+.btn:hover { background: #136476; }
+.hint { color: #7b8794; font-size: 13px; margin-top: 24px; }

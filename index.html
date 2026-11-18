@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hirata Cleaning Plan</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Hirata Cleaning Plan</h1>
+    <span id="version" class="version"></span>
+  </header>
+  <main>
+    <p class="status wait" id="status">Starting…</p>
+    <button id="connect" class="btn" hidden>Connect data folder</button>
+    <p class="hint">The weekly board comes in Phase 2.</p>
+  </main>
+  <script src="js/config.js"></script>
+  <script src="js/adapters/storage-folder.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

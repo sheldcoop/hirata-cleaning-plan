@@ -1,5 +1,2 @@
-node_modules/
-data/
-.env
-*.sqlite
-*.db
+data/*
+!data/.gitkeep

@@ -4,18 +4,19 @@ Web app replacing the Excel "Hirata Cleaning Plan": weekly grid of tool cleaning
 
 **Start here:** read [PLAN.md](PLAN.md). It is the single source of truth (decisions, rules, phases, tests).
 
-## Run locally
+## Zero install
 
-Requires Node.js 18 or newer.
+Same approach as the Metrology Request Tracker: plain files on a shared drive, opened in Microsoft Edge. No server, no Node, no npm, no internet.
 
-```
-npm install
-npm start
-```
+## Set up
 
-Then open http://localhost:3000 (set another port with `PORT=4000 npm start`).
+1. Copy the whole folder to the shared drive (or anywhere for testing), e.g. `Z:\Tools\Hirata Cleaning Plan\`.
+2. Double-click **`Hirata Cleaning Plan.cmd`** (or open `index.html` in Edge).
+3. First time on a PC: click **Connect data folder** and choose the `data` folder next to `index.html`. Edge remembers it.
+
+Everyone must connect the **same** `data` folder on the share to see the same plan.
 
 ## Status
 
-- Phase 0 (skeleton): done, awaiting approval
-- Next: Phase 1 (database and rules)
+- Phase 0 (skeleton, zero install): done, awaiting approval
+- Next: Phase 1 (rules, data file, tests)

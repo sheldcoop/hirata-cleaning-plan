@@ -450,4 +450,29 @@
       .then(function () { return rejects(S.saveMagazine({ sn: 'M70999' }), 'invalid'); })
       .then(function () { return S.addMagazines(); }).then(function (a) { eq(a, []); ok(S.workbook('2026-11-01', '2026-12-31').length > 1000); });
   });
+
+  test('Magazine week plan: due = last check + 4 weeks, overdue carried into today, drag/plan moves it, a check clears the plan', function () {
+    var id;
+    return setup('2026-11-18').then(function () {
+      id = mag('M70074').id;
+      eq(R.magDue(mag('M70074'), 4, '2026-11-18'), '2026-12-14');          // 16 Nov + 4 weeks
+      eq(R.magDue(mag('M70133'), 4, '2026-11-18'), '2026-11-18');          // never checked: due today
+      var row = function (wk) { return S.magWeek(wk).rows.find(function (r) { return r.mag.id === id; }); };
+      eq(row('2026-11-16').cells[0].map(function (i) { return i.kind; }), ['done']);
+      eq(row('2026-12-14').cells[0].map(function (i) { return i.status; }), ['upcoming']);
+      eq(row('2027-01-11').cells[0].map(function (i) { return i.kind; }), ['next']);
+      day('2026-12-16');
+      eq(row('2026-12-14').cells[0].map(function (i) { return i.status; }), ['overdue']);   // due Mon 14 Dec, today Wed 16
+      day('2026-12-22');
+      var carried = row('2026-12-21').cells[1].filter(function (i) { return i.carried; });
+      eq(carried.length, 1, 'overdue from last week carried into today (Tue 22)');
+      day('2026-12-16');
+      return S.magPlan(id, 'OP001', '2026-12-19', 'busy');                 // Saturday -> Monday
+    }).then(function (r) {
+      eq(r.date, '2026-12-21');
+      eq(mag('M70074').planned_date, '2026-12-21');
+      return rejects(S.magPlan(id, 'OP001', '2026-12-01'), 'baddate');
+    }).then(function () { return S.magCheck(id, 'OP001', { cleaned: true }); })
+      .then(function () { eq(mag('M70074').planned_date, null); eq(R.magDue(mag('M70074'), 4, '2026-12-16'), '2027-01-13'); });
+  });
 })();

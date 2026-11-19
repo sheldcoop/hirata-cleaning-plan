@@ -11,6 +11,7 @@ window.HCP.views.pm = (function () {
 
   var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h, I = window.HCP.icon;
   var week = null;
+  var drag = null;   // {toolId, taskId, date} while an Admin drags a PM
 
   var LABEL = {
     done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Today'], postponed: ['skip', 'Postponed'],
@@ -103,8 +104,9 @@ window.HCP.views.pm = (function () {
       h('span', { class: 'legend-item' }, [h('span', { class: 'nibox' }), 'Not installed'])
     ]));
 
+    dnd(table, app, today);
     U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend,
-      h('p', { class: 'hint', text: admin ? 'Click a PM to mark it done or postpone it. Click a tool name to set it down or back up.'
+      h('p', { class: 'hint', text: admin ? 'Click a PM to mark it done or postpone it, or drag it to another day in its row. Click a tool name to set it down or back up.'
         : 'Read only. The Admin marks PMs done and sets tools down.' })]);
   }
 
@@ -127,12 +129,12 @@ window.HCP.views.pm = (function () {
       var d = b.days[i];
       var content = [];
       if (r.downDays[i]) content.push(h('span', { class: 'dbox big', title: 'Down' + (t.down_reason ? ': ' + t.down_reason : '') }, [I('power', 14), ' Down']));
-      items.forEach(function (it) { content.push(chip(it, app)); });
-      return h('td', { class: (d === today ? 'is-today' : (d < today ? 'is-past' : '')) + (r.downDays[i] ? ' is-dday' : '') }, content);
+      items.forEach(function (it) { content.push(chip(it, app, t)); });
+      return h('td', { class: (d === today ? 'is-today' : (d < today ? 'is-past' : '')) + (r.downDays[i] ? ' is-dday' : ''), 'data-tool': t.id, 'data-date': d }, content);
     })));
   }
 
-  function chip(it, app) {
+  function chip(it, app, tool) {
     if (it.kind === 'projected') {
       return h('span', { class: 'chip s-projected', title: 'Next PM from the schedule' }, [med('projected', 22), h('span', { class: 'chip-text' }, h('span', { class: 'chip-main', text: 'Next PM' }))]);
     }
@@ -140,16 +142,55 @@ window.HCP.views.pm = (function () {
     if (it.carried) { main = 'Overdue'; sub = 'since ' + dd(it.date); }
     else if (it.status === 'done') sub = 'done ' + String(t.completed_at).slice(11, 16);
     else if (t.postpone_count > 0 && t.due_date !== t.pattern_date) sub = 'from ' + dd(t.pattern_date);
-    return h('button', { class: 'chip s-' + it.status, title: 'Open PM', onclick: function () { taskPanel(t.id, app); } }, [
+    var canDrag = !!S.currentAdmin() && t.status === 'open' && !R.downOn(tool, R.today());
+    return h('button', { class: 'chip s-' + it.status, title: canDrag ? 'Click to open · drag to another day' : 'Open PM',
+      draggable: canDrag ? 'true' : null,
+      ondragstart: canDrag ? function (ev) {
+        drag = { toolId: tool.id, taskId: t.id, date: t.due_date };
+        try { ev.dataTransfer.setData('text/plain', t.id); ev.dataTransfer.effectAllowed = 'move'; } catch (x) { /* tests */ }
+        var tb = ev.target.closest('table'); if (tb) tb.classList.add('dragging');
+        var tr = ev.target.closest('tr'); if (tr) tr.classList.add('drag-row');
+      } : null,
+      ondragend: endDrag,
+      onclick: function () { taskPanel(t.id, app); } }, [
       med(it.status, 26),
       h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null]),
       t.completion_comment && it.status === 'done' ? h('span', { class: 'tag', title: t.completion_comment }, I('message', 13)) : null
     ]);
   }
 
+  /* --- Drag and drop (Admin): same row, today or later, not on a Down day --- */
+
+  function endDrag() {
+    drag = null;
+    document.querySelectorAll('.dragging, .drag-row, .drop-ok').forEach(function (el) { el.classList.remove('dragging', 'drag-row', 'drop-ok'); });
+  }
+  function dropTarget(ev, today) {
+    var td = ev.target.closest && ev.target.closest('td[data-date]');
+    if (!drag || !td) return null;
+    var d = td.getAttribute('data-date');
+    if (td.getAttribute('data-tool') !== drag.toolId || d === drag.date || d < today || td.classList.contains('is-dday')) return null;
+    return { td: td, date: d };
+  }
+  function dnd(table, app, today) {
+    table.addEventListener('dragover', function (ev) {
+      var t = dropTarget(ev, today); if (!t) return;
+      ev.preventDefault();
+      table.querySelectorAll('.drop-ok').forEach(function (el) { if (el !== t.td) el.classList.remove('drop-ok'); });
+      t.td.classList.add('drop-ok');
+    });
+    table.addEventListener('drop', function (ev) {
+      var t = dropTarget(ev, today); if (!t) return;
+      ev.preventDefault();
+      var id = drag.taskId; endDrag();
+      taskPanel(id, app, { moveTo: t.date });
+    });
+  }
+
   /* --- PM panel ----------------------------------------------------- */
 
-  function taskPanel(taskId, app) {
+  function taskPanel(taskId, app, opts) {
+    var o = opts || {};
     var info = S.taskDetails(taskId);
     if (!info) { app.reload(); return; }
     var t = info.task, tool = info.tool, isAdmin = !!S.currentAdmin();
@@ -213,12 +254,12 @@ window.HCP.views.pm = (function () {
       comment.focus();
     }
     function postponeForm() {
-      var date = h('input', { type: 'date', min: R.today() });
+      var date = h('input', { type: 'date', min: R.today(), value: o.moveTo || '' });
       var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why? (optional)' });
       var msg = h('p', { class: 'form-error', hidden: true });
       var auto = R.nextWorkingDay(R.maxDate(t.due_date, R.today()));
       U.clear(area);
-      U.add(area, [h('h3', { text: 'Postpone PM' }),
+      U.add(area, [h('h3', { text: o.moveTo ? 'Move PM to ' + R.dayName(o.moveTo) + ' ' + R.shortDate(o.moveTo) : 'Postpone PM' }),
         U.field('New date', date, 'Optional. Empty = next working day (' + R.dayName(auto) + ' ' + R.shortDate(auto) + '). A weekend date moves to Monday.'),
         U.field('Reason', reason), msg,
         h('div', { class: 'actions' }, [
@@ -258,7 +299,7 @@ window.HCP.views.pm = (function () {
         return S.reopen(t.id).then(function () { done('PM reopened.'); });
       }, menu);
     }
-    menu();
+    if (o.moveTo && isAdmin && t.status === 'open') postponeForm(); else menu();
   }
 
   /* --- Tool panel: Down / Back up ------------------------------------ */

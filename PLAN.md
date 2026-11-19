@@ -405,6 +405,11 @@ Decided with the owner on 19 Nov 2026 (one question at a time):
 - Starting data: the 35 magazines of "RnD_Magazines_checking_16-11-26.xlsx" with the check of 16 Nov 2026 (Talal / Mohamed mapped to the operator list). Existing plans: button in Settings → Magazines.
 - PM plan: down days show **Down** (not "D"); PM tools keep the **order of the Excel**.
 
+## 13g. Version 0.10: drag and drop in PM plan, Magazine week plan
+
+- **PM plan drag (Admin only):** drag an open PM to another day in its row (today or later, not on a Down day) → the Move form opens with the date filled in; nothing is saved without confirming.
+- **Magazines → Week plan** (switch List / Week plan): the next cleaning of each magazine = last check + N weeks (weekend → Monday); never checked = due today; overdue is carried into today; next cleanings from the cycle are shown lighter; done checks show on their day. Click a due magazine → Check; **drag** it to another day in its row → Plan form (name, optional reason) stores `planned_date` (history `mag_planned`); the next check clears it.
+
 ## 14. Open items (owner to confirm during the build)
 
 1. Start date for each seeded tool (placeholder: next Tuesday).

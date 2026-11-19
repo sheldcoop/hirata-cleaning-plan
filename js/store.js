@@ -870,12 +870,33 @@ window.HCP.store = (function () {
     return mutate(function (d) {
       var u = userByOperatorId(d, operatorId);
       var m = magOrThrow(d, magId);
+      m.planned_date = null;
       var ev = applyCheck(d, m, { user: u, by_name: u.name, date: R.today(), at: nowStamp(), cart: yesNo(i.cart), prod_use: yesNo(i.prod_use),
         lot_status: i.lot_status, repair_needed: !!i.repair_needed, cleaned: !!i.cleaned, comment: i.comment });
       hist(d, { magazine_id: m.id, action: 'mag_checked', user_id: u.id,
         comment: [ev.repair_needed ? 'Repair needed' : 'OK', ev.cleaned ? 'cleaned' : '', ev.lot_status ? 'lot ' + ev.lot_status : '', ev.comment].filter(Boolean).join(' · ') });
       return { magazine: m, event: ev };
     }, clean(operatorId).toUpperCase());
+  }
+
+  /** Plan the next cleaning/check of a magazine on another working day (anyone, with name; drag in the Week plan). */
+  function magPlan(magId, operatorId, date, reason) {
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var m = magOrThrow(d, magId);
+      if (!R.isDate(date)) throw err('baddate', 'Enter a valid date.');
+      var target = R.toWorkingDay(date);
+      if (target < R.today()) throw err('baddate', 'The date cannot be in the past.');
+      var old = R.magDue(m, magCheckWeeksOf(d), R.today());
+      m.planned_date = target;
+      hist(d, { magazine_id: m.id, action: 'mag_planned', user_id: u.id, reason: reason, old_date: old, new_date: target });
+      return { magazine: m, date: target };
+    }, clean(operatorId).toUpperCase());
+  }
+  function magCheckWeeksOf(d) { var w = d.settings && d.settings.mag_check_weeks; return w == null ? 4 : w; }
+
+  function magWeek(weekDate) {
+    return R.buildMagWeek(magazines(false), (data && data.mag_events) || [], weekDate, R.today(), magCheckWeeks());
   }
 
   /** Repair finished (anyone, chooses their name). */
@@ -975,7 +996,7 @@ window.HCP.store = (function () {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
     reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Deleted',
     tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
-    mag_checked: 'Magazine checked', mag_repaired: 'Repair done', mag_changed: 'Magazine changed',
+    mag_checked: 'Magazine checked', mag_planned: 'Magazine planned', mag_repaired: 'Repair done', mag_changed: 'Magazine changed',
     cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
   };
 
@@ -1136,7 +1157,7 @@ window.HCP.store = (function () {
     moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
     saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM,
-    magCheck: magCheck, magRepairDone: magRepairDone, saveMagazine: saveMagazine, archiveMagazine: archiveMagazine, addMagazines: addMagazines,
+    magCheck: magCheck, magPlan: magPlan, magWeek: magWeek, magRepairDone: magRepairDone, saveMagazine: saveMagazine, archiveMagazine: archiveMagazine, addMagazines: addMagazines,
     setMagCheckWeeks: setMagCheckWeeks, magCheckWeeks: magCheckWeeks, magazines: magazines, magEvents: magEvents, SEED_MAGAZINES: SEED_MAGAZINES, MAG_STATUS: MAG_STATUS, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,

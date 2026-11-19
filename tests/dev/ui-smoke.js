@@ -172,6 +172,23 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(btn('Continue'));
   await click(btn('Yes, set down'), 600);
   ok($$('.pm-grid tr.is-down').length >= 3, 'AOI901 down');
+  step = 'pm drag';
+  const fire2 = (el, type) => el.dispatchEvent(new w.Event(type, { bubbles: true, cancelable: true }));
+  let pmDrag = null, pmTo = null;
+  for (let tries = 0; tries < 3 && !pmDrag; tries++) {
+    for (const c of $$('.pm-grid button.chip[draggable="true"]')) {
+      const from = c.closest('td').getAttribute('data-date');
+      const td = [...c.closest('tr').querySelectorAll('td[data-date]')].find(x => x.getAttribute('data-date') > from && !x.classList.contains('is-dday'));
+      if (td) { pmDrag = c; pmTo = td; break; }
+    }
+    if (!pmDrag) await click($('[aria-label="Next week"]'));
+  }
+  ok(pmDrag && pmTo, 'a draggable PM with a later day');
+  fire2(pmDrag, 'dragstart'); fire2(pmTo, 'dragover'); ok(pmTo.classList.contains('drop-ok'), 'PM drop target'); fire2(pmTo, 'drop'); await wait(150);
+  ok($('.modal h3').textContent.startsWith('Move PM to'), 'drop opens the PM move form');
+  await click(btn('Continue')); await click(btn('Yes, postpone'), 500);
+  ok(d.body.textContent.includes('PM postponed'), 'PM moved by drag');
+
   w.location.hash = '#settings'; await wait(200);
   await click($$('.tab').find(t => t.textContent === 'PM tools'));
   ok(d.body.textContent.includes('Not installed') && d.body.textContent.includes('no start date yet'), 'PM tools list');
@@ -197,6 +214,21 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok(!$$('.mag-list tr.mag-repair').length, 'no repairs left');
   const srch = $('.mag-search'); type(srch, '70350'); await wait(150);
   ok($$('.mag-list tbody tr').length === 1, 'search');
+  step = 'magazine week plan';
+  type($('.mag-search'), ''); await wait(100);
+  await click($$('.segmented button').find(b => b.textContent === 'Week plan'));
+  ok($('.mag-grid'), 'week grid');
+  ok($$('.mag-grid button.chip[draggable="true"]').length > 0, 'due magazines this week (never checked)');
+  const mc = $$('.mag-grid button.chip[draggable="true"]').find(c => [...c.closest('tr').querySelectorAll('td[data-date]')].some(x => x.getAttribute('data-date') > c.closest('td').getAttribute('data-date')));
+  if (mc) {
+    const mto = [...mc.closest('tr').querySelectorAll('td[data-date]')].find(x => x.getAttribute('data-date') > mc.closest('td').getAttribute('data-date'));
+    fire2(mc, 'dragstart'); fire2(mto, 'dragover'); fire2(mto, 'drop'); await wait(150);
+    ok($('.modal h3').textContent.startsWith('Plan '), 'drop opens the plan form');
+    pick('Anja KRALJ'); await click(btn('Continue')); await click(btn('Yes, plan'), 500);
+    ok(d.body.textContent.includes('planned for'), 'magazine planned by drag');
+  }
+  await click($$('.segmented button').find(b => b.textContent === 'List'));
+
   w.location.hash = '#settings'; await wait(200);
   await click($$('.tab').find(t => t.textContent === 'Magazines'));
   ok(d.body.textContent.includes('Check each magazine every'), 'magazine settings');

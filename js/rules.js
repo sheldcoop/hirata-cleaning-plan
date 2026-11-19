@@ -193,6 +193,50 @@ window.HCP.rules = (function () {
     return 'ok';
   }
 
+  /** Next cleaning/check date of a magazine (13g): the planned date if someone planned it,
+   *  else last check + N weeks (weekend -> Monday); never checked = due today. null = no plan. */
+  function magDue(mag, weeks, todayStr) {
+    if (!mag || mag.archived) return null;
+    if (mag.planned_date) return mag.planned_date;
+    if (!mag.last_check) return toWorkingDay(todayStr);
+    if (!(weeks > 0)) return null;
+    return toWorkingDay(addDays(mag.last_check, weeks * 7));
+  }
+
+  /** Week plan for magazines: rows x Mon-Fri with done checks, the due cleaning
+   *  (overdue carried into today), and next cleanings from the cycle. */
+  function buildMagWeek(mags, events, weekDate, todayStr, weeks) {
+    var monday = mondayOf(weekDate);
+    var days = [0, 1, 2, 3, 4].map(function (i) { return addDays(monday, i); });
+    var thisWeek = mondayOf(todayStr) === monday;
+    var carryCol = days.indexOf(toPrevWorkingDay(todayStr));
+    var rows = mags.filter(function (m) { return !m.archived; }).map(function (m) {
+      var cells = [[], [], [], [], []];
+      events.forEach(function (e) {
+        if (e.magazine_id !== m.id) return;
+        var i = days.indexOf(toPrevWorkingDay(e.date));
+        if (i >= 0) cells[i].push({ kind: 'done', event: e, date: e.date, status: 'done' });
+      });
+      var due = magDue(m, weeks, todayStr);
+      if (due) {
+        var st = due < todayStr ? 'overdue' : due === todayStr ? 'today' : m.planned_date ? 'postponed' : 'upcoming';
+        var di = days.indexOf(due);
+        if (di >= 0) cells[di].push({ kind: 'due', date: due, status: st });
+        if (thisWeek && carryCol >= 0 && st === 'overdue' && due < monday) cells[carryCol].push({ kind: 'due', date: due, status: 'overdue', carried: true });
+        if (weeks > 0) {
+          for (var k = 1; k < 60; k++) {
+            var nd = toWorkingDay(addDays(due, k * weeks * 7));
+            if (nd > days[4]) break;
+            var ni = days.indexOf(nd);
+            if (ni >= 0) cells[ni].push({ kind: 'next', date: nd, status: 'projected' });
+          }
+        }
+      }
+      return { mag: m, cells: cells, hasItems: cells.some(function (c) { return c.length; }) };
+    });
+    return { monday: monday, days: days, rows: rows, isThisWeek: thisWeek };
+  }
+
   /* --- Status (R1) -------------------------------------------------- */
 
   /** done | down | overdue | today | postponed | upcoming */
@@ -288,6 +332,6 @@ window.HCP.rules = (function () {
     firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
     validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
-    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny, magStatus: magStatus, byPosThenName: byPosThenName
+    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny, magStatus: magStatus, magDue: magDue, buildMagWeek: buildMagWeek, byPosThenName: byPosThenName
   };
 })();

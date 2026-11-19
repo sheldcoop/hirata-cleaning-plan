@@ -408,7 +408,13 @@ Decided with the owner on 19 Nov 2026 (one question at a time):
 ## 13g. Version 0.10: drag and drop in PM plan, Magazine week plan
 
 - **PM plan drag (Admin only):** drag an open PM to another day in its row (today or later, not on a Down day) → the Move form opens with the date filled in; nothing is saved without confirming.
-- **Magazines → Week plan** (switch List / Week plan): the next cleaning of each magazine = last check + N weeks (weekend → Monday); never checked = due today; overdue is carried into today; next cleanings from the cycle are shown lighter; done checks show on their day. Click a due magazine → Check; **drag** it to another day in its row → Plan form (name, optional reason) stores `planned_date` (history `mag_planned`); the next check clears it.
+- (Replaced in 0.11 by the week column on the list.) **Magazines → Week plan** (switch List / Week plan): the next cleaning of each magazine = last check + N weeks (weekend → Monday); never checked = due today; overdue is carried into today; next cleanings from the cycle are shown lighter; done checks show on their day. Click a due magazine → Check; **drag** it to another day in its row → Plan form (name, optional reason) stores `planned_date` (history `mag_planned`); the next check clears it.
+
+## 13h. Version 0.11: analytics tabs, bigger panels, magazine list by week
+
+- **Analytics** has three tabs: **Cleaning** (as before), **PM plan** (same KPIs and charts for PMs; "overdue and postponed per tool" instead of per operator; PM report CSV) and **Magazines** (checks, cleaned, % of magazines checked, repairs reported / done, average repair time, open repairs table, checks per person, magazines with most repairs; Magazine checks CSV). The Excel workbook stays one file with all sheets.
+- **Panels** (the windows that open on click) are bigger: 720 px (wide 960 px), larger text and buttons.
+- **Magazines:** the owner prefers the list, so the week grid (13g) is replaced by **week arrows on the list** and a **"Week NN" column** showing, per magazine, what was done that week (checked / cleaned / repaired, by whom) or what is due (Due, Due today, Overdue, Planned, Next). Optional filter "Only magazines with something in week NN". Planning another day stays in the magazine panel ("Plan date"); drag and drop is removed from Magazines.
 
 ## 14. Open items (owner to confirm during the build)
 

@@ -490,3 +490,28 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 .inline-setting { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; flex-wrap: wrap; }
 .type-tag.is-mag { background: var(--k-done-bg); color: var(--k-done-fg); }
 .m-projected { --c: var(--c-projected); }
+
+/* ---------- v0.11: bigger panels, magazine week column, analytics tabs ---------- */
+.modal { max-width: 720px; font-size: 15px; }
+.modal.wide { max-width: 960px; }
+.modal-head { padding: 18px 24px; }
+.modal-head h2 { font-size: 20px; }
+.modal-body { padding: 20px 24px 24px; }
+.modal .facts { font-size: 15px; row-gap: 10px; }
+.modal .btn { padding: 10px 18px; font-size: 15px; }
+.modal input, .modal select, .modal textarea { font-size: 15px; padding: 9px 11px; }
+.modal h3 { font-size: 17px; }
+.mag-weekbar { margin: 4px 0 10px; }
+.week-label.small { font-size: 17px; margin: 0; }
+.mag-list th.wk-col, .mag-list td.wk-col { background: color-mix(in srgb, var(--ats-blue) 5%, transparent); min-width: 190px; }
+.wk-pill { display: flex; align-items: center; gap: 5px; width: fit-content; margin: 2px 0; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; }
+.wk-pill.s-done { background: var(--k-done-bg); color: var(--k-done-fg); }
+.wk-pill.s-upcoming { background: var(--k-sched-bg); color: var(--k-sched-fg); }
+.wk-pill.s-postponed { background: var(--k-post-bg); color: var(--k-post-fg); }
+.wk-pill.s-today { background: var(--c-today); color: #fff; }
+.wk-pill.s-overdue { background: var(--c-overdue); color: #fff; }
+.wk-pill.s-projected { background: transparent; color: var(--k-next-fg); border: 1px dashed var(--k-next-bd); }
+.an-tabs { margin: 0 0 16px; }
+.an-kpi.warn .an-ico { background: color-mix(in srgb, var(--c-postponed) 16%, var(--surface)); color: var(--c-postponed); }
+.list.compact td, .list.compact th { padding: 6px 8px; font-size: 13px; }
+.mag-list .pill { white-space: nowrap; }

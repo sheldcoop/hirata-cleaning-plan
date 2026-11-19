@@ -52,8 +52,9 @@ window.HCP.analytics = (function () {
   function pct(a, b) { return b ? Math.round(100 * a / b) : null; }
 
   /** Everything the Analytics page shows, for the period [from, to]. */
-  function stats(data, from, to, today) {
-    var rows = reportRows(data, from, to, today);
+  function stats(data, from, to, today, kind) {
+    var rows = reportRows(data, from, to, today, kind);
+    var toolById = byId(data.tools);
     var done = rows.filter(function (r) { return r.done; });
     var onTime = done.filter(function (r) { return !r.days_late; });
     var lateDays = done.reduce(function (s, r) { return s + r.days_late; }, 0);
@@ -86,7 +87,7 @@ window.HCP.analytics = (function () {
     // postpone reasons from the history (every postponement counts once)
     var reasons = {};
     data.history.forEach(function (h) {
-      if (h.action !== 'postponed') return;
+      if (h.action !== 'postponed' || !R.ofKind(toolById[h.tool_id], kind || 'cleaning')) return;
       var d = h.at.slice(0, 10);
       if (d < from || d > to) return;
       var key = (h.reason || '').trim();
@@ -108,6 +109,45 @@ window.HCP.analytics = (function () {
     };
   }
 
+  /** Magazines (13h): checks, cleaning and repairs in [from, to]. */
+  function magStats(data, from, to, today, weeks) {
+    var mags = (data.magazines || []).filter(function (m) { return !m.archived; });
+    var magById = byId(data.magazines || []);
+    var ev = (data.mag_events || []).filter(function (e) { return e.date >= from && e.date <= to; });
+    var checks = ev.filter(function (e) { return e.kind === 'check'; });
+    var repairsDone = ev.filter(function (e) { return e.kind === 'repair_done'; });
+    var reported = checks.filter(function (e) { return e.repair_needed; });
+    var repairDays = repairsDone.filter(function (e) { return e.repair_since; }).map(function (e) { return Math.max(0, R.diffDays(e.repair_since, e.date)); });
+
+    var weeksMap = {};
+    for (var m = R.mondayOf(from); m <= to; m = R.addDays(m, 7)) weeksMap[m] = { monday: m, week: R.isoWeek(m), onTime: 0, late: 0 };
+    checks.forEach(function (e) { var w = weeksMap[R.mondayOf(e.date)]; if (w) { if (e.cleaned) w.onTime++; else w.late++; } });
+
+    var people = {};
+    ev.forEach(function (e) { var k = e.by_name || '(unknown)'; var p = people[k] || (people[k] = { who: k, checks: 0, repairs: 0 }); if (e.kind === 'check') p.checks++; else p.repairs++; });
+    var perMag = {};
+    reported.forEach(function (e) { var mm = magById[e.magazine_id]; if (!mm) return; (perMag[mm.sn] = perMag[mm.sn] || { sn: mm.sn, count: 0 }).count++; });
+
+    var open = mags.filter(function (x) { return x.needs_repair; }).map(function (x) {
+      return { sn: x.sn, since: x.repair_since, days: x.repair_since ? R.diffDays(x.repair_since, today) : null, note: x.repair_note };
+    }).sort(function (a, b) { return (b.days || 0) - (a.days || 0); });
+
+    return {
+      kpi: {
+        magazines: mags.length, checks: checks.length, cleaned: checks.filter(function (e) { return e.cleaned; }).length,
+        checkedMags: Object.keys(checks.reduce(function (s, e) { s[e.magazine_id] = 1; return s; }, {})).length,
+        reported: reported.length, repaired: repairsDone.length, openRepairs: open.length,
+        avgRepairDays: repairDays.length ? Math.round(10 * repairDays.reduce(function (s, x) { return s + x; }, 0) / repairDays.length) / 10 : null,
+        dueNow: mags.filter(function (x) { var st = R.magStatus(x, today, weeks); return st === 'due' || st === 'never'; }).length
+      },
+      byWeek: Object.keys(weeksMap).sort().map(function (k) { return weeksMap[k]; }),
+      byPerson: Object.keys(people).map(function (k) { return people[k]; }).sort(function (a, b) { return (b.checks + b.repairs) - (a.checks + a.repairs); }),
+      byMagazine: Object.keys(perMag).map(function (k) { return perMag[k]; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 10),
+      openRepairs: open,
+      events: ev
+    };
+  }
+
   /** Period presets -> {from, to} */
   function period(key, today) {
     if (key === 'month') return { from: R.addDays(today, -30), to: today };
@@ -116,5 +156,5 @@ window.HCP.analytics = (function () {
     return { from: R.addDays(today, -27), to: today };   // 4 weeks
   }
 
-  return { reportRows: reportRows, stats: stats, period: period };
+  return { reportRows: reportRows, stats: stats, magStats: magStats, period: period };
 })();

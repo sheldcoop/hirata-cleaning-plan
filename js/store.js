@@ -1055,11 +1055,24 @@ window.HCP.store = (function () {
 
   var MAG_STATUS = { repair: 'Repair needed', never: 'Never checked', due: 'Check due', ok: 'OK' };
 
-  /** One row per cleaning, as CSV (UTF-8 with BOM). */
-  function reportCsv(from, to) {
-    var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), 'cleaning');
-    var lines = [REPORT_COLS.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
-      return REPORT_COLS.map(function (c) { return csvCell(r[c[1]]); }).join(',');
+  /** One row per cleaning (or per PM with kind 'pm'), as CSV (UTF-8 with BOM). */
+  function reportCsv(from, to, kind) {
+    var cols = kind === 'pm' ? PM_COLS : REPORT_COLS;
+    var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), kind || 'cleaning');
+    var lines = [cols.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
+      return cols.map(function (c) { return csvCell(r[c[1]]); }).join(',');
+    }));
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  /** Magazine checks and repairs in a period, as CSV. */
+  function magCsv(from, to) {
+    var head = ['Date', 'Time', 'S/N', 'What', 'Who', 'Cart', 'Production use', 'Lot status', 'Repair needed', 'Cleaned', 'Comment'];
+    var rows = (data.mag_events || []).filter(function (e) { return e.date >= from && e.date <= to; }).sort(function (a, b) { return a.at < b.at ? -1 : 1; });
+    var lines = [head.join(',')].concat(rows.map(function (e) {
+      var m = find(data.magazines || [], e.magazine_id);
+      return [e.date, String(e.at).slice(11, 16), m ? m.sn : '', e.kind === 'check' ? 'Check' : 'Repair done', e.by_name, e.cart || '', e.prod_use || '', e.lot_status || '',
+        e.kind === 'check' ? (e.repair_needed ? 'Yes' : 'No') : '', e.kind === 'check' ? (e.cleaned ? 'Yes' : '') : '', e.comment || ''].map(csvCell).join(',');
     }));
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
@@ -1159,7 +1172,7 @@ window.HCP.store = (function () {
     saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM,
     magCheck: magCheck, magPlan: magPlan, magWeek: magWeek, magRepairDone: magRepairDone, saveMagazine: saveMagazine, archiveMagazine: archiveMagazine, addMagazines: addMagazines,
     setMagCheckWeeks: setMagCheckWeeks, magCheckWeeks: magCheckWeeks, magazines: magazines, magEvents: magEvents, SEED_MAGAZINES: SEED_MAGAZINES, MAG_STATUS: MAG_STATUS, SEED_OPERATORS: SEED_OPERATORS,
-    board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
+    board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, magCsv: magCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin
   };

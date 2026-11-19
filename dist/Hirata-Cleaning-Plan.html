@@ -498,6 +498,31 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 .type-tag.is-mag { background: var(--k-done-bg); color: var(--k-done-fg); }
 .m-projected { --c: var(--c-projected); }
 
+/* ---------- v0.11: bigger panels, magazine week column, analytics tabs ---------- */
+.modal { max-width: 720px; font-size: 15px; }
+.modal.wide { max-width: 960px; }
+.modal-head { padding: 18px 24px; }
+.modal-head h2 { font-size: 20px; }
+.modal-body { padding: 20px 24px 24px; }
+.modal .facts { font-size: 15px; row-gap: 10px; }
+.modal .btn { padding: 10px 18px; font-size: 15px; }
+.modal input, .modal select, .modal textarea { font-size: 15px; padding: 9px 11px; }
+.modal h3 { font-size: 17px; }
+.mag-weekbar { margin: 4px 0 10px; }
+.week-label.small { font-size: 17px; margin: 0; }
+.mag-list th.wk-col, .mag-list td.wk-col { background: color-mix(in srgb, var(--ats-blue) 5%, transparent); min-width: 190px; }
+.wk-pill { display: flex; align-items: center; gap: 5px; width: fit-content; margin: 2px 0; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; }
+.wk-pill.s-done { background: var(--k-done-bg); color: var(--k-done-fg); }
+.wk-pill.s-upcoming { background: var(--k-sched-bg); color: var(--k-sched-fg); }
+.wk-pill.s-postponed { background: var(--k-post-bg); color: var(--k-post-fg); }
+.wk-pill.s-today { background: var(--c-today); color: #fff; }
+.wk-pill.s-overdue { background: var(--c-overdue); color: #fff; }
+.wk-pill.s-projected { background: transparent; color: var(--k-next-fg); border: 1px dashed var(--k-next-bd); }
+.an-tabs { margin: 0 0 16px; }
+.an-kpi.warn .an-ico { background: color-mix(in srgb, var(--c-postponed) 16%, var(--surface)); color: var(--c-postponed); }
+.list.compact td, .list.compact th { padding: 6px 8px; font-size: 13px; }
+.mag-list .pill { white-space: nowrap; }
+
 </style>
 </head>
 <body>
@@ -514,7 +539,7 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 window.HCP = window.HCP || {};
 window.HCP.config = {
   app_name: 'Hirata Cleaning Plan',
-  version: '0.10.0',
+  version: '0.11.0',
   idb_name: 'hirata-cleaning-plan',   // remembers the data folder per PC
   data_file: 'hirata_data.json',
   prev_file: 'hirata_data.prev.json',
@@ -2105,11 +2130,24 @@ window.HCP.store = (function () {
 
   var MAG_STATUS = { repair: 'Repair needed', never: 'Never checked', due: 'Check due', ok: 'OK' };
 
-  /** One row per cleaning, as CSV (UTF-8 with BOM). */
-  function reportCsv(from, to) {
-    var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), 'cleaning');
-    var lines = [REPORT_COLS.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
-      return REPORT_COLS.map(function (c) { return csvCell(r[c[1]]); }).join(',');
+  /** One row per cleaning (or per PM with kind 'pm'), as CSV (UTF-8 with BOM). */
+  function reportCsv(from, to, kind) {
+    var cols = kind === 'pm' ? PM_COLS : REPORT_COLS;
+    var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), kind || 'cleaning');
+    var lines = [cols.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
+      return cols.map(function (c) { return csvCell(r[c[1]]); }).join(',');
+    }));
+    return '\uFEFF' + lines.join('\r\n') + '\r\n';
+  }
+
+  /** Magazine checks and repairs in a period, as CSV. */
+  function magCsv(from, to) {
+    var head = ['Date', 'Time', 'S/N', 'What', 'Who', 'Cart', 'Production use', 'Lot status', 'Repair needed', 'Cleaned', 'Comment'];
+    var rows = (data.mag_events || []).filter(function (e) { return e.date >= from && e.date <= to; }).sort(function (a, b) { return a.at < b.at ? -1 : 1; });
+    var lines = [head.join(',')].concat(rows.map(function (e) {
+      var m = find(data.magazines || [], e.magazine_id);
+      return [e.date, String(e.at).slice(11, 16), m ? m.sn : '', e.kind === 'check' ? 'Check' : 'Repair done', e.by_name, e.cart || '', e.prod_use || '', e.lot_status || '',
+        e.kind === 'check' ? (e.repair_needed ? 'Yes' : 'No') : '', e.kind === 'check' ? (e.cleaned ? 'Yes' : '') : '', e.comment || ''].map(csvCell).join(',');
     }));
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
@@ -2209,7 +2247,7 @@ window.HCP.store = (function () {
     saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM,
     magCheck: magCheck, magPlan: magPlan, magWeek: magWeek, magRepairDone: magRepairDone, saveMagazine: saveMagazine, archiveMagazine: archiveMagazine, addMagazines: addMagazines,
     setMagCheckWeeks: setMagCheckWeeks, magCheckWeeks: magCheckWeeks, magazines: magazines, magEvents: magEvents, SEED_MAGAZINES: SEED_MAGAZINES, MAG_STATUS: MAG_STATUS, SEED_OPERATORS: SEED_OPERATORS,
-    board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
+    board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, magCsv: magCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin
   };
@@ -2272,8 +2310,9 @@ window.HCP.analytics = (function () {
   function pct(a, b) { return b ? Math.round(100 * a / b) : null; }
 
   /** Everything the Analytics page shows, for the period [from, to]. */
-  function stats(data, from, to, today) {
-    var rows = reportRows(data, from, to, today);
+  function stats(data, from, to, today, kind) {
+    var rows = reportRows(data, from, to, today, kind);
+    var toolById = byId(data.tools);
     var done = rows.filter(function (r) { return r.done; });
     var onTime = done.filter(function (r) { return !r.days_late; });
     var lateDays = done.reduce(function (s, r) { return s + r.days_late; }, 0);
@@ -2306,7 +2345,7 @@ window.HCP.analytics = (function () {
     // postpone reasons from the history (every postponement counts once)
     var reasons = {};
     data.history.forEach(function (h) {
-      if (h.action !== 'postponed') return;
+      if (h.action !== 'postponed' || !R.ofKind(toolById[h.tool_id], kind || 'cleaning')) return;
       var d = h.at.slice(0, 10);
       if (d < from || d > to) return;
       var key = (h.reason || '').trim();
@@ -2328,6 +2367,45 @@ window.HCP.analytics = (function () {
     };
   }
 
+  /** Magazines (13h): checks, cleaning and repairs in [from, to]. */
+  function magStats(data, from, to, today, weeks) {
+    var mags = (data.magazines || []).filter(function (m) { return !m.archived; });
+    var magById = byId(data.magazines || []);
+    var ev = (data.mag_events || []).filter(function (e) { return e.date >= from && e.date <= to; });
+    var checks = ev.filter(function (e) { return e.kind === 'check'; });
+    var repairsDone = ev.filter(function (e) { return e.kind === 'repair_done'; });
+    var reported = checks.filter(function (e) { return e.repair_needed; });
+    var repairDays = repairsDone.filter(function (e) { return e.repair_since; }).map(function (e) { return Math.max(0, R.diffDays(e.repair_since, e.date)); });
+
+    var weeksMap = {};
+    for (var m = R.mondayOf(from); m <= to; m = R.addDays(m, 7)) weeksMap[m] = { monday: m, week: R.isoWeek(m), onTime: 0, late: 0 };
+    checks.forEach(function (e) { var w = weeksMap[R.mondayOf(e.date)]; if (w) { if (e.cleaned) w.onTime++; else w.late++; } });
+
+    var people = {};
+    ev.forEach(function (e) { var k = e.by_name || '(unknown)'; var p = people[k] || (people[k] = { who: k, checks: 0, repairs: 0 }); if (e.kind === 'check') p.checks++; else p.repairs++; });
+    var perMag = {};
+    reported.forEach(function (e) { var mm = magById[e.magazine_id]; if (!mm) return; (perMag[mm.sn] = perMag[mm.sn] || { sn: mm.sn, count: 0 }).count++; });
+
+    var open = mags.filter(function (x) { return x.needs_repair; }).map(function (x) {
+      return { sn: x.sn, since: x.repair_since, days: x.repair_since ? R.diffDays(x.repair_since, today) : null, note: x.repair_note };
+    }).sort(function (a, b) { return (b.days || 0) - (a.days || 0); });
+
+    return {
+      kpi: {
+        magazines: mags.length, checks: checks.length, cleaned: checks.filter(function (e) { return e.cleaned; }).length,
+        checkedMags: Object.keys(checks.reduce(function (s, e) { s[e.magazine_id] = 1; return s; }, {})).length,
+        reported: reported.length, repaired: repairsDone.length, openRepairs: open.length,
+        avgRepairDays: repairDays.length ? Math.round(10 * repairDays.reduce(function (s, x) { return s + x; }, 0) / repairDays.length) / 10 : null,
+        dueNow: mags.filter(function (x) { var st = R.magStatus(x, today, weeks); return st === 'due' || st === 'never'; }).length
+      },
+      byWeek: Object.keys(weeksMap).sort().map(function (k) { return weeksMap[k]; }),
+      byPerson: Object.keys(people).map(function (k) { return people[k]; }).sort(function (a, b) { return (b.checks + b.repairs) - (a.checks + a.repairs); }),
+      byMagazine: Object.keys(perMag).map(function (k) { return perMag[k]; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 10),
+      openRepairs: open,
+      events: ev
+    };
+  }
+
   /** Period presets -> {from, to} */
   function period(key, today) {
     if (key === 'month') return { from: R.addDays(today, -30), to: today };
@@ -2336,7 +2414,7 @@ window.HCP.analytics = (function () {
     return { from: R.addDays(today, -27), to: today };   // 4 weeks
   }
 
-  return { reportRows: reportRows, stats: stats, period: period };
+  return { reportRows: reportRows, stats: stats, magStats: magStats, period: period };
 })();
 
 </script>
@@ -3585,10 +3663,8 @@ window.HCP.views.magazines = (function () {
 
   var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h, I = window.HCP.icon;
   var filter = 'all';
-  var mode = 'list';       // 'list' | 'week'
-  var week = null;
-  var onlyDue = true;
-  var drag = null;
+  var week = null;          // any date in the week shown in the "Week" column
+  var onlyWeek = false;     // only magazines with something in that week
   var query = '';
   var PILL = { repair: ['s-overdue', 'Repair needed'], never: ['s-projected', 'Never checked'], due: ['s-postponed', 'Check due'], ok: ['s-done', 'OK'] };
   var MED = { repair: ['m-overdue', 'wrench'], never: ['m-projected', 'dashed'], due: ['m-postponed', 'clock'], ok: ['m-done', 'check'] };
@@ -3613,15 +3689,12 @@ window.HCP.views.magazines = (function () {
     ]);
   }
 
-  function modeSwitch(app) {
-    return h('div', { class: 'segmented' }, [['list', 'List'], ['week', 'Week plan']].map(function (o) {
-      return h('button', { class: mode === o[0] ? 'on' : '', text: o[1], onclick: function () { mode = o[0]; app.render(); } });
-    }));
-  }
-
   function render(root, app) {
-    if (mode === 'week') return renderWeek(root, app);
     var today = R.today();
+    if (!week) week = today;
+    var wb = S.magWeek(week);
+    var wkById = {};
+    wb.rows.forEach(function (r) { wkById[r.mag.id] = weekItems(r); });
     var weeks = S.magCheckWeeks();
     var all = S.magazines(false);
     var c = { repair: 0, due: 0, never: 0, ok: 0 };
@@ -3635,6 +3708,7 @@ window.HCP.views.magazines = (function () {
       if (filter === 'ok' && m.status !== 'ok') return false;
       if (filter === 'prod' && !/^yes/i.test(m.prod_use)) return false;
       if (q && (m.sn + ' ' + m.cr_type + ' ' + m.location + ' ' + m.lot_status).toUpperCase().indexOf(q) < 0) return false;
+      if (onlyWeek && !(wkById[m.id] || []).length) return false;
       return true;
     });
     // repairs first, then never/due, then OK (within: Excel order)
@@ -3656,8 +3730,22 @@ window.HCP.views.magazines = (function () {
         h('h2', { class: 'week-label' }, [h('span', { class: 'wk', text: all.length + ' magazines' }), h('span', { class: 'sep', text: ' · ' }),
           weeks ? 'check every ' + weeks + ' week' + (weeks === 1 ? '' : 's') : 'no check reminder'])
       ]),
-      h('div', { class: 'bar-right' }, [modeSwitch(app), h('label', { class: 'search-wrap' }, [I('search', 16), search]),
+      h('div', { class: 'bar-right' }, [h('label', { class: 'search-wrap' }, [I('search', 16), search]),
         h('button', { class: 'btn ghost', title: 'Print the list', onclick: function () { window.print(); } }, [I('printer', 15), ' Print'])])
+    ]);
+
+    var weekBar = h('div', { class: 'board-bar mag-weekbar' }, [
+      h('div', { class: 'week-nav' }, [
+        h('button', { class: 'btn ghost square', title: 'Previous week', 'aria-label': 'Previous week', onclick: function () { week = R.addDays(wb.monday, -7); app.render(); } }, I('left', 18)),
+        h('div', { class: 'week-title' }, [
+          h('div', { class: 'week-kicker', text: wb.isThisWeek ? 'This week' : (wb.monday < R.mondayOf(today) ? 'Past week' : 'Coming week') }),
+          h('h3', { class: 'week-label small' }, [h('span', { class: 'wk', text: 'Week ' + R.isoWeek(wb.monday) }), h('span', { class: 'sep', text: ' · ' }), R.shortDate(wb.days[0]) + ' – ' + R.longDate(wb.days[4])])
+        ]),
+        h('button', { class: 'btn ghost square', title: 'Next week', 'aria-label': 'Next week', onclick: function () { week = R.addDays(wb.monday, 7); app.render(); } }, I('right', 18)),
+        h('button', { class: 'btn ghost', disabled: wb.isThisWeek, onclick: function () { week = R.today(); app.render(); } }, [I('calendar', 15), ' This week'])
+      ]),
+      h('label', { class: 'toggle' }, [h('input', { type: 'checkbox', checked: onlyWeek, onchange: function (e) { onlyWeek = e.target.checked; app.render(); } }),
+        ' Only magazines with something in week ' + R.isoWeek(wb.monday)])
     ]);
 
     var strip = h('div', { class: 'summary even' }, [
@@ -3668,25 +3756,30 @@ window.HCP.views.magazines = (function () {
     ]);
 
     var table = h('table', { class: 'list mag-list' }, [
-      h('thead', {}, h('tr', {}, ['Magazine', 'Status', 'Last check', 'Lot status', 'Location / comment', 'Cart', 'Prod. use', ''].map(function (t) { return h('th', { text: t }); }))),
-      h('tbody', {}, list.length ? list.map(function (m) { return row(m, today, app); })
-        : h('tr', {}, h('td', { colspan: '8', class: 'empty' }, [I('magazine', 28), h('div', { text: all.length ? 'No magazines for this filter.' :
+      h('thead', {}, h('tr', {}, ['Magazine', 'Status', 'Week ' + R.isoWeek(wb.monday), 'Last check', 'Lot status', 'Location / comment', 'Cart', 'Prod. use', ''].map(function (t, i) {
+        return h('th', { class: i === 2 ? 'wk-col' : '', text: t });
+      }))),
+      h('tbody', {}, list.length ? list.map(function (m) { return row(m, today, app, wkById[m.id] || []); })
+        : h('tr', {}, h('td', { colspan: '9', class: 'empty' }, [I('magazine', 28), h('div', { text: all.length ? 'No magazines for this filter.' :
           (S.currentAdmin() ? 'No magazines yet. Add them in Settings → Magazines.' : 'No magazines yet. An Admin adds them in Settings.') })])))
     ]);
 
-    U.add(root, [bar, strip, filter !== 'all' || q ? h('p', { class: 'muted' }, [list.length + ' of ' + all.length + ' shown. ',
+    U.add(root, [bar, strip, weekBar, filter !== 'all' || q ? h('p', { class: 'muted' }, [list.length + ' of ' + all.length + ' shown. ',
       h('button', { class: 'link', text: 'Show all', onclick: function () { filter = 'all'; query = ''; app.render(); } })]) : null,
       h('div', { class: 'grid-wrap' }, table),
-      h('p', { class: 'hint', text: 'Click Check after looking at a magazine (you can tick Cleaned and Repair needed). When a repair is finished, click Repair done.' })]);
+      h('p', { class: 'hint', text: 'Click Check after looking at a magazine (you can tick Cleaned and Repair needed). When a repair is finished, click Repair done. Use the week arrows to see what is due or was done in any week; click a magazine to plan it on another day.' })]);
   }
 
-  function row(m, today, app) {
+  function row(m, today, app, wk) {
     var p = PILL[m.status];
     return h('tr', { class: 'mag-' + m.status }, [
       h('td', {}, h('button', { class: 'mag-sn', title: 'Details and history', onclick: function () { panel(m.id, app); } }, [
         I('magazine', 18), h('span', {}, [h('b', { text: m.sn }), h('span', { class: 'cr', text: m.cr_type || '' })])])),
       h('td', {}, [h('span', { class: 'pill ' + p[0] }, [med(m.status, 16), p[1]]),
         m.status === 'repair' && m.repair_since ? h('div', { class: 'sub', text: 'since ' + dd(m.repair_since) }) : null]),
+      h('td', { class: 'wk-col' }, wk.length ? wk.map(function (x) {
+        return h('span', { class: 'wk-pill ' + WK[x.status][0] }, [I(WK[x.status][1], 13), x.text]);
+      }) : h('span', { class: 'muted', text: '–' })),
       h('td', {}, m.last_check ? [h('div', { text: dd(m.last_check) + ' · ' + (m.last_by_name || '–') }), h('div', { class: 'sub', text: ago(m.last_check, today) })] : h('span', { class: 'muted', text: 'never' })),
       h('td', { class: 'mono', text: m.lot_status || '–' }),
       h('td', { class: 'wrap', text: m.location || '–' }),
@@ -3698,119 +3791,28 @@ window.HCP.views.magazines = (function () {
     ]);
   }
 
-  /* --- Week plan (13g) ---------------------------------------------- */
+  /* --- Week column (13h): what happens to each magazine in the chosen week --- */
 
-  var WLABEL = { done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Today'], postponed: ['skip', 'Planned'],
-    upcoming: ['calendar', 'Due'], projected: ['calDots', 'Next'] };
-  function wmed(st, px) { return h('span', { class: 'med m-' + st, style: 'width:' + px + 'px;height:' + px + 'px' }, I(WLABEL[st][0], Math.round(px * 0.6))); }
+  var WK = { done: ['s-done', 'check'], overdue: ['s-overdue', 'exclaim'], today: ['s-today', 'bell'], postponed: ['s-postponed', 'skip'],
+    upcoming: ['s-upcoming', 'calendar'], projected: ['s-projected', 'calDots'] };
 
-  function renderWeek(root, app) {
-    if (!week) week = R.today();
-    var today = R.today();
-    var b = S.magWeek(week);
-    var weeks = S.magCheckWeeks();
-    var rows = b.rows.filter(function (r) { return !onlyDue || r.hasItems; });
-    var c = { due: 0, done: 0, overdue: 0 };
-    b.rows.forEach(function (r) { r.cells.forEach(function (items) { items.forEach(function (it) {
-      if (it.carried) return;
-      if (it.kind === 'done') c.done++; else if (it.kind === 'due') { c.due++; if (it.status === 'overdue') c.overdue++; }
-    }); }); });
-    var overdueAll = S.magazines(false).filter(function (m) { var dd2 = R.magDue(m, weeks, today); return dd2 && dd2 < today; }).length;
-
-    var bar = h('div', { class: 'board-bar' }, [
-      h('div', { class: 'week-nav' }, [
-        h('button', { class: 'btn ghost square', 'aria-label': 'Previous week', onclick: function () { week = R.addDays(b.monday, -7); app.render(); } }, I('left', 18)),
-        h('div', { class: 'week-title' }, [
-          h('div', { class: 'week-kicker', text: 'Magazine cleaning · ' + (b.isThisWeek ? 'this week' : b.monday < R.mondayOf(today) ? 'past week' : 'coming week') }),
-          h('h2', { class: 'week-label' }, [h('span', { class: 'wk', text: 'Week ' + R.isoWeek(b.monday) }), h('span', { class: 'sep', text: ' · ' }), R.shortDate(b.days[0]) + ' – ' + R.longDate(b.days[4])])
-        ]),
-        h('button', { class: 'btn ghost square', 'aria-label': 'Next week', onclick: function () { week = R.addDays(b.monday, 7); app.render(); } }, I('right', 18)),
-        h('button', { class: 'btn ghost', disabled: b.isThisWeek, onclick: function () { week = R.today(); app.render(); } }, [I('calendar', 15), ' Today'])
-      ]),
-      h('div', { class: 'bar-right' }, [modeSwitch(app),
-        h('label', { class: 'toggle' }, [h('input', { type: 'checkbox', checked: onlyDue, onchange: function (e) { onlyDue = e.target.checked; app.render(); } }), ' Only magazines with something this week'])])
-    ]);
-    var strip = h('div', { class: 'summary even' }, [
-      wtile('today', 'Due this week', c.due, weeks ? 'every ' + weeks + ' weeks' : 'reminder off'),
-      wtile('overdue', 'Overdue', overdueAll, overdueAll ? 'needs cleaning' : 'all on time'),
-      wtile('done', 'Done', c.done, 'this week'),
-      wtile('postponed', 'Planned by hand', S.magazines(false).filter(function (m) { return m.planned_date; }).length, 'moved to another day')
-    ]);
-    var table = h('table', { class: 'grid mag-grid' }, [
-      h('thead', {}, h('tr', {}, [h('th', { class: 'tool-col', text: 'Magazine' })].concat(b.days.map(function (d) {
-        return h('th', { class: d === today ? 'is-today' : (d < today ? 'is-past' : '') }, [h('span', { class: 'dname', text: R.dayName(d).slice(0, 3) }), ' ',
-          h('span', { class: 'dnum', text: R.shortDate(d) }), d === today ? h('span', { class: 'today-pill', text: 'Today' }) : null]);
-      })))),
-      h('tbody', {}, rows.length ? rows.map(function (r) { return weekRow(r, b, today, app); })
-        : h('tr', {}, h('td', { colspan: '6', class: 'empty' }, [I('magazine', 28), h('div', { text: weeks ? 'No magazine cleaning this week.' : 'The check reminder is off (Settings → Magazines).' })])))
-    ]);
-    var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'projected'].map(function (st) {
-      return h('span', { class: 'legend-item' }, [wmed(st, 20), WLABEL[st][1]]);
-    }));
-    wdnd(table, app, today);
-    U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend,
-      h('p', { class: 'hint', text: 'Click a magazine to check or clean it. Drag it to another day in its row to plan it for that day. The next cleaning is the last check + ' + weeks + ' weeks.' })]);
-  }
-
-  function wtile(st, label, value, sub) {
-    return h('div', { class: 'tile' + (value ? '' : ' zero') }, [h('span', { class: 'tile-ico' }, wmed(st, 38)),
-      h('span', { class: 'tile-num', text: String(value) }), h('span', { class: 'tile-label', text: label }), sub ? h('span', { class: 'tile-sub', text: sub }) : null]);
-  }
-
-  function weekRow(r, b, today, app) {
-    var m = r.mag;
-    var st = R.magStatus(m, today, S.magCheckWeeks());
-    var head = h('th', { class: 'tool-col', scope: 'row' }, [h('button', { class: 'mag-sn', onclick: function () { panel(m.id, app); } }, [
-      I('magazine', 18), h('span', {}, [h('b', { text: m.sn }), h('span', { class: 'cr', text: (m.cr_type || '') + (m.last_check ? ' · last ' + R.shortDate(m.last_check) : ' · never checked') })])]),
-      m.needs_repair ? h('span', { class: 'badge down', title: m.repair_note || '', text: 'REPAIR' }) : null]);
-    return h('tr', { class: st === 'repair' ? 'is-down' : '' }, [head].concat(r.cells.map(function (items, i) {
-      var d = b.days[i];
-      return h('td', { class: d === today ? 'is-today' : (d < today ? 'is-past' : ''), 'data-mag': m.id, 'data-date': d }, items.map(function (it) { return wchip(it, m, app); }));
-    })));
-  }
-
-  function wchip(it, m, app) {
-    if (it.kind === 'next') return h('span', { class: 'chip s-projected', title: 'Next cleaning from the cycle' }, [wmed('projected', 22), h('span', { class: 'chip-text' }, h('span', { class: 'chip-main', text: 'Next' }))]);
-    if (it.kind === 'done') {
-      var e = it.event;
-      return h('button', { class: 'chip s-done', title: 'Details', onclick: function () { panel(m.id, app); } }, [wmed('done', 26),
-        h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: String(e.by_name || '').split(' ')[0] || 'Done' }),
-          h('span', { class: 'chip-sub', text: e.kind === 'repair_done' ? 'repair done' : e.cleaned ? 'cleaned' : 'checked' })])]);
-    }
-    var sub = it.carried ? 'since ' + R.dayName(it.date).slice(0, 3) + ' ' + R.shortDate(it.date) : it.status === 'postponed' ? 'planned' : '';
-    var main = it.carried ? 'Overdue' : WLABEL[it.status][1];
-    return h('button', { class: 'chip s-' + it.status, draggable: 'true', title: 'Click to check / clean · drag to another day',
-      ondragstart: function (ev) { drag = { magId: m.id, date: it.date }; try { ev.dataTransfer.setData('text/plain', m.id); } catch (x) { /* tests */ }
-        var tb = ev.target.closest('table'); if (tb) tb.classList.add('dragging'); var tr = ev.target.closest('tr'); if (tr) tr.classList.add('drag-row'); },
-      ondragend: wend,
-      onclick: function () { panel(m.id, app, 'check'); } }, [wmed(it.status, 26),
-      h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null])]);
-  }
-
-  function wend() {
-    drag = null;
-    document.querySelectorAll('.dragging, .drag-row, .drop-ok').forEach(function (el) { el.classList.remove('dragging', 'drag-row', 'drop-ok'); });
-  }
-  function wtarget(ev, today) {
-    var td = ev.target.closest && ev.target.closest('td[data-date]');
-    if (!drag || !td) return null;
-    var d = td.getAttribute('data-date');
-    if (td.getAttribute('data-mag') !== drag.magId || d === drag.date || d < today) return null;
-    return { td: td, date: d };
-  }
-  function wdnd(table, app, today) {
-    table.addEventListener('dragover', function (ev) {
-      var t = wtarget(ev, today); if (!t) return;
-      ev.preventDefault();
-      table.querySelectorAll('.drop-ok').forEach(function (el) { if (el !== t.td) el.classList.remove('drop-ok'); });
-      t.td.classList.add('drop-ok');
+  /** -> [{status, text}] for one magazine row of buildMagWeek */
+  function weekItems(row) {
+    var out = [];
+    row.cells.forEach(function (items) {
+      items.forEach(function (it) {
+        var d = R.dayName(it.date).slice(0, 3) + ' ' + R.shortDate(it.date);
+        if (it.kind === 'done') {
+          var e = it.event;
+          out.push({ status: 'done', text: (e.kind === 'repair_done' ? 'Repaired ' : e.cleaned ? 'Cleaned ' : 'Checked ') + d + ' · ' + String(e.by_name || '').split(' ')[0] });
+        } else if (it.kind === 'due') {
+          out.push({ status: it.status, text: it.carried ? 'Overdue since ' + d : (it.status === 'overdue' ? 'Overdue ' : it.status === 'today' ? 'Due today ' : it.status === 'postponed' ? 'Planned ' : 'Due ') + (it.status === 'today' ? '' : d) });
+        } else {
+          out.push({ status: 'projected', text: 'Next ' + d });
+        }
+      });
     });
-    table.addEventListener('drop', function (ev) {
-      var t = wtarget(ev, today); if (!t) return;
-      ev.preventDefault();
-      var id = drag.magId; wend();
-      panel(id, app, 'plan', t.date);
-    });
+    return out;
   }
 
   /* --- Magazine panel: details, Check, Repair done ------------------- */
@@ -4014,7 +4016,7 @@ window.HCP.views.history = (function () {
 /* js/views/analytics.js */
 /**
  * Hirata Cleaning Plan - views/analytics.js
- * KPIs and charts for a period, plus the downloads (Excel workbook, cleaning report CSV).
+ * Three tabs (Cleaning, PM, Magazines): KPIs and charts for a period, plus the downloads.
  */
 window.HCP = window.HCP || {};
 window.HCP.views = window.HCP.views || {};
@@ -4024,6 +4026,8 @@ window.HCP.views.analytics = (function () {
   var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, A = window.HCP.analytics, I = window.HCP.icon, h = U.h;
   var preset = 'weeks4';
   var custom = null;   // {from, to}
+  var tab = 'cleaning';   // cleaning | pm | mags
+  var WORD = { cleaning: ['Cleanings', 'cleaning', 'cleanings'], pm: ['PMs', 'PM', 'PMs'] };
 
   function range() {
     if (preset === 'custom' && custom) return custom;
@@ -4032,7 +4036,13 @@ window.HCP.views.analytics = (function () {
 
   function render(root, app) {
     var r = range();
-    var st = A.stats(S.current(), r.from, r.to, R.today());
+    var tabs = h('div', { class: 'tabs an-tabs', role: 'tablist' }, [['cleaning', 'Cleaning'], ['pm', 'PM plan'], ['mags', 'Magazines']].map(function (t) {
+      return h('button', { class: 'tab' + (tab === t[0] ? ' active' : ''), role: 'tab', 'aria-selected': String(tab === t[0]), text: t[1],
+        onclick: function () { tab = t[0]; app.render(); } });
+    }));
+    if (tab === 'mags') return renderMags(root, app, r, tabs);
+    var W = WORD[tab];
+    var st = A.stats(S.current(), r.from, r.to, R.today(), tab);
     var k = st.kpi;
 
     var presets = [['weeks4', 'Last 4 weeks'], ['quarter', '3 months'], ['year', '12 months'], ['custom', 'Custom']];
@@ -4043,30 +4053,21 @@ window.HCP.views.analytics = (function () {
     }));
     var from = h('input', { type: 'date', value: r.from, onchange: function (e) { preset = 'custom'; custom = { from: e.target.value, to: (custom || r).to }; app.render(); } });
     var to = h('input', { type: 'date', value: r.to, onchange: function (e) { preset = 'custom'; custom = { from: (custom || r).from, to: e.target.value }; app.render(); } });
-    var fname = 'hirata-cleaning-' + r.from + '_to_' + r.to;
-
-    var head = h('div', { class: 'an-head' }, [
-      h('div', {}, [h('h2', { text: 'Analytics' }), h('p', { class: 'muted', text: R.longDate(r.from) + ' – ' + R.longDate(r.to) + ' · "on time" = done on or before the planned day' })]),
-      h('div', { class: 'an-controls' }, [seg, preset === 'custom' ? h('span', { class: 'range' }, [from, ' – ', to]) : null]),
-      h('div', { class: 'an-downloads' }, [
-        h('button', { class: 'btn', onclick: function () {
-          U.download(fname + '.xlsx', S.workbook(r.from, r.to), window.HCP.xlsx.MIME);
-        } }, [I('download', 15), ' Excel workbook (.xlsx)']),
-        h('button', { class: 'btn ghost', onclick: function () { U.download(fname + '-report.csv', S.reportCsv(r.from, r.to)); } }, [I('download', 15), ' Cleaning report (CSV)'])
-      ])
-    ]);
+    var fname = 'hirata-' + r.from + '_to_' + r.to;
+    var head = header(r, seg, from, to, fname, h('button', { class: 'btn ghost', onclick: function () { U.download(fname + '-' + W[1].toLowerCase() + '-report.csv', S.reportCsv(r.from, r.to, tab)); } },
+      [I('download', 15), ' ' + W[1].charAt(0).toUpperCase() + W[1].slice(1) + ' report (CSV)']), '"on time" = done on or before the planned day');
 
     var kpis = h('div', { class: 'an-kpis' }, [
-      kpi('Cleanings in period', k.planned, 'planned or done', 'calendar'),
+      kpi(W[0] + ' in period', k.planned, 'planned or done', 'calendar'),
       kpi('Done', k.done, k.planned ? Math.round(100 * k.done / k.planned) + '% of planned' : '–', 'check'),
       ringKpi('On time', k.onTimePct),
-      kpi('Avg days late', k.avgLate == null ? '–' : k.avgLate, 'per done cleaning', 'clock'),
+      kpi('Avg days late', k.avgLate == null ? '–' : k.avgLate, 'per done ' + W[1], 'clock'),
       kpi('Postponements', k.postponements, 'in period', 'skip'),
       kpi('Overdue now', k.overdueNow, k.overdueNow ? 'needs action' : 'all on track', 'exclaim', k.overdueNow ? 'bad' : '')
     ]);
 
     if (!st.rows.length) {
-      U.add(root, [head, kpis, h('div', { class: 'card empty-card' }, [I('calendar', 30), h('p', { text: 'No cleanings in this period yet. Charts appear once cleanings are completed or postponed.' })])]);
+      U.add(root, [head, tabs, kpis, h('div', { class: 'card empty-card' }, [I('calendar', 30), h('p', { text: 'No ' + W[2] + ' in this period yet. Charts appear once ' + W[2] + ' are done or postponed.' })])]);
       return;
     }
 
@@ -4074,17 +4075,21 @@ window.HCP.views.analytics = (function () {
       card('Done per week', 'On time vs late, by the week it was done', weekChart(st.byWeek)),
       card('On-time rate per tool', 'Done on or before the planned day', bars(st.byTool.filter(function (t) { return t.done; }).map(function (t) {
         return { label: t.tool, value: t.onTimePct, text: t.onTimePct + '%', note: t.done + ' done', tone: t.onTimePct >= 90 ? 'good' : t.onTimePct >= 70 ? 'warn' : 'bad' };
-      }), 100, 'No completed cleanings yet.')),
+      }), 100, 'Nothing done yet.')),
       card('Top postpone reasons', 'Every postponement counts once', bars(st.topReasons.map(function (x) {
         return { label: x.reason, value: x.count, text: String(x.count), tone: 'warn' };
       }), null, 'No postponements in this period.')),
-      card('Cleanings per operator', 'Completed in the period', bars(st.byOperator.map(function (o) {
-        return { label: o.who, value: o.done, text: String(o.done), note: o.onTime + ' on time', tone: 'blue' };
-      }), null, 'No completed cleanings yet.'))
+      tab === 'pm'
+        ? card('Overdue and postponed per tool', 'Open PMs past their day, and postponements', bars(st.byTool.filter(function (t) { return t.overdue || t.postponed; }).map(function (t) {
+          return { label: t.tool, value: t.overdue + t.postponed, text: String(t.overdue + t.postponed), note: t.overdue + ' overdue, ' + t.postponed + ' postponed', tone: t.overdue ? 'bad' : 'warn' };
+        }), null, 'No overdue or postponed PMs.'))
+        : card('Cleanings per operator', 'Completed in the period', bars(st.byOperator.map(function (o) {
+          return { label: o.who, value: o.done, text: String(o.done), note: o.onTime + ' on time', tone: 'blue' };
+        }), null, 'No completed cleanings yet.'))
     ]);
 
     var table = h('div', { class: 'card' }, [h('h3', { text: 'Per tool' }), h('div', { class: 'grid-wrap flat' }, h('table', { class: 'list' }, [
-      h('thead', {}, h('tr', {}, ['Tool', 'Cleanings', 'Done', 'On time %', 'Avg days late', 'Times postponed', 'Overdue now'].map(function (c) { return h('th', { text: c }); }))),
+      h('thead', {}, h('tr', {}, ['Tool', W[0], 'Done', 'On time %', 'Avg days late', 'Times postponed', 'Overdue now'].map(function (c) { return h('th', { text: c }); }))),
       h('tbody', {}, st.byTool.map(function (t) {
         return h('tr', {}, [h('td', { class: 'strong', text: t.tool }), h('td', { text: String(t.total) }), h('td', { text: String(t.done) }),
           h('td', {}, t.onTimePct == null ? '–' : h('span', { class: 'pct ' + (t.onTimePct >= 90 ? 'good' : t.onTimePct >= 70 ? 'warn' : 'bad'), text: t.onTimePct + '%' })),
@@ -4093,16 +4098,68 @@ window.HCP.views.analytics = (function () {
       }))
     ]))]);
 
-    U.add(root, [head, kpis, grid, table]);
+    U.add(root, [head, tabs, kpis, grid, table]);
+  }
+
+  function header(r, seg, from, to, fname, extraBtn, note) {
+    return h('div', { class: 'an-head' }, [
+      h('div', {}, [h('h2', { text: 'Analytics' }), h('p', { class: 'muted', text: R.longDate(r.from) + ' – ' + R.longDate(r.to) + (note ? ' · ' + note : '') })]),
+      h('div', { class: 'an-controls' }, [seg, preset === 'custom' ? h('span', { class: 'range' }, [from, ' – ', to]) : null]),
+      h('div', { class: 'an-downloads' }, [
+        h('button', { class: 'btn', onclick: function () { U.download(fname + '.xlsx', S.workbook(r.from, r.to), window.HCP.xlsx.MIME); } }, [I('download', 15), ' Excel workbook (.xlsx)']),
+        extraBtn
+      ])
+    ]);
+  }
+
+  /* --- Magazines tab (13h) ------------------------------------------ */
+
+  function renderMags(root, app, r, tabs) {
+    var presets = [['weeks4', 'Last 4 weeks'], ['quarter', '3 months'], ['year', '12 months'], ['custom', 'Custom']];
+    var seg = h('div', { class: 'segmented' }, presets.map(function (p) {
+      return h('button', { class: preset === p[0] ? 'on' : '', text: p[1], onclick: function () { preset = p[0]; if (p[0] === 'custom' && !custom) custom = range(); app.render(); } });
+    }));
+    var from = h('input', { type: 'date', value: r.from, onchange: function (e) { preset = 'custom'; custom = { from: e.target.value, to: (custom || r).to }; app.render(); } });
+    var to = h('input', { type: 'date', value: r.to, onchange: function (e) { preset = 'custom'; custom = { from: (custom || r).from, to: e.target.value }; app.render(); } });
+    var fname = 'hirata-' + r.from + '_to_' + r.to;
+    var st = A.magStats(S.current(), r.from, r.to, R.today(), S.magCheckWeeks());
+    var k = st.kpi;
+    var head = header(r, seg, from, to, fname, h('button', { class: 'btn ghost', onclick: function () { U.download(fname + '-magazine-checks.csv', S.magCsv(r.from, r.to)); } },
+      [I('download', 15), ' Magazine checks (CSV)']), k.magazines + ' magazines');
+    var kpis = h('div', { class: 'an-kpis' }, [
+      kpi('Checks in period', k.checks, k.checkedMags + ' of ' + k.magazines + ' magazines', 'check'),
+      kpi('Cleaned', k.cleaned, k.checks ? Math.round(100 * k.cleaned / k.checks) + '% of checks' : '–', 'sparkle'),
+      ringKpi('Checked', k.magazines ? Math.round(100 * k.checkedMags / k.magazines) : null, 'of all magazines in the period'),
+      kpi('Repairs reported', k.reported, k.repaired + ' repaired in period', 'wrench', k.reported ? 'warn' : ''),
+      kpi('Avg repair time', k.avgRepairDays == null ? '–' : k.avgRepairDays + ' d', 'from report to repair done', 'clock'),
+      kpi('Open repairs', k.openRepairs, k.dueNow + ' magazines due for a check', 'exclaim', k.openRepairs ? 'bad' : '')
+    ]);
+    var chart = weekChart(st.byWeek, ['Cleaned', 'Checked only'], 'Magazine checks per week');
+    var grid = h('div', { class: 'an-grid' }, [
+      card('Checks per week', 'Cleaned vs checked only', chart),
+      card('Open repairs', 'Longest open first', st.openRepairs.length ? h('table', { class: 'list compact' }, [
+        h('thead', {}, h('tr', {}, ['Magazine', 'Since', 'Days', 'Problem'].map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, st.openRepairs.map(function (o) {
+          return h('tr', {}, [h('td', { class: 'strong', text: o.sn }), h('td', { text: o.since ? R.shortDate(o.since) : '–' }),
+            h('td', { class: o.days > 7 ? 'bad-text' : '', text: o.days == null ? '–' : String(o.days) }), h('td', { class: 'wrap', text: o.note || '–' })]);
+        }))]) : h('p', { class: 'muted', text: 'No open repairs.' })),
+      card('Checks per person', 'Checks and repairs done in the period', bars(st.byPerson.map(function (p) {
+        return { label: p.who, value: p.checks + p.repairs, text: String(p.checks + p.repairs), note: p.checks + ' checks, ' + p.repairs + ' repairs', tone: 'blue' };
+      }), null, 'No checks in this period.')),
+      card('Most repairs', 'Magazines reported for repair most often', bars(st.byMagazine.map(function (m) {
+        return { label: m.sn, value: m.count, text: String(m.count), tone: 'warn' };
+      }), null, 'No repairs reported in this period.'))
+    ]);
+    U.add(root, [head, tabs, kpis, grid]);
   }
 
   function kpi(label, value, sub, icon, tone) {
     return h('div', { class: 'an-kpi ' + (tone || '') }, [h('span', { class: 'an-ico' }, I(icon, 18)),
       h('div', {}, [h('div', { class: 'tile-label', text: label }), h('div', { class: 'an-num', text: String(value) }), h('div', { class: 'tile-sub', text: sub })])]);
   }
-  function ringKpi(label, p) {
+  function ringKpi(label, p, sub) {
     return h('div', { class: 'an-kpi' }, [h('div', { class: 'ring', style: '--p:' + (p || 0) }, h('span', { text: p == null ? '–' : p + '%' })),
-      h('div', {}, [h('div', { class: 'tile-label', text: label }), h('div', { class: 'tile-sub', text: p == null ? 'nothing done yet' : 'of done cleanings' })])]);
+      h('div', {}, [h('div', { class: 'tile-label', text: label }), h('div', { class: 'tile-sub', text: sub || (p == null ? 'nothing done yet' : 'of done ones') })])]);
   }
   function card(title, sub, body) {
     return h('section', { class: 'card an-card' }, [h('h3', { text: title }), h('p', { class: 'muted small', text: sub }), body]);
@@ -4122,27 +4179,28 @@ window.HCP.views.analytics = (function () {
   }
 
   /** Stacked columns per week (SVG). */
-  function weekChart(weeks) {
+  function weekChart(weeks, labels, aria) {
+    var L = labels || ['On time', 'Late'];
     var W = 560, H = 200, pad = 26, n = weeks.length || 1;
     var max = Math.max(1, Math.max.apply(null, weeks.map(function (w) { return w.onTime + w.late; })));
     var bw = Math.min(38, (W - pad * 2) / n * 0.6), step = (W - pad * 2) / n;
     var NS = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('class', 'week-chart'); svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'Cleanings done per week');
+    svg.setAttribute('aria-label', aria || 'Done per week');
     function el(tag, attrs, text) { var e = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); if (text != null) e.textContent = text; svg.appendChild(e); return e; }
     var base = H - 24, top = 12, scale = (base - top) / max;
     [0, 0.5, 1].forEach(function (f) { var y = base - f * (base - top); el('line', { x1: pad, x2: W - 6, y1: y, y2: y, class: 'gridline' }); el('text', { x: pad - 6, y: y + 4, class: 'axis', 'text-anchor': 'end' }, String(Math.round(f * max))); });
     weeks.forEach(function (w, i) {
       var x = pad + i * step + (step - bw) / 2;
       var hOn = w.onTime * scale, hLate = w.late * scale;
-      if (hOn) el('rect', { x: x, y: base - hOn, width: bw, height: hOn, rx: 3, class: 'col-ontime' }).appendChild(title(w.onTime + ' on time'));
-      if (hLate) el('rect', { x: x, y: base - hOn - hLate, width: bw, height: hLate, rx: 3, class: 'col-late' }).appendChild(title(w.late + ' late'));
+      if (hOn) el('rect', { x: x, y: base - hOn, width: bw, height: hOn, rx: 3, class: 'col-ontime' }).appendChild(title(w.onTime + ' ' + L[0].toLowerCase()));
+      if (hLate) el('rect', { x: x, y: base - hOn - hLate, width: bw, height: hLate, rx: 3, class: 'col-late' }).appendChild(title(w.late + ' ' + L[1].toLowerCase()));
       if (w.onTime + w.late) el('text', { x: x + bw / 2, y: base - hOn - hLate - 4, class: 'col-num', 'text-anchor': 'middle' }, String(w.onTime + w.late));
       el('text', { x: x + bw / 2, y: H - 8, class: 'axis', 'text-anchor': 'middle' }, 'W' + w.week);
     });
     function title(t) { var e = document.createElementNS(NS, 'title'); e.textContent = t; return e; }
-    return h('div', {}, [svg, h('div', { class: 'chart-legend' }, [h('span', { class: 'sw ontime' }), 'On time', h('span', { class: 'sw late' }), 'Late'])]);
+    return h('div', {}, [svg, h('div', { class: 'chart-legend' }, [h('span', { class: 'sw ontime' }), L[0], h('span', { class: 'sw late' }), L[1]])]);
   }
 
   return { render: render };

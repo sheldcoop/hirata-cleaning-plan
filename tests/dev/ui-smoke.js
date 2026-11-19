@@ -214,20 +214,23 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok(!$$('.mag-list tr.mag-repair').length, 'no repairs left');
   const srch = $('.mag-search'); type(srch, '70350'); await wait(150);
   ok($$('.mag-list tbody tr').length === 1, 'search');
-  step = 'magazine week plan';
+  step = 'magazine weeks';
   type($('.mag-search'), ''); await wait(100);
-  await click($$('.segmented button').find(b => b.textContent === 'Week plan'));
-  ok($('.mag-grid'), 'week grid');
-  ok($$('.mag-grid button.chip[draggable="true"]').length > 0, 'due magazines this week (never checked)');
-  const mc = $$('.mag-grid button.chip[draggable="true"]').find(c => [...c.closest('tr').querySelectorAll('td[data-date]')].some(x => x.getAttribute('data-date') > c.closest('td').getAttribute('data-date')));
-  if (mc) {
-    const mto = [...mc.closest('tr').querySelectorAll('td[data-date]')].find(x => x.getAttribute('data-date') > mc.closest('td').getAttribute('data-date'));
-    fire2(mc, 'dragstart'); fire2(mto, 'dragover'); fire2(mto, 'drop'); await wait(150);
-    ok($('.modal h3').textContent.startsWith('Plan '), 'drop opens the plan form');
-    pick('Anja KRALJ'); await click(btn('Continue')); await click(btn('Yes, plan'), 500);
-    ok(d.body.textContent.includes('planned for'), 'magazine planned by drag');
-  }
-  await click($$('.segmented button').find(b => b.textContent === 'List'));
+  ok($$('.mag-list th').some(t => t.textContent.startsWith('Week ')), 'week column');
+  ok($$('.wk-pill.s-done').length >= 25, 'checks of 16 Nov in this week: ' + $$('.wk-pill.s-done').length);
+  await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]'));
+  ok($$('.wk-pill.s-upcoming').length >= 20, 'due 4 weeks later: ' + $$('.wk-pill.s-upcoming').length);
+  await click($('[aria-label="Previous week"]')); await click($('[aria-label="Previous week"]')); await click($('[aria-label="Previous week"]'));
+  const onlyBox = $$('.toggle input').find(i => i.closest('label').textContent.includes('Only magazines'));
+  onlyBox.checked = true; onlyBox.dispatchEvent(new w.Event('change', { bubbles: true })); await wait(150);
+  ok($$('.mag-list tbody tr').length < 35, 'only that week');
+  const onlyBox2 = $$('.toggle input').find(i => i.closest('label').textContent.includes('Only magazines'));
+  onlyBox2.checked = false; onlyBox2.dispatchEvent(new w.Event('change', { bubbles: true })); await wait(100);
+  await click(btn('This week'));
+  await click($$('.mag-sn')[0]);
+  await click(btn('Plan date'));
+  ok($('.modal h3').textContent.startsWith('Plan the next'), 'plan form');
+  await click(btn('Cancel')); await click($('.modal .icon-btn'));
 
   w.location.hash = '#settings'; await wait(200);
   await click($$('.tab').find(t => t.textContent === 'Magazines'));
@@ -249,6 +252,15 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok(w.__downloads.some(n => n.endsWith('-report.csv')), 'report csv download');
   await click($$('.segmented button').find(b => b.textContent === '12 months'));
   ok($$('.segmented button.on')[0].textContent === '12 months', 'period switch');
+
+  step = 'analytics tabs';
+  w.location.hash = '#analytics'; await wait(250);
+  await click($$('.an-tabs .tab').find(t => t.textContent === 'PM plan'), 250);
+  ok(d.body.textContent.includes('PMs in period'), 'PM analytics');
+  await click($$('.an-tabs .tab').find(t => t.textContent === 'Magazines'), 250);
+  ok(d.body.textContent.includes('Checks in period') && d.body.textContent.includes('Open repairs'), 'magazine analytics');
+  await click(btn('Magazine checks (CSV)'));
+  await click($$('.an-tabs .tab').find(t => t.textContent === 'Cleaning'), 250);
 
   step = 'theme + logout';
   await click($('.theme-btn'));

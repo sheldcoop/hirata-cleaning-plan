@@ -100,12 +100,12 @@
       if (pin.value !== pin2.value) { msg.textContent = 'The two PINs are not the same.'; msg.hidden = false; return; }
       btn.disabled = true;
       S.createPlan(pin.value).then(function () { return S.adminLogin('ADMIN01', pin.value); })
-        .then(function (u) { rememberAdmin(u); U.toast('Plan created with 12 tools. You are logged in as Admin.'); location.hash = '#settings'; open(); })
+        .then(function (u) { rememberAdmin(u); U.toast('Plan created with 12 cleaning tools and the PM tools. You are logged in as Admin.'); location.hash = '#settings'; open(); })
         .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; btn.disabled = false; });
     });
     screen([
       h('h2', { text: 'Create a new cleaning plan' }),
-      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools and the first Admin (Khurana). Add the operators afterwards in Settings → Users.' }),
+      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools, the PM tools from the PM Excel, the 6 operators and the first Admin (Khurana).' }),
       h('p', { class: 'muted', text: 'If your team already has a plan, you chose the wrong folder: reload the page and pick the shared data folder.' }),
       U.field('Admin PIN (4–8 digits)', pin), U.field('Repeat PIN', pin2), msg, btn
     ]);
@@ -115,7 +115,7 @@
 
   function route() {
     var hash = (location.hash || '#board').slice(1);
-    view = ['board', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
+    view = ['board', 'pm', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
     render();
   }
   window.addEventListener('hashchange', function () { if (S.current()) route(); });
@@ -125,7 +125,7 @@
     var d = S.current();
     var adminUser = S.currentAdmin();
     if (d) {
-      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Board'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
+      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Cleaning'], ['pm', 'PM plan'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
         return h('a', { href: '#' + n[0], class: view === n[0] ? 'active' : '', text: n[1] });
       })));
       U.add(topbar, adminUser

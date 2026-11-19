@@ -14,7 +14,7 @@ spec:
       # imagePullSecrets:            # needed if the Harbor project is private - ask the ProKube team for the secret name
       #   - name: harbor-pull-secret
       containers:
-        - image: HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.7.0
+        - image: HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.8.0
           ports:
             - containerPort: 8080
           resources:

@@ -159,12 +159,36 @@ window.HCP.rules = (function () {
     return '';
   }
 
+  /* --- PM tools (13e) ---------------------------------------------- */
+
+  function isPm(tool) { return !!tool && tool.kind === 'pm'; }
+  /** True when the tool belongs to the list `kind` ('pm' or 'cleaning'). */
+  function ofKind(tool, kind) { return kind === 'pm' ? isPm(tool) : !isPm(tool); }
+  /** A tool gets scheduled tasks only when installed and its schedule is complete. */
+  function hasSchedule(tool) {
+    return !!tool && tool.status !== 'planned' && tool.schedule_type !== 'none' && !validateSchedule(tool);
+  }
+  /** Down on this date? Cleaning tools: down from the moment they were set down (no dates).
+   *  PM tools: from down_from, until down_until (optional). */
+  function downOn(tool, date) {
+    if (!tool || tool.status !== 'down') return false;
+    if (tool.down_from && date < tool.down_from) return false;
+    if (tool.down_until && date > tool.down_until) return false;
+    return true;
+  }
+  function describeAny(tool) {
+    if (tool.status === 'planned') return 'Not installed';
+    if (tool.schedule_type === 'none') return 'No PM';
+    if (!hasSchedule(tool)) return (tool.interval ? (tool.interval === 1 ? 'Every week' : 'Every ' + tool.interval + ' weeks') + ', ' : '') + 'no start date yet';
+    return describeSchedule(tool);
+  }
+
   /* --- Status (R1) -------------------------------------------------- */
 
   /** done | down | overdue | today | postponed | upcoming */
   function taskStatus(task, tool, todayStr) {
     if (task.status === 'completed') return 'done';
-    if (tool && tool.status === 'down') return 'down';
+    if (tool && downOn(tool, todayStr)) return 'down';
     if (task.due_date < todayStr) return 'overdue';
     if (task.due_date === todayStr) return 'today';
     if (task.postpone_count > 0) return 'postponed';
@@ -177,14 +201,14 @@ window.HCP.rules = (function () {
    * -> { monday, days: [5 dates], rows: [{tool, cells: [[item]x5], hasItems}] }
    * item: {kind: 'task'|'projected', task?, date, status, carried?}
    */
-  function buildBoard(data, weekDate, todayStr) {
+  function buildBoard(data, weekDate, todayStr, kind) {
     var monday = mondayOf(weekDate);
     var friday = addDays(monday, 4);
     var days = [0, 1, 2, 3, 4].map(function (i) { return addDays(monday, i); });
     var thisWeek = mondayOf(todayStr) === monday;
     var carryCol = days.indexOf(toPrevWorkingDay(todayStr));
 
-    var tools = data.tools.filter(function (t) { return !t.archived; })
+    var tools = data.tools.filter(function (t) { return !t.archived && ofKind(t, kind || 'cleaning'); })
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
     var rows = tools.map(function (tool) {
@@ -209,13 +233,17 @@ window.HCP.rules = (function () {
         }
       });
 
-      if (tool.status !== 'down' && openScheduled) {
+      var openEnded = tool.status === 'down' && !tool.down_until;
+      if (!openEnded && openScheduled && tool.status !== 'planned') {
         projected(tool, openScheduled, monday, friday, data.exceptions).forEach(function (p) {
+          if (downOn(tool, p.date)) return;
           cells[days.indexOf(p.date)].push({ kind: 'projected', date: p.date, status: 'projected', pattern: p.pattern, nominal: p.nominal, moved: p.moved, skipped: p.skipped });
         });
       }
       var hasItems = cells.some(function (c) { return c.length > 0; });
-      return { tool: tool, cells: cells, hasItems: hasItems };
+      // PM tab: D on every working day of a down period
+      var downDays = days.map(function (d) { return isPm(tool) && downOn(tool, d); });
+      return { tool: tool, cells: cells, hasItems: hasItems || downDays.indexOf(true) >= 0, downDays: downDays };
     });
 
     return { monday: monday, days: days, rows: rows, isThisWeek: thisWeek };
@@ -227,7 +255,7 @@ window.HCP.rules = (function () {
     data.tasks.forEach(function (t) {
       if (t.status !== 'open') return;
       var tool = data.tools.find(function (x) { return x.id === t.tool_id; });
-      if (!tool || tool.archived || tool.status === 'down') return;
+      if (!tool || tool.archived || isPm(tool) || downOn(tool, todayStr)) return;
       if (t.due_date < todayStr) out.overdue.push({ tool: tool.name, date: t.due_date });
       else if (t.due_date === todayStr) out.today.push({ tool: tool.name, date: t.due_date });
     });
@@ -244,6 +272,6 @@ window.HCP.rules = (function () {
     firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
     validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
-    dailySummary: dailySummary
+    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny
   };
 })();

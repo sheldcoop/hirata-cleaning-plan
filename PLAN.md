@@ -382,6 +382,19 @@ Summary strip with week progress ring and clickable status tiles (highlight on t
 - `js/xlsx.js`: own dependency-free .xlsx writer (no SheetJS needed): several sheets, bold AT&S-blue header, frozen header, filter, column widths, real Excel dates.
 - Analytics page (nav): period presets + custom range, KPI tiles, done-per-week chart (SVG), bars per tool / reason / operator, per-tool table, downloads (Excel workbook, cleaning report CSV).
 
+## 13e. Version 0.8: PM plan (second tab)
+
+Decided with the owner on 19 Nov 2026 (one question at a time):
+
+1. **Second tab "PM plan"** next to the cleaning Board: the same weekly grid (tools x Mon-Fri), for preventive maintenance.
+2. **Not installed (red):** a tool that is not there yet (to be bought). Whole row red, no PM, no schedule. Tool status `planned`.
+3. **Down (D):** the tool is there but broken; no PM while down. The Admin sets **Down from [date]** with an optional **until [date]** and a reason; the grid shows D on every working day of that period by itself. **Back up** ends it and asks for the next PM date. Stored on the tool: `status: 'down'`, `down_from`, `down_until` (optional), `down_reason`.
+4. **Who:** only the Admin (logged in with PIN) marks a PM Done (optional comment), postpones it, changes or deletes it, sets Down / Back up and edits PM tools. The MNT owner is information on each tool. Everyone else sees the PM tab read-only.
+5. **Schedule:** the same rule as cleaning (every N weeks on a weekday, or every N months on day D, never on a weekend; after a late PM the next one goes back to the pattern; postpone works the same). A PM tool may have **no schedule** ("-" in the Excel, e.g. FIB901) or no start date yet: then it is listed but gets no PM until the Admin sets one.
+6. **Separate PM tool list:** PM tools are records in `tools` with `kind: 'pm'` (cleaning tools have no `kind`). Names only need to be unique within the same list (AOP901 can be in both). Settings has its own **PM tools** tab.
+7. **Starting data:** the 23 rows from the owner's PM Excel (WW47 2026) with real names, MNT owners and frequencies. LXP902 = Not installed; DFS901 and PNP901 = Down from 16 Nov 2026; start dates where the sheet shows a PM (AOP901 and CPM901 on 26 Nov, QVM901 and PRF901 on 19 Nov, all Thursdays). Other tools: no start date yet, the Admin sets it in Settings. A new plan gets them automatically; an existing plan gets a button in Settings > PM tools ("Add PM tools from the Excel"). The first PM is never put in the past: the pattern is stepped forward to today or later.
+8. **Reports:** PMs go in the **same Excel file** on their own **PMs** sheet; History (page, CSV and sheet) gets a **Type** column (Cleaning / PM) with a filter. The Cleanings sheet, cleaning report and Analytics page stay cleaning only. The Teams message stays cleaning only.
+
 ## 14. Open items (owner to confirm during the build)
 
 1. Start date for each seeded tool (placeholder: next Tuesday).

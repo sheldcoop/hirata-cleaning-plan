@@ -11,7 +11,10 @@
     return S.createPlan('1234').then(function () { return S.adminLogin('ADMIN01', '1234'); })
       .then(function () { return mem; });
   }
-  function tool(name) { return S.current().tools.find(function (t) { return t.name === name; }); }
+  function tool(name) { return S.current().tools.find(function (t) { return t.name === name && !R.isPm(t); }); }
+  function pmTool(name) { return S.current().tools.find(function (t) { return t.name === name && R.isPm(t); }); }
+  function pmOpen(name) { var id = pmTool(name).id; return S.current().tasks.find(function (t) { return t.tool_id === id && t.status === 'open'; }); }
+  function cleaningOnly(d) { return d.tools.filter(function (t) { return !R.isPm(t); }); }
   function openTask(name) { var id = tool(name).id; return S.current().tasks.find(function (t) { return t.tool_id === id && t.status === 'open'; }); }
   function day(d) { cfg.fixed_today = d; }
 
@@ -20,17 +23,18 @@
       var d = JSON.parse(mem.files['hirata_data.json']);
       eq(d.users.filter(function (u) { return u.role === 'operator'; }).map(function (u) { return u.name; }), S.SEED_OPERATORS);
       eq(d.users.some(function (u) { return /test/i.test(u.name); }), false);
-      eq(d.tools.length, 12);
-      eq(d.tasks.length, 12);
+      eq(cleaningOnly(d).length, 12);
+      var cleanIds = cleaningOnly(d).map(function (t) { return t.id; });
+      eq(d.tasks.filter(function (t) { return cleanIds.indexOf(t.tool_id) >= 0; }).length, 12);
       eq(d.users[0].operator_id, 'ADMIN01');
       ok(d.users[0].pin_hash.indexOf('pbkdf2$') === 0 && d.users[0].pin_hash.indexOf('1234') < 0, 'PIN is hashed');
       eq(openTask('LAC901').due_date, '2026-11-24');
       eq(openTask('BLY901').due_date, '2026-11-23');   // weekly on Monday (this Monday already passed)
       eq(openTask('TLA901').due_date, '2026-11-30');   // every 4 weeks, Monday, starts in 2 weeks
-      var days = {}; d.tools.forEach(function (t) { days[t.weekday] = 1; });
+      var days = {}; cleaningOnly(d).forEach(function (t) { days[t.weekday] = 1; });
       eq(Object.keys(days).length, 5, 'Monday to Friday all used');
-      d.tools.forEach(function (t) { eq(t.start_date, d.tasks.find(function (x) { return x.tool_id === t.id; }).due_date, t.name + ' start = first cleaning'); });
-      var starts = {}; d.tools.forEach(function (t) { starts[t.start_date] = 1; });
+      cleaningOnly(d).forEach(function (t) { eq(t.start_date, d.tasks.find(function (x) { return x.tool_id === t.id; }).due_date, t.name + ' start = first cleaning'); });
+      var starts = {}; cleaningOnly(d).forEach(function (t) { starts[t.start_date] = 1; });
       ok(Object.keys(starts).length >= 8, 'start dates differ between tools');
       return rejects(S.createPlan('1234'), 'exists');
     });
@@ -289,7 +293,7 @@
     var mem;
     return setup().then(function (m) { mem = m; return S.complete(openTask('LAC901').id, 'OP001'); })
       .then(function () { mem.files['hirata_data.json'] = '{"tools": [ torn'; return S.load(); })
-      .then(function (d) { ok(d && d.tools.length === 12); ok(S.wasRecovered()); });
+      .then(function (d) { ok(d && cleaningOnly(d).length === 12); ok(S.wasRecovered()); });
   });
 
   test('18. CSV: BOM, quoted commas, umlauts, no formula injection', function () {
@@ -317,5 +321,93 @@
         ok(JSON.stringify(sent[0][1]).indexOf('LAC901') > 0, 'LAC901 is due today');
         day('2026-11-28'); return S.maybeSendDaily(post);   // Saturday
       }).then(function (r) { ok(!r); });
+  });
+
+  /* --- PM plan (PLAN 13e) ------------------------------------------- */
+
+  test('PM seed: 23 PM tools, real owners, LXP902 not installed, DFS901/PNP901 down from 16 Nov, PMs only where the Excel shows a date', function () {
+    return setup('2026-11-18').then(function () {
+      var pms = S.current().tools.filter(R.isPm);
+      eq(pms.length, 23);
+      eq(pmTool('LXP902').status, 'planned');
+      eq(pmTool('DFS901').status, 'down'); eq(pmTool('DFS901').down_from, '2026-11-16'); eq(pmTool('PNP901').down_until, null);
+      eq(pmTool('QVM901').mnt_owner, 'Khaled Ismail');
+      eq(pmOpen('QVM901').due_date, '2026-11-19');      // weekly, Thursday
+      eq(pmOpen('AOP901').due_date, '2026-11-26');      // every 4 weeks, Thursday
+      eq(pmOpen('BLY901'), undefined);                  // no start date yet -> no PM
+      eq(pmOpen('FIB901'), undefined);                  // no PM
+      eq(R.describeAny(pmTool('FIB901')), 'No PM');
+      eq(R.describeAny(pmTool('BLY901')), 'Every 4 weeks, no start date yet');
+      // names may repeat across the two lists
+      ok(tool('AOP901') && pmTool('AOP901') && tool('AOP901').id !== pmTool('AOP901').id);
+    });
+  });
+
+  test('PM board: own tools only, D on down days, red row for not installed, projected weekly PMs', function () {
+    return setup('2026-11-18').then(function () {
+      var b = S.board('2026-11-18', 'pm');
+      eq(b.rows.length, 23);
+      var dfs = b.rows.find(function (r) { return r.tool.name === 'DFS901'; });
+      eq(dfs.downDays, [true, true, true, true, true]);
+      var qvm = b.rows.find(function (r) { return r.tool.name === 'QVM901'; });
+      eq(qvm.cells[3].map(function (i) { return i.status; }), ['upcoming']);
+      var next = S.board('2026-11-25', 'pm').rows.find(function (r) { return r.tool.name === 'QVM901'; });
+      eq(next.cells[3].map(function (i) { return i.status; }), ['projected']);
+      eq(S.board('2026-11-18').rows.length, 12);       // cleaning board unchanged
+    });
+  });
+
+  test('PM done / postpone only by the Admin; next PM back on the pattern', function () {
+    return setup('2026-11-19').then(function () {
+      S.adminLogout();
+      return rejects(S.complete(pmOpen('QVM901').id, 'OP001'), 'forbidden');
+    }).then(function () { return S.adminLogin('ADMIN01', '1234'); })
+      .then(function () { return S.complete(pmOpen('QVM901').id, null, 'ok'); })
+      .then(function (r) {
+        eq(r.user.operator_id, 'ADMIN01');
+        eq(r.next.due_date, '2026-11-26');
+        return S.postpone(pmOpen('QVM901').id, null, '2026-11-28', 'parts');   // Saturday -> Monday
+      }).then(function (r) { eq(r.task.due_date, '2026-11-30'); });
+  });
+
+  test('PM down with dates: D only in the period, task not overdue while down, Back up sets next PM', function () {
+    var id;
+    return setup('2026-11-18').then(function () {
+      id = pmTool('PRF901').id;
+      return S.toolDown(id, 'spare part', '2026-11-23', '2026-11-25');
+    }).then(function () {
+      var r = S.board('2026-11-23', 'pm').rows.find(function (x) { return x.tool.id === id; });
+      eq(r.downDays, [true, true, true, false, false]);
+      eq(r.cells[3].map(function (i) { return i.status; }), ['projected']);   // Thu 26 after the down period
+      return rejects(S.toolDown(pmTool('AOI901').id, '', '2026-11-30', '2026-11-27'), 'baddate');
+    }).then(function () { return S.reactivate(id, '2026-11-24'); })
+      .then(function () { eq(pmTool('PRF901').status, 'active'); eq(pmTool('PRF901').down_from, null); eq(pmOpen('PRF901').due_date, '2026-11-24'); });
+  });
+
+  test('PM tool settings: no start date = no PM; set start date -> first PM; not installed removes it; seed button adds only missing', function () {
+    var id;
+    return setup('2026-11-18').then(function () {
+      var t = pmTool('BLY901'); id = t.id;
+      return S.saveTool({ id: id, name: 'BLY901', mnt_owner: t.mnt_owner, schedule_type: 'weeks', interval: 4, weekday: 2, start_date: '2026-11-01' });
+    }).then(function () {
+      eq(pmOpen('BLY901').due_date, '2026-12-01');   // pattern 3 Nov, 1 Dec ...: first one today or later
+      return S.saveTool({ id: id, name: 'BLY901', mnt_owner: 'x', schedule_type: 'weeks', interval: 4, weekday: 2, start_date: '2026-11-01', planned: true });
+    }).then(function () {
+      eq(pmTool('BLY901').status, 'planned'); eq(pmOpen('BLY901'), undefined);
+      return S.addPmTools();
+    }).then(function (added) { eq(added, []); });
+  });
+
+  test('History and Excel: Type column, PMs sheet', function () {
+    return setup('2026-11-19').then(function () { return S.complete(pmOpen('QVM901').id, null, ''); })
+      .then(function () {
+        eq(S.history({ type: 'PM', action: 'completed' }).length, 1);
+        eq(S.history({ type: 'Cleaning', action: 'completed' }).length, 0);
+        ok(S.historyCsv({}).indexOf('Date,Time,Type,Tool') > 0);
+        var pmRows = window.HCP.analytics.reportRows(S.current(), '2026-11-01', '2026-11-30', '2026-11-19', 'pm');
+        ok(pmRows.some(function (r) { return r.tool === 'QVM901' && r.done === '2026-11-19'; }));
+        ok(window.HCP.analytics.reportRows(S.current(), '2026-11-01', '2026-11-30', '2026-11-19').every(function (r) { return r.tool !== 'QVM901'; }));
+        ok(S.workbook('2026-11-01', '2026-11-30').length > 1000);
+      });
   });
 })();

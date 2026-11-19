@@ -44,6 +44,17 @@ Every PC must connect the **same** `data` folder on the share to see the same pl
 - **Print** prints the week (A4 landscape).
 - The board refreshes every minute, so changes from other PCs appear.
 
+## PM plan tab
+
+The **PM plan** tab is a second weekly grid for preventive maintenance, with its own tool list (Settings → PM tools).
+Everyone can see it; only the Admin (logged in) marks a PM done, postpones it, or sets a tool down.
+
+- **Red row** = not installed yet (no PM). Tick or untick "Not installed yet" in Settings → PM tools.
+- **D** = tool down. Click the tool name → Set down (from date, optional until date, reason) → D appears on every working day of that period. Back up asks for the next PM date.
+- A PM tool without a start date is listed but gets no PM until you set one.
+- Plans created before v0.8: Settings → PM tools → "Add PM tools from the Excel".
+- History has a Type column (Cleaning / PM); the Excel workbook has a PMs sheet.
+
 ## Teams reminder (optional)
 
 In the Teams channel: **Workflows → "Post to a channel when a webhook request is received"**, copy the URL into **Settings → General**, then press **Send test message**. Once per working day, the first person who opens the app sends "due today and overdue". (The page cannot read Teams' answer, so check the channel after the test.)

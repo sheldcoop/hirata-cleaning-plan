@@ -12,12 +12,13 @@ window.HCP.analytics = (function () {
   function byId(list) { var m = {}; list.forEach(function (x) { m[x.id] = x; }); return m; }
 
   /** One row per cleaning in [from, to] (by planned date, done date, or still open). */
-  function reportRows(data, from, to, today) {
+  /** kind: 'cleaning' (default) or 'pm' (PLAN 13e). */
+  function reportRows(data, from, to, today, kind) {
     var tools = byId(data.tools), users = byId(data.users);
     var rows = [];
     data.tasks.forEach(function (t) {
       var tool = tools[t.tool_id];
-      if (!tool) return;
+      if (!tool || !R.ofKind(tool, kind || 'cleaning')) return;
       var doneDate = t.status === 'completed' ? String(t.completed_at).slice(0, 10) : '';
       var planned = t.pattern_date;
       var inRange = function (d) { return d && d >= from && d <= to; };
@@ -28,7 +29,7 @@ window.HCP.analytics = (function () {
       if (t.status === 'completed') {
         late = Math.max(0, R.diffDays(planned, doneDate));
         status = late ? 'Done late' : 'Done on time';
-      } else if (tool.status === 'down') {
+      } else if (R.downOn(tool, today)) {
         status = 'Tool down';
       } else if (t.due_date < today) {
         late = Math.max(0, R.diffDays(planned, today));
@@ -38,7 +39,7 @@ window.HCP.analytics = (function () {
       }
       var u = users[t.completed_by];
       rows.push({
-        tool: tool.name, planned: planned, due: t.due_date, done: doneDate,
+        tool: tool.name, mnt_owner: tool.mnt_owner || '', planned: planned, due: t.due_date, done: doneDate,
         time: t.status === 'completed' ? String(t.completed_at).slice(11, 16) : '',
         days_late: late, who: u ? u.name : '', postponed: t.postpone_count || 0,
         reason: t.last_postpone_reason || '', comment: t.completion_comment || '', status: status,

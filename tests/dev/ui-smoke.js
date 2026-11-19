@@ -52,14 +52,14 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(btn('Create new plan'), 1500);
   ok(w.__files['hirata_data.json'], 'plan file written');
   ok(d.body.textContent.includes('Admin: Khurana'), 'logged in as Admin: ' + d.body.textContent.slice(0, 400) + errors.join('|'));
-  ok($$('.tab').length === 4, 'settings tabs shown');
+  ok($$('.tab').length === 5, 'settings tabs shown');
 
   step = 'settings: users';
   await click($$('.tab').find(t => t.textContent === 'Users'));
   ok(d.body.textContent.includes('Talal AL-EFFAH') && !d.body.textContent.includes('Test Operator'), 'real operators listed, no demo names');
 
   step = 'settings: add tool';
-  await click($$('.tab').find(t => t.textContent === 'Tools'));
+  await click($$('.tab').find(t => t.textContent === 'Cleaning tools'));
   ok($$('table.list tbody tr').length === 12, '12 tools listed');
   await click(btn('+ Add tool'));
   const m = $('.modal');
@@ -76,7 +76,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($$('table.grid tbody tr').length === 13, 'rows: ' + $$('table.grid tbody tr').length);
   await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]'));
   ok($$('.chip.s-projected').length > 0, 'projected cells in a later week');
-  await click(btn('Today'));
+  { const tb = btn('Today'); if (tb) await click(tb); }
   // jump to the week with the first cleanings (Tuesday on/after today)
   let guard = 0;
   while (!$('button.chip') && guard++ < 3) await click($('[aria-label="Next week"]'));
@@ -133,7 +133,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($$('.toast').some(t => t.textContent.includes('postponed to')), 'moved by drag');
 
   step = 'future cycle';
-  await click(btn('Today'));
+  { const tb = btn('Today'); if (tb) await click(tb); }
   let g2 = 0; while (!$('button.chip.admin.s-projected') && g2++ < 4) await click($('[aria-label="Next week"]'));
   const cyc = $('button.chip.admin.s-projected');
   ok(cyc, 'admin can click a next cycle');
@@ -143,7 +143,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($('button.chip.s-skipped'), 'skipped cycle shown');
   await click($('button.chip.s-skipped')); await click(btn('Back to normal date')); await click(btn('Yes, restore'), 400);
   ok(!$('button.chip.s-skipped'), 'restored');
-  await click(btn('Today'));
+  { const tb = btn('Today'); if (tb) await click(tb); }
 
   step = 'tool down';
   await click($('.tool-name'));
@@ -152,6 +152,31 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(btn('Continue'));
   await click(btn('Yes, set down'), 400);
   ok($$('.badge.down').length === 1, 'DOWN badge');
+
+  step = 'pm plan';
+  w.location.hash = '#pm'; await wait(200);
+  ok($$('.pm-grid tbody tr').length === 23, 'PM rows: ' + $$('.pm-grid tbody tr').length);
+  ok($$('.pm-grid tr.is-planned').length === 1, 'LXP902 red row');
+  ok($$('.pm-grid .dbox.big').length >= 10, 'D boxes for DFS901 and PNP901');
+  let pmChip = $$('.pm-grid button.chip')[0];
+  ok(pmChip, 'a PM chip');
+  await click(pmChip);
+  await click(btn('Done'));
+  await click(btn('Continue'));
+  await click(btn('Yes, done'), 600);
+  ok(d.body.textContent.includes('PM done'), 'PM done toast');
+  ok($$('.pm-grid .chip.s-done').length >= 1, 'done chip shown');
+  await click($$('.pm-grid .tool-name').find(b => b.textContent === 'AOI901'));
+  await click(btn('Set down'));
+  await click(btn('Continue'));
+  await click(btn('Yes, set down'), 600);
+  ok($$('.pm-grid tr.is-down').length >= 3, 'AOI901 down');
+  w.location.hash = '#settings'; await wait(200);
+  await click($$('.tab').find(t => t.textContent === 'PM tools'));
+  ok(d.body.textContent.includes('Not installed') && d.body.textContent.includes('no start date yet'), 'PM tools list');
+  await click($$('button').find(b => b.textContent === 'Edit'));
+  ok($('.modal') && d.querySelector('.modal').textContent.includes('Not installed yet'), 'PM tool form');
+  await click(btn('Cancel'));
 
   step = 'history + export';
   w.location.hash = '#history'; await wait(200);

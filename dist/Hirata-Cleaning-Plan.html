@@ -458,6 +458,24 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 .grid.focus-today .chip.s-today, .grid.focus-overdue .chip.s-overdue { box-shadow: 0 0 0 3px color-mix(in srgb, var(--chip-c) 40%, transparent) !important; }
 .legend-item .med.m-projected { color: var(--k-next-fg); box-shadow: inset 0 0 0 1.5px var(--k-next-fg); }
 
+
+/* ---------- v0.8: PM plan tab (red = not installed, D = down) ---------- */
+:root, [data-theme="white"] { --pm-d: #e8742c; --pm-d-fg: #ffffff; --pm-ni: #c00000; --pm-ni-bg: #f7d4d4; }
+[data-theme="teal"] { --pm-d: #d9652a; --pm-d-fg: #ffffff; --pm-ni: #ff5a52; --pm-ni-bg: #4a1c1c; }
+.dbox { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; background: var(--pm-d); color: var(--pm-d-fg); font-weight: 800; font-size: 12px; }
+.dbox.big { width: 100%; height: 34px; margin: 2px 0; font-size: 15px; border-radius: 8px; letter-spacing: .5px; }
+.nibox { display: inline-block; width: 20px; height: 20px; border-radius: 4px; background: var(--pm-ni); }
+.pm-grid tr.is-planned td { background: var(--pm-ni-bg); }
+.pm-grid tr.is-planned .tool-col { box-shadow: inset 4px 0 0 var(--pm-ni); }
+.pm-grid tr.is-planned .tool-name { color: var(--pm-ni); }
+.badge.notinst { background: var(--pm-ni); color: #fff; }
+.badge.down.soft { opacity: .75; }
+.med.m-notinst { --c: var(--pm-ni); }
+.t-planned-tool { --tile-accent: var(--pm-ni); }
+.pm-grid .tool-meta { padding-left: 2px; }
+.type-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: var(--k-sched-bg); color: var(--k-sched-fg); }
+.type-tag.is-pm { background: var(--k-post-bg); color: var(--k-post-fg); }
+
 </style>
 </head>
 <body>
@@ -474,7 +492,7 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 window.HCP = window.HCP || {};
 window.HCP.config = {
   app_name: 'Hirata Cleaning Plan',
-  version: '0.7.0',
+  version: '0.8.0',
   idb_name: 'hirata-cleaning-plan',   // remembers the data folder per PC
   data_file: 'hirata_data.json',
   prev_file: 'hirata_data.prev.json',
@@ -645,12 +663,36 @@ window.HCP.rules = (function () {
     return '';
   }
 
+  /* --- PM tools (13e) ---------------------------------------------- */
+
+  function isPm(tool) { return !!tool && tool.kind === 'pm'; }
+  /** True when the tool belongs to the list `kind` ('pm' or 'cleaning'). */
+  function ofKind(tool, kind) { return kind === 'pm' ? isPm(tool) : !isPm(tool); }
+  /** A tool gets scheduled tasks only when installed and its schedule is complete. */
+  function hasSchedule(tool) {
+    return !!tool && tool.status !== 'planned' && tool.schedule_type !== 'none' && !validateSchedule(tool);
+  }
+  /** Down on this date? Cleaning tools: down from the moment they were set down (no dates).
+   *  PM tools: from down_from, until down_until (optional). */
+  function downOn(tool, date) {
+    if (!tool || tool.status !== 'down') return false;
+    if (tool.down_from && date < tool.down_from) return false;
+    if (tool.down_until && date > tool.down_until) return false;
+    return true;
+  }
+  function describeAny(tool) {
+    if (tool.status === 'planned') return 'Not installed';
+    if (tool.schedule_type === 'none') return 'No PM';
+    if (!hasSchedule(tool)) return (tool.interval ? (tool.interval === 1 ? 'Every week' : 'Every ' + tool.interval + ' weeks') + ', ' : '') + 'no start date yet';
+    return describeSchedule(tool);
+  }
+
   /* --- Status (R1) -------------------------------------------------- */
 
   /** done | down | overdue | today | postponed | upcoming */
   function taskStatus(task, tool, todayStr) {
     if (task.status === 'completed') return 'done';
-    if (tool && tool.status === 'down') return 'down';
+    if (tool && downOn(tool, todayStr)) return 'down';
     if (task.due_date < todayStr) return 'overdue';
     if (task.due_date === todayStr) return 'today';
     if (task.postpone_count > 0) return 'postponed';
@@ -663,14 +705,14 @@ window.HCP.rules = (function () {
    * -> { monday, days: [5 dates], rows: [{tool, cells: [[item]x5], hasItems}] }
    * item: {kind: 'task'|'projected', task?, date, status, carried?}
    */
-  function buildBoard(data, weekDate, todayStr) {
+  function buildBoard(data, weekDate, todayStr, kind) {
     var monday = mondayOf(weekDate);
     var friday = addDays(monday, 4);
     var days = [0, 1, 2, 3, 4].map(function (i) { return addDays(monday, i); });
     var thisWeek = mondayOf(todayStr) === monday;
     var carryCol = days.indexOf(toPrevWorkingDay(todayStr));
 
-    var tools = data.tools.filter(function (t) { return !t.archived; })
+    var tools = data.tools.filter(function (t) { return !t.archived && ofKind(t, kind || 'cleaning'); })
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
 
     var rows = tools.map(function (tool) {
@@ -695,13 +737,17 @@ window.HCP.rules = (function () {
         }
       });
 
-      if (tool.status !== 'down' && openScheduled) {
+      var openEnded = tool.status === 'down' && !tool.down_until;
+      if (!openEnded && openScheduled && tool.status !== 'planned') {
         projected(tool, openScheduled, monday, friday, data.exceptions).forEach(function (p) {
+          if (downOn(tool, p.date)) return;
           cells[days.indexOf(p.date)].push({ kind: 'projected', date: p.date, status: 'projected', pattern: p.pattern, nominal: p.nominal, moved: p.moved, skipped: p.skipped });
         });
       }
       var hasItems = cells.some(function (c) { return c.length > 0; });
-      return { tool: tool, cells: cells, hasItems: hasItems };
+      // PM tab: D on every working day of a down period
+      var downDays = days.map(function (d) { return isPm(tool) && downOn(tool, d); });
+      return { tool: tool, cells: cells, hasItems: hasItems || downDays.indexOf(true) >= 0, downDays: downDays };
     });
 
     return { monday: monday, days: days, rows: rows, isThisWeek: thisWeek };
@@ -713,7 +759,7 @@ window.HCP.rules = (function () {
     data.tasks.forEach(function (t) {
       if (t.status !== 'open') return;
       var tool = data.tools.find(function (x) { return x.id === t.tool_id; });
-      if (!tool || tool.archived || tool.status === 'down') return;
+      if (!tool || tool.archived || isPm(tool) || downOn(tool, todayStr)) return;
       if (t.due_date < todayStr) out.overdue.push({ tool: tool.name, date: t.due_date });
       else if (t.due_date === todayStr) out.today.push({ tool: tool.name, date: t.due_date });
     });
@@ -730,7 +776,7 @@ window.HCP.rules = (function () {
     firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
     validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
-    dailySummary: dailySummary
+    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny
   };
 })();
 
@@ -966,6 +1012,35 @@ window.HCP.store = (function () {
   // The real operators (from the cleaning plan Excel). Admins can add/edit/deactivate in Settings.
   var SEED_OPERATORS = ['Valeriia Kyrychenko', 'Mohamed Ibrahem', 'Kent Derrens Plugio', 'Anja KRALJ', 'Volodymyr SAMBURSKYI', 'Talal AL-EFFAH'];
 
+  // PM tools (PLAN 13e), from the PM Excel of WW47 2026.
+  // [name, MNT owner, every N weeks (0 = no PM), start date or '', state: '' | 'planned' | 'down']
+  var SEED_PM = [
+    ['AOP901', 'Breitenberger Gerhard', 4, '2026-11-26', ''],
+    ['BLY901', 'Corpuz Jomari', 4, '', ''],
+    ['LAC901', 'Chen Cong', 4, '', ''],
+    ['LUV901', 'Chen Cong', 4, '', ''],
+    ['DEY901 DSM', 'Jeffrey Untalan', 4, '', ''],
+    ['DEY901 ELP', 'Jeffrey Untalan', 4, '', ''],
+    ['ACY901 ACP', 'Breitenberger Gerhard', 4, '', ''],
+    ['ACY901 DFL', 'Aboutahir Fatima Zahra', 4, '', ''],
+    ['LXP902', '', 0, '', 'planned'],
+    ['DPM901', 'Anand Gopal', 4, '', ''],
+    ['ECP901', 'De Los Santos Tristan', 4, '', ''],
+    ['DFS901', 'Thomas Kelly', 4, '', 'down'],
+    ['OVC901', 'Kayvan Darvishifard', 4, '', ''],
+    ['AOI901', 'Khaled Ismail', 2, '', ''],
+    ['FIB901', '', 0, '', ''],
+    ['QVM901', 'Khaled Ismail', 1, '2026-11-19', ''],
+    ['PRF901', 'Khaled Ismail', 1, '2026-11-19', ''],
+    ['HRM901', '', 0, '', ''],
+    ['NCC901', 'Mokhberi Alireza', 4, '', ''],
+    ['EXC901', 'Mokhberi Alireza', 2, '', ''],
+    ['TLA901', 'Aboutahir Fatima Zahra', 4, '', ''],
+    ['PNP901', 'Patrick Scheickl', 4, '', 'down'],
+    ['CPM901', 'De Los Santos Tristan', 4, '2026-11-26', '']
+  ];
+  var SEED_PM_DOWN_FROM = '2026-11-16';
+
   /* --- Small helpers ------------------------------------------------ */
 
   function err(code, msg) { var e = new Error(msg); e.code = code; return e; }
@@ -1047,6 +1122,39 @@ window.HCP.store = (function () {
 
   function openScheduled(d, toolId) {
     return d.tasks.find(function (t) { return t.tool_id === toolId && t.status === 'open' && !t.is_one_off; }) || null;
+  }
+
+  /** First scheduled task date for a tool: first rule date on or after its start date,
+   *  stepped forward along the pattern so it is never in the past. */
+  function firstFrom(tool) {
+    var r = R.firstRuleDate(tool, tool.start_date);
+    var today = R.today();
+    for (var i = 0; i < 2000 && r.pattern < today; i++) r = R.stepRule(tool, r.nominal);
+    return r;
+  }
+
+  function pmToolFromSeed(s) {
+    var tool = {
+      id: newId('tool'), kind: 'pm', name: s[0], tool_owner: '', mnt_owner: s[1],
+      schedule_type: s[2] ? 'weeks' : 'none', interval: s[2] || null, weekday: s[3] ? R.weekday(s[3]) : null, month_day: null,
+      start_date: s[3], status: s[4] === 'planned' ? 'planned' : s[4] === 'down' ? 'down' : 'active',
+      down_reason: '', down_since: null, down_from: null, down_until: null, archived: false
+    };
+    if (tool.status === 'down') { tool.down_from = SEED_PM_DOWN_FROM; tool.down_since = SEED_PM_DOWN_FROM + 'T00:00:00'; }
+    return tool;
+  }
+
+  /** Adds the PM tools from the Excel that are not in the plan yet (by name). -> names added */
+  function seedPm(d) {
+    var added = [];
+    SEED_PM.forEach(function (s) {
+      if (d.tools.some(function (t) { return R.isPm(t) && t.name.toUpperCase() === s[0]; })) return;
+      var tool = pmToolFromSeed(s);
+      d.tools.push(tool);
+      if (R.hasSchedule(tool)) d.tasks.push(makeTask(tool.id, firstFrom(tool)));
+      added.push(tool.name);
+    });
+    return added;
   }
 
   /** R2/R4: create the next scheduled task unless one is already open. */
@@ -1178,6 +1286,7 @@ window.HCP.store = (function () {
         d.tools.push(tool);
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
       });
+      seedPm(d);
       return adapter.write(cfg.data_file, JSON.stringify(d, null, 1)).then(function () { data = d; return d; });
     });
   }
@@ -1191,12 +1300,17 @@ window.HCP.store = (function () {
     return t;
   }
 
+  /** Who acts: PM tasks only by the logged-in Admin (13e); cleanings by the chosen person. */
+  function actor(d, tool, operatorId) {
+    return R.isPm(tool) ? requireAdmin(d) : userByOperatorId(d, operatorId);
+  }
+
   /** R6 */
   function complete(taskId, operatorId, comment) {
     return mutate(function (d) {
-      var u = userByOperatorId(d, operatorId);
       var t = openTaskOrThrow(d, taskId);
       var tool = find(d.tools, t.tool_id);
+      var u = actor(d, tool, operatorId);
       var before = { status: t.status, completed_by: t.completed_by, completed_at: t.completed_at, completion_comment: t.completion_comment };
       t.status = 'completed';
       t.completed_by = u.id;
@@ -1212,8 +1326,8 @@ window.HCP.store = (function () {
   /** R5. newDate and reason optional. -> {task, movedFromWeekend} */
   function postpone(taskId, operatorId, newDate, reason) {
     return mutate(function (d) {
-      var u = userByOperatorId(d, operatorId);
       var t = openTaskOrThrow(d, taskId);
+      var u = actor(d, find(d.tools, t.tool_id), operatorId);
       var today = R.today(), target, moved = false;
       if (clean(newDate)) {
         if (!R.isDate(newDate)) throw err('baddate', 'Enter a valid new date.');
@@ -1329,7 +1443,7 @@ window.HCP.store = (function () {
       hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'task_deleted', user_id: a.id, old_date: t.due_date });
       var tool = find(d.tools, t.tool_id);
       var next = null;
-      if (!t.is_one_off && tool && !tool.archived) next = ensureNext(d, tool, t, R.addDays(R.today(), -1));
+      if (!t.is_one_off && tool && !tool.archived && R.hasSchedule(tool)) next = ensureNext(d, tool, t, R.addDays(R.today(), -1));
       return { next: next };
     }, 'admin');
   }
@@ -1408,28 +1522,35 @@ window.HCP.store = (function () {
 
   /* --- Admin: tools ------------------------------------------------- */
 
-  var TOOL_FIELDS = ['name', 'tool_owner', 'mnt_owner', 'schedule_type', 'interval', 'weekday', 'month_day', 'start_date'];
+  var TOOL_FIELDS = ['name', 'tool_owner', 'mnt_owner', 'schedule_type', 'interval', 'weekday', 'month_day', 'start_date', 'status'];
 
   function normalizeTool(input) {
     var t = {
       name: clean(input.name).toUpperCase(),
       tool_owner: clean(input.tool_owner),
       mnt_owner: clean(input.mnt_owner),
-      schedule_type: input.schedule_type === 'months' ? 'months' : 'weeks',
+      schedule_type: input.schedule_type === 'months' ? 'months' : input.schedule_type === 'none' ? 'none' : 'weeks',
       interval: parseInt(input.interval, 10),
       weekday: input.weekday == null || input.weekday === '' ? null : parseInt(input.weekday, 10),
       month_day: input.month_day == null || input.month_day === '' ? null : parseInt(input.month_day, 10),
       start_date: clean(input.start_date)
     };
     if (t.schedule_type === 'weeks') t.month_day = null; else t.weekday = null;
+    if (t.schedule_type === 'none') { t.interval = null; t.start_date = ''; }
+    if (isNaN(t.interval)) t.interval = null;
     return t;
   }
 
   function validateTool(d, t, id) {
     if (!t.name) return 'Enter the tool name.';
     if (t.name.length > 40) return 'The tool name is too long.';
-    var dup = d.tools.find(function (x) { return x.id !== id && x.name.toUpperCase() === t.name; });
+    var dup = d.tools.find(function (x) { return x.id !== id && R.ofKind(x, t.kind) && x.name.toUpperCase() === t.name; });
     if (dup) return 'A tool named "' + t.name + '" already exists' + (dup.archived ? ' (archived).' : '.');
+    if (t.kind === 'pm' && (t.schedule_type === 'none' || !t.start_date)) {
+      // PM tools may have no PM, or no start date yet (13e)
+      if (t.schedule_type !== 'none' && t.interval != null && !(t.interval >= 1 && t.interval <= 52)) return 'Repeat every: enter a whole number from 1 to 52.';
+      return '';
+    }
     return R.validateSchedule(t);
   }
 
@@ -1438,26 +1559,38 @@ window.HCP.store = (function () {
     return mutate(function (d) {
       var a = requireAdmin(d);
       var t = normalizeTool(input);
+      var existing = input.id ? find(d.tools, input.id) : null;
+      t.kind = existing ? (R.isPm(existing) ? 'pm' : undefined) : (input.kind === 'pm' ? 'pm' : undefined);
+      // installed / not installed (PM tools); a down tool stays down
+      var cur = existing ? existing.status : 'active';
+      t.status = input.planned ? 'planned' : (cur === 'planned' ? 'active' : cur);
       var msg = validateTool(d, t, input.id);
       if (msg) throw err('invalid', msg);
 
       if (!input.id) {
-        var tool = Object.assign({ id: newId('tool'), status: 'active', down_reason: '', down_since: null, archived: false }, t);
+        var tool = Object.assign({ id: newId('tool'), down_reason: '', down_since: null, down_from: null, down_until: null, archived: false }, t);
+        if (!tool.kind) delete tool.kind;
         d.tools.push(tool);
-        d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
+        if (R.hasSchedule(tool)) d.tasks.push(makeTask(tool.id, tool.kind === 'pm' ? firstFrom(tool) : R.firstRuleDate(tool, tool.start_date)));
         hist(d, { tool_id: tool.id, action: 'tool_changed', user_id: a.id, comment: 'Tool added: ' + R.describeSchedule(tool) });
         return tool;
       }
 
-      var old = find(d.tools, input.id);
+      var old = existing;
       if (!old) throw err('notfound', 'This tool no longer exists.');
+      if (!t.kind) delete t.kind;
       var changes = TOOL_FIELDS.filter(function (f) { return String(old[f]) !== String(t[f]); });
       if (!changes.length) return old;
-      var scheduleChanged = changes.some(function (f) { return ['schedule_type', 'interval', 'weekday', 'month_day', 'start_date'].indexOf(f) >= 0; });
+      var scheduleChanged = changes.some(function (f) { return ['schedule_type', 'interval', 'weekday', 'month_day', 'start_date', 'status'].indexOf(f) >= 0; });
       var before = R.describeSchedule(old);
       Object.assign(old, t);
+      if (old.status === 'planned') { old.down_reason = ''; old.down_since = null; old.down_from = null; old.down_until = null; }
       if (scheduleChanged) d.exceptions = (d.exceptions || []).filter(function (e) { return e.tool_id !== old.id; });
-      if (scheduleChanged && old.status !== 'down') {
+      if (scheduleChanged && !R.hasSchedule(old)) {
+        // no PM any more (not installed / no schedule): drop the open scheduled task
+        var gone = openScheduled(d, old.id);
+        if (gone) d.tasks.splice(d.tasks.indexOf(gone), 1);
+      } else if (scheduleChanged && old.status !== 'down') {
         var open = openScheduled(d, old.id);
         if (open) {
           // R11: realign from the old pattern date (or the new start date when it changed)
@@ -1466,7 +1599,7 @@ window.HCP.store = (function () {
           open.pattern_date = r.pattern; open.nominal_date = r.nominal; open.due_date = r.pattern;
           open.postpone_count = 0; open.last_postpone_reason = '';
         } else {
-          d.tasks.push(makeTask(old.id, R.firstRuleDate(old, R.maxDate(old.start_date, R.today()))));
+          d.tasks.push(makeTask(old.id, R.isPm(old) ? firstFrom(old) : R.firstRuleDate(old, R.maxDate(old.start_date, R.today()))));
         }
       }
       hist(d, { tool_id: old.id, action: 'tool_changed', user_id: a.id,
@@ -1482,7 +1615,7 @@ window.HCP.store = (function () {
       var tool = find(d.tools, toolId);
       if (!tool) throw err('notfound', 'This tool no longer exists.');
       tool.archived = !!archived;
-      if (!archived && tool.status !== 'down' && !openScheduled(d, tool.id)) {
+      if (!archived && tool.status !== 'down' && R.hasSchedule(tool) && !openScheduled(d, tool.id)) {
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, R.maxDate(tool.start_date, R.today()))));
       }
       hist(d, { tool_id: tool.id, action: 'tool_changed', user_id: a.id, comment: archived ? 'Tool archived' : 'Tool restored' });
@@ -1491,14 +1624,22 @@ window.HCP.store = (function () {
   }
 
   /** R7 */
-  function toolDown(toolId, reason) {
+  /** R7. PM tools (13e): optional from / until dates (from defaults to today). */
+  function toolDown(toolId, reason, from, until) {
     return mutate(function (d) {
       var a = requireAdmin(d);
       var tool = find(d.tools, toolId);
       if (!tool) throw err('notfound', 'This tool no longer exists.');
       if (tool.status === 'down') throw err('conflict', 'This tool is already down.');
+      if (tool.status === 'planned') throw err('conflict', 'This tool is not installed yet.');
+      var f = clean(from) || R.today(), u = clean(until) || null;
+      if (!R.isDate(f)) throw err('baddate', 'Enter a valid "down from" date.');
+      if (u && !R.isDate(u)) throw err('baddate', 'Enter a valid "until" date.');
+      if (u && u < f) throw err('baddate', 'The "until" date cannot be before the "from" date.');
       tool.status = 'down'; tool.down_reason = clean(reason); tool.down_since = nowStamp();
-      hist(d, { tool_id: tool.id, action: 'tool_down', user_id: a.id, reason: reason });
+      tool.down_from = R.isPm(tool) ? f : null; tool.down_until = R.isPm(tool) ? u : null;
+      hist(d, { tool_id: tool.id, action: 'tool_down', user_id: a.id, reason: reason,
+        new_date: R.isPm(tool) ? f : null, comment: R.isPm(tool) && u ? 'Down until ' + R.longDate(u) : '' });
       return tool;
     }, 'admin');
   }
@@ -1509,10 +1650,15 @@ window.HCP.store = (function () {
       var tool = find(d.tools, toolId);
       if (!tool) throw err('notfound', 'This tool no longer exists.');
       if (tool.status !== 'down') throw err('conflict', 'This tool is not down.');
+      if (!R.hasSchedule(tool)) {
+        tool.status = 'active'; tool.down_reason = ''; tool.down_since = null; tool.down_from = null; tool.down_until = null;
+        hist(d, { tool_id: tool.id, action: 'reactivated', user_id: a.id });
+        return tool;
+      }
       if (!R.isDate(date)) throw err('baddate', 'Choose the date of the next cleaning.');
       if (R.isWeekend(date)) throw err('baddate', 'Choose a working day (Monday to Friday).');
       if (date < R.today()) throw err('baddate', 'The date cannot be in the past.');
-      tool.status = 'active'; tool.down_reason = ''; tool.down_since = null;
+      tool.status = 'active'; tool.down_reason = ''; tool.down_since = null; tool.down_from = null; tool.down_until = null;
       var open = openScheduled(d, tool.id);
       if (open) {
         open.pattern_date = date; open.nominal_date = date; open.due_date = date;
@@ -1593,37 +1739,51 @@ window.HCP.store = (function () {
     }, 'admin');
   }
 
+  /** Adds the PM tools from the Excel that are missing (for plans created before the PM tab). */
+  function addPmTools() {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var added = seedPm(d);
+      if (added.length) hist(d, { action: 'tool_changed', user_id: a.id, comment: 'PM tools added from the Excel: ' + added.join(', ') });
+      return added;
+    }, 'admin');
+  }
+
   /* --- Reading for screens ------------------------------------------ */
 
   function userName(d, id) { var u = find(d.users, id); return u ? u.name : ''; }
 
-  function board(weekDate) { return R.buildBoard(data, weekDate, R.today()); }
+  function board(weekDate, kind) { return R.buildBoard(data, weekDate, R.today(), kind || 'cleaning'); }
 
   var ACTION_LABELS = {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
-    reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Cleaning deleted',
+    reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Deleted',
     tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
     cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
   };
 
-  /** filters: {toolId, action, from, to} (dates inclusive) */
+  /** filters: {toolId, action, from, to, type: 'Cleaning'|'PM'} (dates inclusive) */
   function history(filters) {
     var f = filters || {};
     var d = data;
     return d.history.filter(function (h) {
       var day = h.at.slice(0, 10);
+      var type = typeOf(find(d.tools, h.tool_id));
       return (!f.toolId || h.tool_id === f.toolId) && (!f.action || h.action === f.action) &&
-        (!f.from || day >= f.from) && (!f.to || day <= f.to);
+        (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.type || type === f.type);
     }).map(function (h) {
       var tool = find(d.tools, h.tool_id), u = find(d.users, h.user_id);
       return {
-        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '',
+        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '', type: typeOf(tool),
         action: h.action, action_label: ACTION_LABELS[h.action] || h.action,
         who: u ? u.name : '', operator_id: u ? u.operator_id : '',
         old_date: h.old_date || '', new_date: h.new_date || '', reason: h.reason || '', comment: h.comment || ''
       };
     }).sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
   }
+
+  /** Cleaning | PM | '' (history rows without a tool, e.g. user changes). */
+  function typeOf(tool) { return !tool ? '' : R.isPm(tool) ? 'PM' : 'Cleaning'; }
 
   function csvCell(v) {
     var s = String(v == null ? '' : v);
@@ -1633,9 +1793,9 @@ window.HCP.store = (function () {
 
   /** UTF-8 with BOM so Excel shows umlauts correctly. */
   function historyCsv(filters) {
-    var head = ['Date', 'Time', 'Tool', 'Action', 'Who', 'Short ID', 'Old date', 'New date', 'Reason', 'Comment'];
+    var head = ['Date', 'Time', 'Type', 'Tool', 'Action', 'Who', 'Short ID', 'Old date', 'New date', 'Reason', 'Comment'];
     var lines = [head.join(',')].concat(history(filters).map(function (r) {
-      return [r.date, r.time, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
+      return [r.date, r.time, r.type, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
     }));
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
@@ -1648,9 +1808,15 @@ window.HCP.store = (function () {
     ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
   ];
 
+  var PM_COLS = [
+    ['Tool', 'tool', 12, 'text'], ['MNT owner', 'mnt_owner', 24, 'text'], ['Planned date', 'planned', 13, 'date'], ['Current date', 'due', 13, 'date'],
+    ['Done date', 'done', 12, 'date'], ['Days late', 'days_late', 10, 'number'], ['Who', 'who', 20, 'text'], ['Times postponed', 'postponed', 15, 'number'],
+    ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
+  ];
+
   /** One row per cleaning, as CSV (UTF-8 with BOM). */
   function reportCsv(from, to) {
-    var rows = window.HCP.analytics.reportRows(data, from, to, R.today());
+    var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), 'cleaning');
     var lines = [REPORT_COLS.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
       return REPORT_COLS.map(function (c) { return csvCell(r[c[1]]); }).join(',');
     }));
@@ -1661,6 +1827,7 @@ window.HCP.store = (function () {
   function workbook(from, to) {
     var A = window.HCP.analytics, X = window.HCP.xlsx;
     var st = A.stats(data, from, to, R.today());
+    var pmRows = A.reportRows(data, from, to, R.today(), 'pm');
     var col = function (h, w, t) { return { header: h, width: w, type: t || 'text' }; };
     var hist = history({ from: from, to: to }).slice().reverse();
     return X.build([
@@ -1670,15 +1837,18 @@ window.HCP.store = (function () {
           .concat([['ALL', st.kpi.planned, st.kpi.done, null, st.kpi.onTimePct, st.kpi.avgLate, st.kpi.postponements, st.kpi.overdueNow]]) },
       { name: 'Cleanings', columns: REPORT_COLS.map(function (c) { return col(c[0], c[2], c[3]); }),
         rows: st.rows.map(function (r) { return REPORT_COLS.map(function (c) { return r[c[1]]; }); }) },
+      { name: 'PMs', columns: PM_COLS.map(function (c) { return col(c[0], c[2], c[3]); }),
+        rows: pmRows.map(function (r) { return PM_COLS.map(function (c) { return r[c[1]]; }); }) },
       { name: 'Operators', columns: [col('Who', 26), col('Cleanings done', 15, 'number'), col('On time', 9, 'number')],
         rows: st.byOperator.map(function (o) { return [o.who, o.done, o.onTime]; }) },
       { name: 'Postpone reasons', columns: [col('Reason', 40), col('Times', 8, 'number')],
         rows: st.topReasons.map(function (r) { return [r.reason, r.count]; }) },
-      { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Tool', 10), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
-        rows: hist.map(function (r) { return [r.date, r.time, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
-      { name: 'Tools', columns: [col('Tool', 10), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
-        rows: data.tools.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (t) {
-          return [t.name, R.describeSchedule(t), t.start_date, t.tool_owner, t.mnt_owner, t.archived ? 'Archived' : t.status === 'down' ? 'Down' : 'Active'];
+      { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Type', 10), col('Tool', 12), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
+        rows: hist.map(function (r) { return [r.date, r.time, r.type, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
+      { name: 'Tools', columns: [col('Type', 10), col('Tool', 12), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
+        rows: data.tools.slice().sort(function (a, b) { return typeOf(a).localeCompare(typeOf(b)) || a.name.localeCompare(b.name); }).map(function (t) {
+          return [typeOf(t), t.name, R.describeAny(t), t.start_date || null, t.tool_owner, t.mnt_owner,
+            t.archived ? 'Archived' : t.status === 'down' ? 'Down' : t.status === 'planned' ? 'Not installed' : 'Active'];
         }) }
     ]);
   }
@@ -1733,7 +1903,7 @@ window.HCP.store = (function () {
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
-    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, SEED_OPERATORS: SEED_OPERATORS,
+    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin
@@ -1757,12 +1927,13 @@ window.HCP.analytics = (function () {
   function byId(list) { var m = {}; list.forEach(function (x) { m[x.id] = x; }); return m; }
 
   /** One row per cleaning in [from, to] (by planned date, done date, or still open). */
-  function reportRows(data, from, to, today) {
+  /** kind: 'cleaning' (default) or 'pm' (PLAN 13e). */
+  function reportRows(data, from, to, today, kind) {
     var tools = byId(data.tools), users = byId(data.users);
     var rows = [];
     data.tasks.forEach(function (t) {
       var tool = tools[t.tool_id];
-      if (!tool) return;
+      if (!tool || !R.ofKind(tool, kind || 'cleaning')) return;
       var doneDate = t.status === 'completed' ? String(t.completed_at).slice(0, 10) : '';
       var planned = t.pattern_date;
       var inRange = function (d) { return d && d >= from && d <= to; };
@@ -1773,7 +1944,7 @@ window.HCP.analytics = (function () {
       if (t.status === 'completed') {
         late = Math.max(0, R.diffDays(planned, doneDate));
         status = late ? 'Done late' : 'Done on time';
-      } else if (tool.status === 'down') {
+      } else if (R.downOn(tool, today)) {
         status = 'Tool down';
       } else if (t.due_date < today) {
         late = Math.max(0, R.diffDays(planned, today));
@@ -1783,7 +1954,7 @@ window.HCP.analytics = (function () {
       }
       var u = users[t.completed_by];
       rows.push({
-        tool: tool.name, planned: planned, due: t.due_date, done: doneDate,
+        tool: tool.name, mnt_owner: tool.mnt_owner || '', planned: planned, due: t.due_date, done: doneDate,
         time: t.status === 'completed' ? String(t.completed_at).slice(11, 16) : '',
         days_late: late, who: u ? u.name : '', postponed: t.postpone_count || 0,
         reason: t.last_postpone_reason || '', comment: t.completion_comment || '', status: status,
@@ -2250,7 +2421,7 @@ window.HCP.views.board = (function () {
     // overdue counts every open overdue cleaning (also from earlier weeks)
     c.overdueAll = S.current().tasks.filter(function (t) {
       var tool = S.current().tools.find(function (x) { return x.id === t.tool_id; });
-      return tool && !tool.archived && R.taskStatus(t, tool, today) === 'overdue';
+      return tool && !tool.archived && !R.isPm(tool) && R.taskStatus(t, tool, today) === 'overdue';
     }).length;
     return c;
   }
@@ -2703,6 +2874,355 @@ window.HCP.views.board = (function () {
 
 </script>
   <script>
+/* js/views/pm.js */
+/**
+ * Hirata Cleaning Plan - views/pm.js
+ * PM plan tab (PLAN.md 13e): weekly grid of the PM tools. Everyone can see it;
+ * only the logged-in Admin marks PMs done, postpones them and sets tools down.
+ * Red row = not installed yet. D = tool down on that day.
+ */
+window.HCP = window.HCP || {};
+window.HCP.views = window.HCP.views || {};
+window.HCP.views.pm = (function () {
+  'use strict';
+
+  var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h, I = window.HCP.icon;
+  var week = null;
+
+  var LABEL = {
+    done: ['check', 'Done'], overdue: ['exclaim', 'Overdue'], today: ['bell', 'Today'], postponed: ['skip', 'Postponed'],
+    upcoming: ['wrench', 'PM'], down: ['power', 'Tool down'], projected: ['calDots', 'Next PM']
+  };
+  var STATUS_TEXT = { done: 'Done', overdue: 'Overdue', today: 'Due today', postponed: 'Postponed', upcoming: 'Planned', down: 'Tool down' };
+
+  function med(st, size) {
+    var px = size || 24;
+    return h('span', { class: 'med m-' + st, style: 'width:' + px + 'px;height:' + px + 'px' }, I(LABEL[st][0], Math.round(px * 0.6)));
+  }
+  function dd(d) { return R.dayName(d).slice(0, 3) + ' ' + R.shortDate(d); }
+
+  function counts(b, today) {
+    var c = { planned: 0, done: 0, today: 0, overdue: 0, down: 0, notInstalled: 0 };
+    b.rows.forEach(function (r) {
+      if (r.tool.status === 'planned') c.notInstalled++;
+      if (R.downOn(r.tool, today)) c.down++;
+      r.cells.forEach(function (items) {
+        items.forEach(function (it) {
+          if (it.carried || it.kind === 'projected') return;
+          c.planned++;
+          if (it.status === 'done') c.done++;
+          else if (it.status === 'today') c.today++;
+        });
+      });
+    });
+    var d = S.current();
+    c.overdue = d.tasks.filter(function (t) {
+      var tool = d.tools.find(function (x) { return x.id === t.tool_id; });
+      return tool && !tool.archived && R.isPm(tool) && R.taskStatus(t, tool, today) === 'overdue';
+    }).length;
+    return c;
+  }
+
+  function tile(key, label, value, sub) {
+    return h('div', { class: 'tile t-' + key + (value ? '' : ' zero') }, [
+      h('span', { class: 'tile-ico' }, key === 'planned-tool' ? h('span', { class: 'med m-notinst', style: 'width:38px;height:38px' }, I('plus', 22)) : med(key, 38)),
+      h('span', { class: 'tile-num', text: String(value) }),
+      h('span', { class: 'tile-label', text: label }),
+      sub ? h('span', { class: 'tile-sub', text: sub }) : null
+    ]);
+  }
+
+  function render(root, app) {
+    if (!week) week = R.today();
+    var b = S.board(week, 'pm');
+    var today = R.today();
+    var c = counts(b, today);
+    var admin = !!S.currentAdmin();
+
+    var bar = h('div', { class: 'board-bar' }, [
+      h('div', { class: 'week-nav' }, [
+        h('button', { class: 'btn ghost square', title: 'Previous week', 'aria-label': 'Previous week', onclick: function () { week = R.addDays(b.monday, -7); app.render(); } }, I('left', 18)),
+        h('div', { class: 'week-title' }, [
+          h('div', { class: 'week-kicker', text: 'PM plan · ' + (b.isThisWeek ? 'this week' : (b.monday < R.mondayOf(today) ? 'past week' : 'coming week')) }),
+          h('h2', { class: 'week-label' }, [h('span', { class: 'wk', text: 'Week ' + R.isoWeek(b.monday) }), h('span', { class: 'sep', text: ' · ' }), R.shortDate(b.days[0]) + ' – ' + R.longDate(b.days[4])])
+        ]),
+        h('button', { class: 'btn ghost square', title: 'Next week', 'aria-label': 'Next week', onclick: function () { week = R.addDays(b.monday, 7); app.render(); } }, I('right', 18)),
+        h('button', { class: 'btn ghost', disabled: b.isThisWeek, onclick: function () { week = R.today(); app.render(); } }, [I('calendar', 15), ' Today'])
+      ]),
+      h('div', { class: 'bar-right' }, [
+        h('button', { class: 'btn ghost', title: 'Print this week', onclick: function () { window.print(); } }, [I('printer', 15), ' Print'])
+      ])
+    ]);
+
+    var strip = h('div', { class: 'summary' }, [
+      tile('today', 'Due today', b.isThisWeek ? c.today : 0, b.isThisWeek ? dd(today) : 'not this week'),
+      tile('overdue', 'Overdue', c.overdue, c.overdue ? 'needs action' : 'all on time'),
+      tile('done', 'Done', c.done, 'of ' + c.planned + ' this week'),
+      tile('down', 'Tools down', c.down, c.down ? 'no PM while down' : 'all running'),
+      tile('planned-tool', 'Not installed', c.notInstalled, 'to be bought')
+    ]);
+
+    var table = h('table', { class: 'grid pm-grid' }, [
+      h('thead', {}, h('tr', {}, [h('th', { class: 'tool-col', text: 'Tool · MNT owner' })].concat(b.days.map(function (d) {
+        return h('th', { class: d === today ? 'is-today' : (d < today ? 'is-past' : '') }, [
+          h('span', { class: 'dname', text: R.dayName(d).slice(0, 3) }), ' ', h('span', { class: 'dnum', text: R.shortDate(d) }),
+          d === today ? h('span', { class: 'today-pill', text: 'Today' }) : null]);
+      })))),
+      h('tbody', {}, b.rows.length ? b.rows.map(function (r) { return row(r, b, today, app); })
+        : h('tr', {}, h('td', { colspan: '6', class: 'empty' }, [I('wrench', 28),
+          h('div', { text: admin ? 'No PM tools yet. Add them in Settings → PM tools.' : 'No PM tools yet. An Admin adds them in Settings.' })])))
+    ]);
+
+    var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'projected'].map(function (st) {
+      return h('span', { class: 'legend-item' }, [med(st, 20), LABEL[st][1]]);
+    }).concat([
+      h('span', { class: 'legend-item' }, [h('span', { class: 'dbox', text: 'D' }), 'Down']),
+      h('span', { class: 'legend-item' }, [h('span', { class: 'nibox' }), 'Not installed'])
+    ]));
+
+    U.add(root, [bar, strip, h('div', { class: 'grid-wrap' }, table), legend,
+      h('p', { class: 'hint', text: admin ? 'Click a PM to mark it done or postpone it. Click a tool name to set it down or back up.'
+        : 'Read only. The Admin marks PMs done and sets tools down.' })]);
+  }
+
+  function row(r, b, today, app) {
+    var t = r.tool;
+    var planned = t.status === 'planned';
+    var downNow = R.downOn(t, today);
+    var badge = planned ? h('span', { class: 'badge notinst', text: 'NOT INSTALLED' })
+      : downNow ? h('span', { class: 'badge down', title: t.down_reason || '', text: 'DOWN' })
+      : t.status === 'down' ? h('span', { class: 'badge down soft', title: 'Down from ' + R.longDate(t.down_from), text: 'DOWN ' + R.shortDate(t.down_from) })
+      : h('span', { class: 'dot dot-ok', title: 'Active' });
+    var head = h('th', { class: 'tool-col', scope: 'row' }, [
+      h('div', { class: 'tool-meta' }, [
+        h('div', { class: 'tool-top' }, [h('button', { class: 'tool-name', text: t.name, title: 'Tool details', onclick: function () { toolPanel(t.id, app); } }), badge]),
+        h('div', { class: 'sched', text: (t.mnt_owner ? t.mnt_owner + ' · ' : '') + R.describeAny(t) })
+      ])
+    ]);
+    var cls = planned ? 'is-planned' : downNow ? 'is-down' : '';
+    return h('tr', { class: cls }, [head].concat(r.cells.map(function (items, i) {
+      var d = b.days[i];
+      var content = [];
+      if (r.downDays[i]) content.push(h('span', { class: 'dbox big', title: 'Down' + (t.down_reason ? ': ' + t.down_reason : ''), text: 'D' }));
+      items.forEach(function (it) { content.push(chip(it, app)); });
+      return h('td', { class: (d === today ? 'is-today' : (d < today ? 'is-past' : '')) + (r.downDays[i] ? ' is-dday' : '') }, content);
+    })));
+  }
+
+  function chip(it, app) {
+    if (it.kind === 'projected') {
+      return h('span', { class: 'chip s-projected', title: 'Next PM from the schedule' }, [med('projected', 22), h('span', { class: 'chip-text' }, h('span', { class: 'chip-main', text: 'Next PM' }))]);
+    }
+    var t = it.task, main = it.status === 'upcoming' ? 'PM' : LABEL[it.status][1], sub = '';
+    if (it.carried) { main = 'Overdue'; sub = 'since ' + dd(it.date); }
+    else if (it.status === 'done') sub = 'done ' + String(t.completed_at).slice(11, 16);
+    else if (t.postpone_count > 0 && t.due_date !== t.pattern_date) sub = 'from ' + dd(t.pattern_date);
+    return h('button', { class: 'chip s-' + it.status, title: 'Open PM', onclick: function () { taskPanel(t.id, app); } }, [
+      med(it.status, 26),
+      h('span', { class: 'chip-text' }, [h('span', { class: 'chip-main', text: main }), sub ? h('span', { class: 'chip-sub', text: sub }) : null]),
+      t.completion_comment && it.status === 'done' ? h('span', { class: 'tag', title: t.completion_comment }, I('message', 13)) : null
+    ]);
+  }
+
+  /* --- PM panel ----------------------------------------------------- */
+
+  function taskPanel(taskId, app) {
+    var info = S.taskDetails(taskId);
+    if (!info) { app.reload(); return; }
+    var t = info.task, tool = info.tool, isAdmin = !!S.currentAdmin();
+    var area = h('div', { class: 'action-area' });
+    var facts = h('dl', { class: 'facts' }, [
+      h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill s-' + info.status }, [med(info.status, 18), STATUS_TEXT[info.status]])),
+      h('dt', { text: 'Schedule' }), h('dd', { text: R.describeAny(tool) }),
+      t.due_date !== t.pattern_date ? h('dt', { text: 'Planned for' }) : null,
+      t.due_date !== t.pattern_date ? h('dd', { text: R.dayName(t.pattern_date) + ' ' + R.longDate(t.pattern_date) }) : null,
+      h('dt', { text: 'MNT owner' }), h('dd', { text: tool.mnt_owner || '–' }),
+      t.status === 'completed' ? h('dt', { text: 'Completed' }) : null,
+      t.status === 'completed' ? h('dd', { text: info.completed_by + ', ' + R.longDate(t.completed_at.slice(0, 10)) + ' ' + t.completed_at.slice(11, 16) }) : null,
+      t.completion_comment ? h('dt', { text: 'Comment' }) : null,
+      t.completion_comment ? h('dd', { text: t.completion_comment }) : null
+    ]);
+    var events = info.events.length ? h('details', { class: 'events' }, [
+      h('summary', { text: 'History of this PM (' + info.events.length + ')' }),
+      h('ul', {}, info.events.map(function (e) {
+        return h('li', {}, [h('b', { text: e.label }), ' · ' + e.who + ' · ' + R.shortDate(e.at.slice(0, 10)) + ' ' + e.at.slice(11, 16),
+          e.new_date ? ' · to ' + R.shortDate(e.new_date) : '', e.reason ? ' · ' + e.reason : '', e.comment ? ' · ' + e.comment : '']);
+      }))
+    ]) : null;
+    var m = U.modal(tool.name + ' · PM · ' + R.dayName(t.due_date) + ' ' + R.longDate(t.due_date), [facts, events, area]);
+
+    function done(msg, undoToken) {
+      m.close(); app.reload();
+      U.toast(msg, 'ok', undoToken ? { ms: 10000, action: { label: 'Undo', fn: function () {
+        S.undo(undoToken).then(function () { U.toast('Undone.'); app.reload(); }, function (e) { U.toast(U.errorText(e), 'error'); app.reload(); });
+      } } } : null);
+    }
+    function failHard(e) { if (e && e.code === 'conflict') { U.toast(e.message, 'error'); m.close(); app.reload(); return true; } return false; }
+
+    function menu() {
+      U.clear(area);
+      if (!isAdmin) { U.add(area, h('p', { class: 'muted', text: 'Only the Admin can change PMs. Log in as Admin.' })); return; }
+      var b = [];
+      if (t.status === 'open') {
+        b.push(h('button', { class: 'btn', onclick: completeForm }, [I('check', 16), ' Done']));
+        b.push(h('button', { class: 'btn secondary', onclick: postponeForm }, [I('clock', 16), ' Postpone']));
+        b.push(h('button', { class: 'btn ghost', text: 'Change date', onclick: editForm }));
+        b.push(h('button', { class: 'btn ghost danger-text', text: 'Delete', onclick: deleteStep }));
+      } else {
+        b.push(h('button', { class: 'btn ghost', text: 'Reopen', onclick: reopenStep }));
+      }
+      U.add(area, h('div', { class: 'actions' }, b));
+    }
+    function completeForm() {
+      var comment = h('textarea', { rows: '3', maxlength: '1000', placeholder: 'Anything to note? (optional)' });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'PM done' }), U.field('Comment', comment),
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var c = comment.value;
+            U.confirmStep(area, 'Confirm PM done for ' + tool.name + '?', 'Yes, done', function () {
+              return S.complete(t.id, null, c).then(function (r) {
+                done(tool.name + ' PM done.' + (r.next ? ' Next PM: ' + dd(r.next.due_date) + '.' : ''), r.undo);
+              }, function (e) { if (!failHard(e)) throw e; });
+            }, completeForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+      comment.focus();
+    }
+    function postponeForm() {
+      var date = h('input', { type: 'date', min: R.today() });
+      var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why? (optional)' });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      var auto = R.nextWorkingDay(R.maxDate(t.due_date, R.today()));
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Postpone PM' }),
+        U.field('New date', date, 'Optional. Empty = next working day (' + R.dayName(auto) + ' ' + R.shortDate(auto) + '). A weekend date moves to Monday.'),
+        U.field('Reason', reason), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var d = date.value;
+            if (d && d < R.today()) { msg.textContent = 'The new date cannot be in the past.'; msg.hidden = false; return; }
+            var target = d ? R.toWorkingDay(d) : auto, rs = reason.value;
+            U.confirmStep(area, 'Postpone the ' + tool.name + ' PM to ' + R.dayName(target) + ' ' + R.longDate(target) + '?', 'Yes, postpone', function () {
+              return S.postpone(t.id, null, d, rs).then(function (r) { done(tool.name + ' PM postponed to ' + dd(r.task.due_date) + '.', r.undo); },
+                function (e) { if (!failHard(e)) throw e; });
+            }, postponeForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function editForm() {
+      var date = h('input', { type: 'date', value: t.due_date });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Change date' }), U.field('New date', date, 'Monday to Friday only.'), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var d = date.value;
+            if (!R.isDate(d) || R.isWeekend(d)) { msg.textContent = 'Choose a working day.'; msg.hidden = false; return; }
+            U.confirmStep(area, 'Move the ' + tool.name + ' PM to ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, move', function () {
+              return S.editTask(t.id, d).then(function () { done('Date changed.'); }, function (e) { if (!failHard(e)) throw e; });
+            }, editForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function deleteStep() {
+      U.confirmStep(area, 'Delete this PM of ' + tool.name + '? The schedule continues with the next date.', 'Yes, delete', function () {
+        return S.deleteTask(t.id).then(function () { done('PM deleted.'); }, function (e) { if (!failHard(e)) throw e; });
+      }, menu, true);
+    }
+    function reopenStep() {
+      U.confirmStep(area, 'Reopen this PM of ' + tool.name + '? It becomes open again.', 'Yes, reopen', function () {
+        return S.reopen(t.id).then(function () { done('PM reopened.'); });
+      }, menu);
+    }
+    menu();
+  }
+
+  /* --- Tool panel: Down / Back up ------------------------------------ */
+
+  function toolPanel(toolId, app) {
+    var tool = S.current().tools.find(function (x) { return x.id === toolId; });
+    if (!tool) return;
+    var isAdmin = !!S.currentAdmin();
+    var today = R.today();
+    var area = h('div', { class: 'action-area' });
+    var hist = S.history({ toolId: toolId }).slice(0, 8);
+    var stateText = tool.status === 'planned' ? 'Not installed' : tool.status === 'down' ? 'Down' : 'Active';
+    var m = U.modal(tool.name + ' · PM', [
+      h('dl', { class: 'facts' }, [
+        h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill ' + (tool.status === 'active' ? 's-upcoming' : 's-down'), text: stateText })),
+        tool.status === 'down' ? h('dt', { text: 'Down' }) : null,
+        tool.status === 'down' ? h('dd', { text: 'from ' + R.longDate(tool.down_from || tool.down_since.slice(0, 10)) +
+          (tool.down_until ? ' until ' + R.longDate(tool.down_until) : ' (no end date)') + (tool.down_reason ? ' – ' + tool.down_reason : '') }) : null,
+        h('dt', { text: 'Schedule' }), h('dd', { text: R.describeAny(tool) }),
+        h('dt', { text: 'MNT owner' }), h('dd', { text: tool.mnt_owner || '–' })
+      ]),
+      hist.length ? h('details', { class: 'events' }, [h('summary', { text: 'Recent history' }), h('ul', {}, hist.map(function (r) {
+        return h('li', {}, [h('b', { text: r.action_label }), ' · ' + (r.who || '–') + ' · ' + R.shortDate(r.date) + (r.reason ? ' · ' + r.reason : '') + (r.comment ? ' · ' + r.comment : '')]);
+      }))]) : null,
+      area
+    ]);
+    var close = function (msg) { U.toast(msg); m.close(); app.reload(); };
+
+    function menu() {
+      U.clear(area);
+      if (!isAdmin) { U.add(area, h('p', { class: 'muted', text: 'Down / Back up: log in as Admin.' })); return; }
+      if (tool.status === 'planned') { U.add(area, h('p', { class: 'muted', text: 'Not installed yet. When it is installed, untick "Not installed" in Settings → PM tools.' })); return; }
+      U.add(area, h('div', { class: 'actions' }, tool.status === 'down'
+        ? [h('button', { class: 'btn', onclick: upForm }, [I('power', 16), ' Back up'])]
+        : [h('button', { class: 'btn danger', onclick: downForm }, [I('ban', 16), ' Set down'])]));
+    }
+    function downForm() {
+      var from = h('input', { type: 'date', value: R.toWorkingDay(today) });
+      var until = h('input', { type: 'date' });
+      var reason = h('textarea', { rows: '2', maxlength: '500', placeholder: 'Why is the tool down? e.g. waiting for spare part' });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Set tool down' }), h('div', { class: 'form-grid' }, [
+        U.field('Down from', from), U.field('Until (optional)', until, 'Empty = until you click Back up.')]),
+        U.field('Reason', reason), h('p', { class: 'hint', text: 'The grid shows D on every working day of this period. No PM while down.' }), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn danger', text: 'Continue', onclick: function () {
+            var f = from.value, u = until.value, rs = reason.value;
+            if (!R.isDate(f)) { msg.textContent = 'Choose the "down from" date.'; msg.hidden = false; return; }
+            if (u && u < f) { msg.textContent = 'The "until" date cannot be before the "from" date.'; msg.hidden = false; return; }
+            U.confirmStep(area, 'Set ' + tool.name + ' down from ' + R.longDate(f) + (u ? ' until ' + R.longDate(u) : '') + '?', 'Yes, set down', function () {
+              return S.toolDown(tool.id, rs, f, u).then(function () { close(tool.name + ' is down.'); });
+            }, downForm, true);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    function upForm() {
+      if (!R.hasSchedule(tool)) {
+        U.confirmStep(area, tool.name + ' is back up?', 'Yes, back up', function () {
+          return S.reactivate(tool.id, null).then(function () { close(tool.name + ' is back up.'); });
+        }, menu);
+        return;
+      }
+      var open = S.current().tasks.find(function (x) { return x.tool_id === tool.id && x.status === 'open' && !x.is_one_off; });
+      var suggest = open && open.due_date >= today ? open.due_date : R.toWorkingDay(today);
+      var date = h('input', { type: 'date', min: today, value: suggest });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Back up' }), U.field('Next PM on', date, 'A working day, today or later.'), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var d = date.value;
+            if (!R.isDate(d) || R.isWeekend(d) || d < today) { msg.textContent = 'Choose a working day, today or later.'; msg.hidden = false; return; }
+            U.confirmStep(area, tool.name + ' back up, next PM on ' + R.dayName(d) + ' ' + R.longDate(d) + '?', 'Yes, back up', function () {
+              return S.reactivate(tool.id, d).then(function () { close(tool.name + ' is back up.'); });
+            }, upForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+    }
+    menu();
+  }
+
+  return { render: render, taskPanel: taskPanel, toolPanel: toolPanel };
+})();
+
+</script>
+  <script>
 /* js/views/history.js */
 /**
  * Hirata Cleaning Plan - views/history.js
@@ -2714,15 +3234,18 @@ window.HCP.views.history = (function () {
   'use strict';
 
   var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h;
-  var filters = { toolId: '', action: '', from: '', to: '' };
+  var filters = { type: '', toolId: '', action: '', from: '', to: '' };
   var PAGE = 300;
 
   function render(root, app) {
     var d = S.current();
     var toolSel = h('select', { onchange: function (e) { filters.toolId = e.target.value; app.render(); } },
-      [h('option', { value: '', text: 'All tools' })].concat(d.tools.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (t) {
-        return h('option', { value: t.id, text: t.name + (t.archived ? ' (archived)' : ''), selected: filters.toolId === t.id });
+      [h('option', { value: '', text: 'All tools' })].concat(d.tools.filter(function (t) { return !filters.type || (filters.type === 'PM') === R.isPm(t); })
+        .slice().sort(function (a, b) { return a.name.localeCompare(b.name) || (R.isPm(a) ? 1 : -1); }).map(function (t) {
+        return h('option', { value: t.id, text: t.name + (R.isPm(t) ? ' (PM)' : '') + (t.archived ? ' (archived)' : ''), selected: filters.toolId === t.id });
       })));
+    var typeSel = h('select', { onchange: function (e) { filters.type = e.target.value; filters.toolId = ''; app.render(); } },
+      [['', 'Cleaning and PM'], ['Cleaning', 'Cleaning'], ['PM', 'PM']].map(function (o) { return h('option', { value: o[0], text: o[1], selected: filters.type === o[0] }); }));
     var actSel = h('select', { onchange: function (e) { filters.action = e.target.value; app.render(); } },
       [h('option', { value: '', text: 'All actions' })].concat(Object.keys(S.ACTION_LABELS).map(function (k) {
         return h('option', { value: k, text: S.ACTION_LABELS[k], selected: filters.action === k });
@@ -2732,26 +3255,26 @@ window.HCP.views.history = (function () {
 
     var rows = S.history(filters);
     var bar = h('div', { class: 'filters' }, [
-      U.field('Tool', toolSel), U.field('Action', actSel), U.field('From', from), U.field('To', to),
+      U.field('Type', typeSel), U.field('Tool', toolSel), U.field('Action', actSel), U.field('From', from), U.field('To', to),
       h('div', { class: 'filter-actions' }, [
-        h('button', { class: 'btn ghost', text: 'Clear', onclick: function () { filters = { toolId: '', action: '', from: '', to: '' }; app.render(); } }),
+        h('button', { class: 'btn ghost', text: 'Clear', onclick: function () { filters = { type: '', toolId: '', action: '', from: '', to: '' }; app.render(); } }),
         h('button', { class: 'btn', disabled: !rows.length, onclick: function () {
-          U.download('hirata-cleaning-history-' + R.today() + '.csv', S.historyCsv(filters));
+          U.download('hirata-history-' + R.today() + '.csv', S.historyCsv(filters));
         } }, [window.HCP.icon('download', 15), ' Export CSV'])
       ])
     ]);
 
     var table = h('table', { class: 'list' }, [
-      h('thead', {}, h('tr', {}, ['Date', 'Time', 'Tool', 'Action', 'Who', 'Dates', 'Reason / comment'].map(function (c) { return h('th', { text: c }); }))),
+      h('thead', {}, h('tr', {}, ['Date', 'Time', 'Type', 'Tool', 'Action', 'Who', 'Dates', 'Reason / comment'].map(function (c) { return h('th', { text: c }); }))),
       h('tbody', {}, rows.length ? rows.slice(0, PAGE).map(function (r) {
         var dates = r.old_date && r.new_date ? R.shortDate(r.old_date) + ' → ' + R.shortDate(r.new_date) : r.old_date ? R.shortDate(r.old_date) : r.new_date ? R.shortDate(r.new_date) : '';
         return h('tr', {}, [
-          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', { class: 'strong', text: r.tool || '–' }),
+          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', {}, r.type ? h('span', { class: 'type-tag ' + (r.type === 'PM' ? 'is-pm' : ''), text: r.type }) : '–'), h('td', { class: 'strong', text: r.tool || '–' }),
           h('td', {}, h('span', { class: 'act a-' + r.action, text: r.action_label })),
           h('td', { text: r.who || '–' }), h('td', { text: dates }),
           h('td', { class: 'wrap', text: [r.reason, r.comment].filter(Boolean).join(' · ') })
         ]);
-      }) : h('tr', {}, h('td', { colspan: '7', class: 'empty', text: 'No history for these filters.' })))
+      }) : h('tr', {}, h('td', { colspan: '8', class: 'empty', text: 'No history for these filters.' })))
     ]);
 
     U.add(root, [h('h2', { text: 'History' }), bar,
@@ -2907,7 +3430,7 @@ window.HCP.views.analytics = (function () {
 /* js/views/settings.js */
 /**
  * Hirata Cleaning Plan - views/settings.js  (Admin only)
- * Tabs: Tools, Users, One-off cleaning, General.
+ * Tabs: Tools, PM tools, Users, One-off cleaning, General.
  */
 window.HCP = window.HCP || {};
 window.HCP.views = window.HCP.views || {};
@@ -2919,14 +3442,14 @@ window.HCP.views.settings = (function () {
   var showArchived = false;
 
   function render(root, app) {
-    var tabs = [['tools', 'Tools'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
+    var tabs = [['tools', 'Cleaning tools'], ['pmtools', 'PM tools'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
     var nav = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
       return h('button', { class: 'tab' + (tab === t[0] ? ' active' : ''), role: 'tab', 'aria-selected': String(tab === t[0]), text: t[1],
         onclick: function () { tab = t[0]; app.render(); } });
     }));
     var body = h('div', { class: 'tab-body' });
     U.add(root, [h('h2', { text: 'Settings' }), nav, body]);
-    ({ tools: tools, users: users, oneoff: oneoff, general: general })[tab](body, app);
+    ({ tools: tools, pmtools: pmTools, users: users, oneoff: oneoff, general: general })[tab](body, app);
   }
 
   /* --- Tools -------------------------------------------------------- */
@@ -2938,7 +3461,7 @@ window.HCP.views.settings = (function () {
   }
 
   function tools(body, app) {
-    var list = S.current().tools.filter(function (t) { return showArchived || !t.archived; })
+    var list = S.current().tools.filter(function (t) { return !R.isPm(t) && (showArchived || !t.archived); })
       .sort(function (a, b) { return a.name.localeCompare(b.name); });
     U.add(body, [
       h('div', { class: 'row-bar' }, [
@@ -3028,6 +3551,109 @@ window.HCP.views.settings = (function () {
     update();
   }
 
+  /* --- PM tools (PLAN 13e) ------------------------------------------ */
+
+  function pmTools(body, app) {
+    var all = S.current().tools.filter(function (t) { return R.isPm(t); });
+    var list = all.filter(function (t) { return showArchived || !t.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var missing = S.SEED_PM.filter(function (s) { return !all.some(function (t) { return t.name.toUpperCase() === s[0]; }); }).length;
+    U.add(body, [
+      h('div', { class: 'row-bar' }, [
+        h('button', { class: 'btn', text: '+ Add PM tool', onclick: function () { pmToolForm(null, app); } }),
+        missing ? h('button', { class: 'btn secondary', text: 'Add PM tools from the Excel (' + missing + ')', onclick: function () { addFromExcel(missing, app); } }) : null,
+        h('label', { class: 'toggle' }, [h('input', { type: 'checkbox', checked: showArchived, onchange: function (e) { showArchived = e.target.checked; app.render(); } }), ' Show archived tools'])
+      ]),
+      h('p', { class: 'muted', text: 'The PM plan tab. Only the Admin marks PMs done. A tool without a start date is listed but gets no PM until you set one.' }),
+      h('div', { class: 'grid-wrap' }, h('table', { class: 'list' }, [
+        h('thead', {}, h('tr', {}, ['Tool', 'MNT owner', 'Schedule', 'Next PM', 'Status', ''].map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, list.length ? list.map(function (t) {
+          var st = t.archived ? ['s-projected', 'Archived'] : t.status === 'planned' ? ['s-overdue', 'Not installed'] : t.status === 'down' ? ['s-down', 'Down'] : ['s-upcoming', 'Active'];
+          return h('tr', { class: t.archived ? 'is-archived' : '' }, [
+            h('td', { class: 'strong', text: t.name }), h('td', { text: t.mnt_owner || '–' }), h('td', { text: R.describeAny(t) }),
+            h('td', { text: t.archived ? '–' : nextCleaning(t.id) }),
+            h('td', {}, h('span', { class: 'pill ' + st[0], text: st[1] })),
+            h('td', { class: 'row-actions' }, [
+              h('button', { class: 'btn small ghost', text: 'Edit', onclick: function () { pmToolForm(t, app); } }),
+              !t.archived && t.status !== 'planned' ? h('button', { class: 'btn small ghost', text: t.status === 'down' ? 'Back up' : 'Set down', onclick: function () { window.HCP.views.pm.toolPanel(t.id, app); } }) : null,
+              h('button', { class: 'btn small ghost', text: t.archived ? 'Restore' : 'Archive', onclick: function () { archive(t, app); } })
+            ])
+          ]);
+        }) : h('tr', {}, h('td', { colspan: '6', class: 'empty', text: 'No PM tools yet.' })))
+      ]))
+    ]);
+  }
+
+  function addFromExcel(n, app) {
+    var area = h('div');
+    U.modal('Add PM tools from the Excel', area);
+    U.confirmStep(area, 'Add the ' + n + ' PM tools from the PM Excel (WW47) that are not in the list yet? Existing PM tools are not changed.', 'Yes, add', function () {
+      return S.addPmTools().then(function (added) { U.closeModal(); U.toast(added.length + ' PM tools added.'); app.reload(); });
+    }, U.closeModal);
+  }
+
+  function pmToolForm(t, app) {
+    var isNew = !t;
+    t = t || { name: '', mnt_owner: '', schedule_type: 'weeks', interval: 4, weekday: 4, month_day: 1, start_date: '', status: 'active' };
+    var name = h('input', { type: 'text', value: t.name, maxlength: '40', placeholder: 'e.g. QVM901' });
+    var mnt = h('input', { type: 'text', value: t.mnt_owner || '', maxlength: '80' });
+    var notInst = h('input', { type: 'checkbox', checked: t.status === 'planned' });
+    var type = h('select', {}, [['none', 'No PM'], ['weeks', 'Weeks'], ['months', 'Months']].map(function (o) {
+      return h('option', { value: o[0], text: o[1], selected: t.schedule_type === o[0] });
+    }));
+    var interval = h('input', { type: 'number', min: '1', max: '52', step: '1', value: t.interval || 4, class: 'num' });
+    var weekday = h('select', {}, [1, 2, 3, 4, 5].map(function (n) { return h('option', { value: n, text: R.DAY_NAMES[n], selected: (t.weekday || 4) === n }); }));
+    var monthDay = h('input', { type: 'number', min: '1', max: '31', step: '1', value: t.month_day || 1, class: 'num' });
+    var start = h('input', { type: 'date', value: t.start_date || '' });
+    var everyField = U.field('Every', interval, 'weeks or months');
+    var wdField = U.field('On weekday', weekday);
+    var mdField = U.field('On day of month', monthDay, '29–31: last day in shorter months. Weekend → next Monday.');
+    var startField = U.field('Start date', start, 'First PM on or after this date. Empty = no PM yet.');
+    var preview = h('p', { class: 'preview' });
+    var msg = h('p', { class: 'form-error', hidden: true });
+
+    function values() {
+      return { id: isNew ? undefined : t.id, kind: 'pm', name: name.value, tool_owner: '', mnt_owner: mnt.value, planned: notInst.checked,
+        schedule_type: type.value, interval: parseInt(interval.value, 10), weekday: parseInt(weekday.value, 10),
+        month_day: parseInt(monthDay.value, 10), start_date: start.value };
+    }
+    function update() {
+      var v = values();
+      var none = v.schedule_type === 'none';
+      everyField.hidden = none; startField.hidden = none;
+      wdField.hidden = v.schedule_type !== 'weeks';
+      mdField.hidden = v.schedule_type !== 'months';
+      if (v.planned) { preview.textContent = 'Not installed: no PM until it is installed.'; preview.className = 'preview'; return; }
+      if (none) { preview.textContent = 'No PM for this tool.'; preview.className = 'preview'; return; }
+      if (!v.start_date) { preview.textContent = 'No start date yet: the tool is listed but gets no PM.'; preview.className = 'preview'; return; }
+      var probe = { schedule_type: v.schedule_type, interval: v.interval, weekday: v.schedule_type === 'weeks' ? v.weekday : null,
+        month_day: v.schedule_type === 'months' ? v.month_day : null, start_date: v.start_date };
+      var e = R.validateSchedule(probe);
+      preview.textContent = e ? e : R.describeSchedule(probe) + '. Next PMs: ' +
+        R.previewDates(probe, R.maxDate(v.start_date, R.today()), 5).map(function (d) { return R.dayName(d).slice(0, 3) + ' ' + R.shortDate(d); }).join(', ');
+      preview.className = 'preview' + (e ? ' bad' : '');
+    }
+    [type, interval, weekday, monthDay, start, notInst].forEach(function (el) { el.addEventListener('input', update); el.addEventListener('change', update); });
+
+    var save = h('button', { class: 'btn', text: isNew ? 'Add PM tool' : 'Save changes' });
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      S.saveTool(values()).then(function (saved) {
+        U.closeModal(); U.toast(saved.name + (isNew ? ' added.' : ' saved.')); app.reload();
+      }).catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; save.disabled = false; });
+    });
+
+    U.modal(isNew ? 'Add PM tool' : 'Edit ' + t.name, [
+      h('div', { class: 'form-grid' }, [
+        U.field('Tool name', name), U.field('MNT owner', mnt),
+        U.field('Schedule', type), everyField, wdField, mdField, startField,
+        h('label', { class: 'toggle' }, [notInst, ' Not installed yet (red row, no PM)'])
+      ]),
+      preview, msg,
+      h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])
+    ], { wide: true });
+    update();
+  }
+
   /* --- Users -------------------------------------------------------- */
 
   function users(body, app) {
@@ -3081,7 +3707,7 @@ window.HCP.views.settings = (function () {
   /* --- One-off ------------------------------------------------------ */
 
   function oneoff(body, app) {
-    var list = S.current().tools.filter(function (t) { return !t.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var list = S.current().tools.filter(function (t) { return !t.archived && !R.isPm(t); }).sort(function (a, b) { return a.name.localeCompare(b.name); });
     var tool = h('select', {}, list.map(function (t) { return h('option', { value: t.id, text: t.name }); }));
     var date = h('input', { type: 'date', min: R.today(), value: R.toWorkingDay(R.today()) });
     var note = h('input', { type: 'text', maxlength: '200', placeholder: 'Optional note, e.g. extra cleaning after service' });
@@ -3259,12 +3885,12 @@ window.HCP.views.settings = (function () {
       if (pin.value !== pin2.value) { msg.textContent = 'The two PINs are not the same.'; msg.hidden = false; return; }
       btn.disabled = true;
       S.createPlan(pin.value).then(function () { return S.adminLogin('ADMIN01', pin.value); })
-        .then(function (u) { rememberAdmin(u); U.toast('Plan created with 12 tools. You are logged in as Admin.'); location.hash = '#settings'; open(); })
+        .then(function (u) { rememberAdmin(u); U.toast('Plan created with 12 cleaning tools and the PM tools. You are logged in as Admin.'); location.hash = '#settings'; open(); })
         .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; btn.disabled = false; });
     });
     screen([
       h('h2', { text: 'Create a new cleaning plan' }),
-      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools and the first Admin (Khurana). Add the operators afterwards in Settings → Users.' }),
+      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools, the PM tools from the PM Excel, the 6 operators and the first Admin (Khurana).' }),
       h('p', { class: 'muted', text: 'If your team already has a plan, you chose the wrong folder: reload the page and pick the shared data folder.' }),
       U.field('Admin PIN (4–8 digits)', pin), U.field('Repeat PIN', pin2), msg, btn
     ]);
@@ -3274,7 +3900,7 @@ window.HCP.views.settings = (function () {
 
   function route() {
     var hash = (location.hash || '#board').slice(1);
-    view = ['board', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
+    view = ['board', 'pm', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
     render();
   }
   window.addEventListener('hashchange', function () { if (S.current()) route(); });
@@ -3284,7 +3910,7 @@ window.HCP.views.settings = (function () {
     var d = S.current();
     var adminUser = S.currentAdmin();
     if (d) {
-      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Board'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
+      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Cleaning'], ['pm', 'PM plan'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
         return h('a', { href: '#' + n[0], class: view === n[0] ? 'active' : '', text: n[1] });
       })));
       U.add(topbar, adminUser

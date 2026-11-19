@@ -7,9 +7,9 @@ exactly as today. Nothing about the plan file changes, and opening the app from 
 ## 1. Build and push the image (needs Docker and Harbor access)
 
 ```
-docker build -t HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.7.0 .
+docker build -t HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.8.0 .
 docker login HARBOR_HOST
-docker push HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.7.0
+docker push HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.8.0
 ```
 Use the version from `js/config.js` as the tag, and a new tag for every update.
 
@@ -17,7 +17,7 @@ Use the version from `js/config.js` as the tag, and a new tag for every update.
 
 Serverless → Knative Services → Deploy New Knative Service:
 - **Service name:** `hirata-cleaning-plan`
-- **Container image:** `HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.7.0`
+- **Container image:** `HARBOR_HOST/PROJECT/hirata-cleaning-plan:0.8.0`
 - **Container port:** `8080`
 - **Scaling:** min 1 (always ready) or min 0 (sleeps, first open takes a few seconds)
 - **Resources:** CPU 50m / memory 32Mi request is plenty

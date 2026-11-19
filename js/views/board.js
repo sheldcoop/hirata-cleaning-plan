@@ -55,7 +55,7 @@ window.HCP.views.board = (function () {
     // overdue counts every open overdue cleaning (also from earlier weeks)
     c.overdueAll = S.current().tasks.filter(function (t) {
       var tool = S.current().tools.find(function (x) { return x.id === t.tool_id; });
-      return tool && !tool.archived && R.taskStatus(t, tool, today) === 'overdue';
+      return tool && !tool.archived && !R.isPm(tool) && R.taskStatus(t, tool, today) === 'overdue';
     }).length;
     return c;
   }

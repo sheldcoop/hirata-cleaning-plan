@@ -44,6 +44,35 @@ window.HCP.store = (function () {
   // The real operators (from the cleaning plan Excel). Admins can add/edit/deactivate in Settings.
   var SEED_OPERATORS = ['Valeriia Kyrychenko', 'Mohamed Ibrahem', 'Kent Derrens Plugio', 'Anja KRALJ', 'Volodymyr SAMBURSKYI', 'Talal AL-EFFAH'];
 
+  // PM tools (PLAN 13e), from the PM Excel of WW47 2026.
+  // [name, MNT owner, every N weeks (0 = no PM), start date or '', state: '' | 'planned' | 'down']
+  var SEED_PM = [
+    ['AOP901', 'Breitenberger Gerhard', 4, '2026-11-26', ''],
+    ['BLY901', 'Corpuz Jomari', 4, '', ''],
+    ['LAC901', 'Chen Cong', 4, '', ''],
+    ['LUV901', 'Chen Cong', 4, '', ''],
+    ['DEY901 DSM', 'Jeffrey Untalan', 4, '', ''],
+    ['DEY901 ELP', 'Jeffrey Untalan', 4, '', ''],
+    ['ACY901 ACP', 'Breitenberger Gerhard', 4, '', ''],
+    ['ACY901 DFL', 'Aboutahir Fatima Zahra', 4, '', ''],
+    ['LXP902', '', 0, '', 'planned'],
+    ['DPM901', 'Anand Gopal', 4, '', ''],
+    ['ECP901', 'De Los Santos Tristan', 4, '', ''],
+    ['DFS901', 'Thomas Kelly', 4, '', 'down'],
+    ['OVC901', 'Kayvan Darvishifard', 4, '', ''],
+    ['AOI901', 'Khaled Ismail', 2, '', ''],
+    ['FIB901', '', 0, '', ''],
+    ['QVM901', 'Khaled Ismail', 1, '2026-11-19', ''],
+    ['PRF901', 'Khaled Ismail', 1, '2026-11-19', ''],
+    ['HRM901', '', 0, '', ''],
+    ['NCC901', 'Mokhberi Alireza', 4, '', ''],
+    ['EXC901', 'Mokhberi Alireza', 2, '', ''],
+    ['TLA901', 'Aboutahir Fatima Zahra', 4, '', ''],
+    ['PNP901', 'Patrick Scheickl', 4, '', 'down'],
+    ['CPM901', 'De Los Santos Tristan', 4, '2026-11-26', '']
+  ];
+  var SEED_PM_DOWN_FROM = '2026-11-16';
+
   /* --- Small helpers ------------------------------------------------ */
 
   function err(code, msg) { var e = new Error(msg); e.code = code; return e; }
@@ -125,6 +154,39 @@ window.HCP.store = (function () {
 
   function openScheduled(d, toolId) {
     return d.tasks.find(function (t) { return t.tool_id === toolId && t.status === 'open' && !t.is_one_off; }) || null;
+  }
+
+  /** First scheduled task date for a tool: first rule date on or after its start date,
+   *  stepped forward along the pattern so it is never in the past. */
+  function firstFrom(tool) {
+    var r = R.firstRuleDate(tool, tool.start_date);
+    var today = R.today();
+    for (var i = 0; i < 2000 && r.pattern < today; i++) r = R.stepRule(tool, r.nominal);
+    return r;
+  }
+
+  function pmToolFromSeed(s) {
+    var tool = {
+      id: newId('tool'), kind: 'pm', name: s[0], tool_owner: '', mnt_owner: s[1],
+      schedule_type: s[2] ? 'weeks' : 'none', interval: s[2] || null, weekday: s[3] ? R.weekday(s[3]) : null, month_day: null,
+      start_date: s[3], status: s[4] === 'planned' ? 'planned' : s[4] === 'down' ? 'down' : 'active',
+      down_reason: '', down_since: null, down_from: null, down_until: null, archived: false
+    };
+    if (tool.status === 'down') { tool.down_from = SEED_PM_DOWN_FROM; tool.down_since = SEED_PM_DOWN_FROM + 'T00:00:00'; }
+    return tool;
+  }
+
+  /** Adds the PM tools from the Excel that are not in the plan yet (by name). -> names added */
+  function seedPm(d) {
+    var added = [];
+    SEED_PM.forEach(function (s) {
+      if (d.tools.some(function (t) { return R.isPm(t) && t.name.toUpperCase() === s[0]; })) return;
+      var tool = pmToolFromSeed(s);
+      d.tools.push(tool);
+      if (R.hasSchedule(tool)) d.tasks.push(makeTask(tool.id, firstFrom(tool)));
+      added.push(tool.name);
+    });
+    return added;
   }
 
   /** R2/R4: create the next scheduled task unless one is already open. */
@@ -256,6 +318,7 @@ window.HCP.store = (function () {
         d.tools.push(tool);
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
       });
+      seedPm(d);
       return adapter.write(cfg.data_file, JSON.stringify(d, null, 1)).then(function () { data = d; return d; });
     });
   }
@@ -269,12 +332,17 @@ window.HCP.store = (function () {
     return t;
   }
 
+  /** Who acts: PM tasks only by the logged-in Admin (13e); cleanings by the chosen person. */
+  function actor(d, tool, operatorId) {
+    return R.isPm(tool) ? requireAdmin(d) : userByOperatorId(d, operatorId);
+  }
+
   /** R6 */
   function complete(taskId, operatorId, comment) {
     return mutate(function (d) {
-      var u = userByOperatorId(d, operatorId);
       var t = openTaskOrThrow(d, taskId);
       var tool = find(d.tools, t.tool_id);
+      var u = actor(d, tool, operatorId);
       var before = { status: t.status, completed_by: t.completed_by, completed_at: t.completed_at, completion_comment: t.completion_comment };
       t.status = 'completed';
       t.completed_by = u.id;
@@ -290,8 +358,8 @@ window.HCP.store = (function () {
   /** R5. newDate and reason optional. -> {task, movedFromWeekend} */
   function postpone(taskId, operatorId, newDate, reason) {
     return mutate(function (d) {
-      var u = userByOperatorId(d, operatorId);
       var t = openTaskOrThrow(d, taskId);
+      var u = actor(d, find(d.tools, t.tool_id), operatorId);
       var today = R.today(), target, moved = false;
       if (clean(newDate)) {
         if (!R.isDate(newDate)) throw err('baddate', 'Enter a valid new date.');
@@ -407,7 +475,7 @@ window.HCP.store = (function () {
       hist(d, { tool_id: t.tool_id, task_id: t.id, action: 'task_deleted', user_id: a.id, old_date: t.due_date });
       var tool = find(d.tools, t.tool_id);
       var next = null;
-      if (!t.is_one_off && tool && !tool.archived) next = ensureNext(d, tool, t, R.addDays(R.today(), -1));
+      if (!t.is_one_off && tool && !tool.archived && R.hasSchedule(tool)) next = ensureNext(d, tool, t, R.addDays(R.today(), -1));
       return { next: next };
     }, 'admin');
   }
@@ -486,28 +554,35 @@ window.HCP.store = (function () {
 
   /* --- Admin: tools ------------------------------------------------- */
 
-  var TOOL_FIELDS = ['name', 'tool_owner', 'mnt_owner', 'schedule_type', 'interval', 'weekday', 'month_day', 'start_date'];
+  var TOOL_FIELDS = ['name', 'tool_owner', 'mnt_owner', 'schedule_type', 'interval', 'weekday', 'month_day', 'start_date', 'status'];
 
   function normalizeTool(input) {
     var t = {
       name: clean(input.name).toUpperCase(),
       tool_owner: clean(input.tool_owner),
       mnt_owner: clean(input.mnt_owner),
-      schedule_type: input.schedule_type === 'months' ? 'months' : 'weeks',
+      schedule_type: input.schedule_type === 'months' ? 'months' : input.schedule_type === 'none' ? 'none' : 'weeks',
       interval: parseInt(input.interval, 10),
       weekday: input.weekday == null || input.weekday === '' ? null : parseInt(input.weekday, 10),
       month_day: input.month_day == null || input.month_day === '' ? null : parseInt(input.month_day, 10),
       start_date: clean(input.start_date)
     };
     if (t.schedule_type === 'weeks') t.month_day = null; else t.weekday = null;
+    if (t.schedule_type === 'none') { t.interval = null; t.start_date = ''; }
+    if (isNaN(t.interval)) t.interval = null;
     return t;
   }
 
   function validateTool(d, t, id) {
     if (!t.name) return 'Enter the tool name.';
     if (t.name.length > 40) return 'The tool name is too long.';
-    var dup = d.tools.find(function (x) { return x.id !== id && x.name.toUpperCase() === t.name; });
+    var dup = d.tools.find(function (x) { return x.id !== id && R.ofKind(x, t.kind) && x.name.toUpperCase() === t.name; });
     if (dup) return 'A tool named "' + t.name + '" already exists' + (dup.archived ? ' (archived).' : '.');
+    if (t.kind === 'pm' && (t.schedule_type === 'none' || !t.start_date)) {
+      // PM tools may have no PM, or no start date yet (13e)
+      if (t.schedule_type !== 'none' && t.interval != null && !(t.interval >= 1 && t.interval <= 52)) return 'Repeat every: enter a whole number from 1 to 52.';
+      return '';
+    }
     return R.validateSchedule(t);
   }
 
@@ -516,26 +591,38 @@ window.HCP.store = (function () {
     return mutate(function (d) {
       var a = requireAdmin(d);
       var t = normalizeTool(input);
+      var existing = input.id ? find(d.tools, input.id) : null;
+      t.kind = existing ? (R.isPm(existing) ? 'pm' : undefined) : (input.kind === 'pm' ? 'pm' : undefined);
+      // installed / not installed (PM tools); a down tool stays down
+      var cur = existing ? existing.status : 'active';
+      t.status = input.planned ? 'planned' : (cur === 'planned' ? 'active' : cur);
       var msg = validateTool(d, t, input.id);
       if (msg) throw err('invalid', msg);
 
       if (!input.id) {
-        var tool = Object.assign({ id: newId('tool'), status: 'active', down_reason: '', down_since: null, archived: false }, t);
+        var tool = Object.assign({ id: newId('tool'), down_reason: '', down_since: null, down_from: null, down_until: null, archived: false }, t);
+        if (!tool.kind) delete tool.kind;
         d.tools.push(tool);
-        d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
+        if (R.hasSchedule(tool)) d.tasks.push(makeTask(tool.id, tool.kind === 'pm' ? firstFrom(tool) : R.firstRuleDate(tool, tool.start_date)));
         hist(d, { tool_id: tool.id, action: 'tool_changed', user_id: a.id, comment: 'Tool added: ' + R.describeSchedule(tool) });
         return tool;
       }
 
-      var old = find(d.tools, input.id);
+      var old = existing;
       if (!old) throw err('notfound', 'This tool no longer exists.');
+      if (!t.kind) delete t.kind;
       var changes = TOOL_FIELDS.filter(function (f) { return String(old[f]) !== String(t[f]); });
       if (!changes.length) return old;
-      var scheduleChanged = changes.some(function (f) { return ['schedule_type', 'interval', 'weekday', 'month_day', 'start_date'].indexOf(f) >= 0; });
+      var scheduleChanged = changes.some(function (f) { return ['schedule_type', 'interval', 'weekday', 'month_day', 'start_date', 'status'].indexOf(f) >= 0; });
       var before = R.describeSchedule(old);
       Object.assign(old, t);
+      if (old.status === 'planned') { old.down_reason = ''; old.down_since = null; old.down_from = null; old.down_until = null; }
       if (scheduleChanged) d.exceptions = (d.exceptions || []).filter(function (e) { return e.tool_id !== old.id; });
-      if (scheduleChanged && old.status !== 'down') {
+      if (scheduleChanged && !R.hasSchedule(old)) {
+        // no PM any more (not installed / no schedule): drop the open scheduled task
+        var gone = openScheduled(d, old.id);
+        if (gone) d.tasks.splice(d.tasks.indexOf(gone), 1);
+      } else if (scheduleChanged && old.status !== 'down') {
         var open = openScheduled(d, old.id);
         if (open) {
           // R11: realign from the old pattern date (or the new start date when it changed)
@@ -544,7 +631,7 @@ window.HCP.store = (function () {
           open.pattern_date = r.pattern; open.nominal_date = r.nominal; open.due_date = r.pattern;
           open.postpone_count = 0; open.last_postpone_reason = '';
         } else {
-          d.tasks.push(makeTask(old.id, R.firstRuleDate(old, R.maxDate(old.start_date, R.today()))));
+          d.tasks.push(makeTask(old.id, R.isPm(old) ? firstFrom(old) : R.firstRuleDate(old, R.maxDate(old.start_date, R.today()))));
         }
       }
       hist(d, { tool_id: old.id, action: 'tool_changed', user_id: a.id,
@@ -560,7 +647,7 @@ window.HCP.store = (function () {
       var tool = find(d.tools, toolId);
       if (!tool) throw err('notfound', 'This tool no longer exists.');
       tool.archived = !!archived;
-      if (!archived && tool.status !== 'down' && !openScheduled(d, tool.id)) {
+      if (!archived && tool.status !== 'down' && R.hasSchedule(tool) && !openScheduled(d, tool.id)) {
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, R.maxDate(tool.start_date, R.today()))));
       }
       hist(d, { tool_id: tool.id, action: 'tool_changed', user_id: a.id, comment: archived ? 'Tool archived' : 'Tool restored' });
@@ -569,14 +656,22 @@ window.HCP.store = (function () {
   }
 
   /** R7 */
-  function toolDown(toolId, reason) {
+  /** R7. PM tools (13e): optional from / until dates (from defaults to today). */
+  function toolDown(toolId, reason, from, until) {
     return mutate(function (d) {
       var a = requireAdmin(d);
       var tool = find(d.tools, toolId);
       if (!tool) throw err('notfound', 'This tool no longer exists.');
       if (tool.status === 'down') throw err('conflict', 'This tool is already down.');
+      if (tool.status === 'planned') throw err('conflict', 'This tool is not installed yet.');
+      var f = clean(from) || R.today(), u = clean(until) || null;
+      if (!R.isDate(f)) throw err('baddate', 'Enter a valid "down from" date.');
+      if (u && !R.isDate(u)) throw err('baddate', 'Enter a valid "until" date.');
+      if (u && u < f) throw err('baddate', 'The "until" date cannot be before the "from" date.');
       tool.status = 'down'; tool.down_reason = clean(reason); tool.down_since = nowStamp();
-      hist(d, { tool_id: tool.id, action: 'tool_down', user_id: a.id, reason: reason });
+      tool.down_from = R.isPm(tool) ? f : null; tool.down_until = R.isPm(tool) ? u : null;
+      hist(d, { tool_id: tool.id, action: 'tool_down', user_id: a.id, reason: reason,
+        new_date: R.isPm(tool) ? f : null, comment: R.isPm(tool) && u ? 'Down until ' + R.longDate(u) : '' });
       return tool;
     }, 'admin');
   }
@@ -587,10 +682,15 @@ window.HCP.store = (function () {
       var tool = find(d.tools, toolId);
       if (!tool) throw err('notfound', 'This tool no longer exists.');
       if (tool.status !== 'down') throw err('conflict', 'This tool is not down.');
+      if (!R.hasSchedule(tool)) {
+        tool.status = 'active'; tool.down_reason = ''; tool.down_since = null; tool.down_from = null; tool.down_until = null;
+        hist(d, { tool_id: tool.id, action: 'reactivated', user_id: a.id });
+        return tool;
+      }
       if (!R.isDate(date)) throw err('baddate', 'Choose the date of the next cleaning.');
       if (R.isWeekend(date)) throw err('baddate', 'Choose a working day (Monday to Friday).');
       if (date < R.today()) throw err('baddate', 'The date cannot be in the past.');
-      tool.status = 'active'; tool.down_reason = ''; tool.down_since = null;
+      tool.status = 'active'; tool.down_reason = ''; tool.down_since = null; tool.down_from = null; tool.down_until = null;
       var open = openScheduled(d, tool.id);
       if (open) {
         open.pattern_date = date; open.nominal_date = date; open.due_date = date;
@@ -671,37 +771,51 @@ window.HCP.store = (function () {
     }, 'admin');
   }
 
+  /** Adds the PM tools from the Excel that are missing (for plans created before the PM tab). */
+  function addPmTools() {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var added = seedPm(d);
+      if (added.length) hist(d, { action: 'tool_changed', user_id: a.id, comment: 'PM tools added from the Excel: ' + added.join(', ') });
+      return added;
+    }, 'admin');
+  }
+
   /* --- Reading for screens ------------------------------------------ */
 
   function userName(d, id) { var u = find(d.users, id); return u ? u.name : ''; }
 
-  function board(weekDate) { return R.buildBoard(data, weekDate, R.today()); }
+  function board(weekDate, kind) { return R.buildBoard(data, weekDate, R.today(), kind || 'cleaning'); }
 
   var ACTION_LABELS = {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
-    reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Cleaning deleted',
+    reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Deleted',
     tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
     cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
   };
 
-  /** filters: {toolId, action, from, to} (dates inclusive) */
+  /** filters: {toolId, action, from, to, type: 'Cleaning'|'PM'} (dates inclusive) */
   function history(filters) {
     var f = filters || {};
     var d = data;
     return d.history.filter(function (h) {
       var day = h.at.slice(0, 10);
+      var type = typeOf(find(d.tools, h.tool_id));
       return (!f.toolId || h.tool_id === f.toolId) && (!f.action || h.action === f.action) &&
-        (!f.from || day >= f.from) && (!f.to || day <= f.to);
+        (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.type || type === f.type);
     }).map(function (h) {
       var tool = find(d.tools, h.tool_id), u = find(d.users, h.user_id);
       return {
-        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '',
+        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '', type: typeOf(tool),
         action: h.action, action_label: ACTION_LABELS[h.action] || h.action,
         who: u ? u.name : '', operator_id: u ? u.operator_id : '',
         old_date: h.old_date || '', new_date: h.new_date || '', reason: h.reason || '', comment: h.comment || ''
       };
     }).sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
   }
+
+  /** Cleaning | PM | '' (history rows without a tool, e.g. user changes). */
+  function typeOf(tool) { return !tool ? '' : R.isPm(tool) ? 'PM' : 'Cleaning'; }
 
   function csvCell(v) {
     var s = String(v == null ? '' : v);
@@ -711,9 +825,9 @@ window.HCP.store = (function () {
 
   /** UTF-8 with BOM so Excel shows umlauts correctly. */
   function historyCsv(filters) {
-    var head = ['Date', 'Time', 'Tool', 'Action', 'Who', 'Short ID', 'Old date', 'New date', 'Reason', 'Comment'];
+    var head = ['Date', 'Time', 'Type', 'Tool', 'Action', 'Who', 'Short ID', 'Old date', 'New date', 'Reason', 'Comment'];
     var lines = [head.join(',')].concat(history(filters).map(function (r) {
-      return [r.date, r.time, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
+      return [r.date, r.time, r.type, r.tool, r.action_label, r.who, r.operator_id, r.old_date, r.new_date, r.reason, r.comment].map(csvCell).join(',');
     }));
     return '\uFEFF' + lines.join('\r\n') + '\r\n';
   }
@@ -726,9 +840,15 @@ window.HCP.store = (function () {
     ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
   ];
 
+  var PM_COLS = [
+    ['Tool', 'tool', 12, 'text'], ['MNT owner', 'mnt_owner', 24, 'text'], ['Planned date', 'planned', 13, 'date'], ['Current date', 'due', 13, 'date'],
+    ['Done date', 'done', 12, 'date'], ['Days late', 'days_late', 10, 'number'], ['Who', 'who', 20, 'text'], ['Times postponed', 'postponed', 15, 'number'],
+    ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
+  ];
+
   /** One row per cleaning, as CSV (UTF-8 with BOM). */
   function reportCsv(from, to) {
-    var rows = window.HCP.analytics.reportRows(data, from, to, R.today());
+    var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), 'cleaning');
     var lines = [REPORT_COLS.map(function (c) { return c[0]; }).join(',')].concat(rows.map(function (r) {
       return REPORT_COLS.map(function (c) { return csvCell(r[c[1]]); }).join(',');
     }));
@@ -739,6 +859,7 @@ window.HCP.store = (function () {
   function workbook(from, to) {
     var A = window.HCP.analytics, X = window.HCP.xlsx;
     var st = A.stats(data, from, to, R.today());
+    var pmRows = A.reportRows(data, from, to, R.today(), 'pm');
     var col = function (h, w, t) { return { header: h, width: w, type: t || 'text' }; };
     var hist = history({ from: from, to: to }).slice().reverse();
     return X.build([
@@ -748,15 +869,18 @@ window.HCP.store = (function () {
           .concat([['ALL', st.kpi.planned, st.kpi.done, null, st.kpi.onTimePct, st.kpi.avgLate, st.kpi.postponements, st.kpi.overdueNow]]) },
       { name: 'Cleanings', columns: REPORT_COLS.map(function (c) { return col(c[0], c[2], c[3]); }),
         rows: st.rows.map(function (r) { return REPORT_COLS.map(function (c) { return r[c[1]]; }); }) },
+      { name: 'PMs', columns: PM_COLS.map(function (c) { return col(c[0], c[2], c[3]); }),
+        rows: pmRows.map(function (r) { return PM_COLS.map(function (c) { return r[c[1]]; }); }) },
       { name: 'Operators', columns: [col('Who', 26), col('Cleanings done', 15, 'number'), col('On time', 9, 'number')],
         rows: st.byOperator.map(function (o) { return [o.who, o.done, o.onTime]; }) },
       { name: 'Postpone reasons', columns: [col('Reason', 40), col('Times', 8, 'number')],
         rows: st.topReasons.map(function (r) { return [r.reason, r.count]; }) },
-      { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Tool', 10), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
-        rows: hist.map(function (r) { return [r.date, r.time, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
-      { name: 'Tools', columns: [col('Tool', 10), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
-        rows: data.tools.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (t) {
-          return [t.name, R.describeSchedule(t), t.start_date, t.tool_owner, t.mnt_owner, t.archived ? 'Archived' : t.status === 'down' ? 'Down' : 'Active'];
+      { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Type', 10), col('Tool', 12), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
+        rows: hist.map(function (r) { return [r.date, r.time, r.type, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
+      { name: 'Tools', columns: [col('Type', 10), col('Tool', 12), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
+        rows: data.tools.slice().sort(function (a, b) { return typeOf(a).localeCompare(typeOf(b)) || a.name.localeCompare(b.name); }).map(function (t) {
+          return [typeOf(t), t.name, R.describeAny(t), t.start_date || null, t.tool_owner, t.mnt_owner,
+            t.archived ? 'Archived' : t.status === 'down' ? 'Down' : t.status === 'planned' ? 'Not installed' : 'Active'];
         }) }
     ]);
   }
@@ -811,7 +935,7 @@ window.HCP.store = (function () {
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
-    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, SEED_OPERATORS: SEED_OPERATORS,
+    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin

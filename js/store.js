@@ -73,6 +73,46 @@ window.HCP.store = (function () {
   ];
   var SEED_PM_DOWN_FROM = '2026-11-16';
 
+  // Magazines (PLAN 13f), from "RnD_Magazines_checking_16-11-26.xlsx".
+  // [S/N, cart, production use, CR type, checked by (first name), date, lot status, repair needed y/n/'', comment]
+  var SEED_MAGAZINES = [
+    ["M70073", "", "Yes", "CR100K", "Talal", "2026-11-16", "19680", "y", "shutter loose (in Stocker)"],
+    ["M70074", "No", "No", "CR100K", "Mohamed", "2026-11-16", "Dummies/mixed", "n", "in Stocker"],
+    ["M70131", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "lv2 DFL901"],
+    ["M70132", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19637", "n", "WIP OVC"],
+    ["M70133", "No", "Yes", "CR100K", "", "", "", "", ""],
+    ["M70134", "No", "No", "CR100K", "Mohamed", "2026-11-16", "", "", "C+ 2nd magazine"],
+    ["M70135", "", "No", "CR100K", "Mohamed", "2026-11-16", "Empty", "n", "DPM Mag."],
+    ["M70136", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19561", "n", "in Stocker"],
+    ["M70137", "Yes", "No", "CR100K", "Talal", "2026-11-16", "19639", "n", "in Stocker"],
+    ["M70138", "Yes", "No", "CR100K", "Mohamed", "2026-11-16", "-", "n", "ECP901"],
+    ["M70139", "Yes / X", "No", "CR100K", "Mohamed", "2026-11-16", "-", "n", "ECP901"],
+    ["M70144", "No", "No", "CR100K", "Talal", "2026-11-16", "Dummies", "n", "WIP OVC/ DPM Mag"],
+    ["M70145", "No", "No", "CR100K", "", "", "", "", ""],
+    ["M70313", "Yes", "No", "CR100", "", "", "", "", ""],
+    ["M70318", "Yes / X", "No", "CR100K", "Mohamed", "2026-11-16", "19552", "n", "in Stocker"],
+    ["M70319", "Yes", "No", "CR100K", "Talal", "2026-11-16", "Empty", "n", "in Stocker"],
+    ["M70320", "Yes / X", "Yes", "CR100K", "Talal", "2026-11-16", "2 panels no traveller", "n", "in Stocker"],
+    ["M70321", "Yes / X", "No", "CR100K", "Talal", "2026-11-16", "19713", "n", "in Stocker"],
+    ["M70334", "Yes", "No", "CR100K", "Talal", "2026-11-16", "19466", "n", "in Stocker"],
+    ["M70335", "No", "No", "CR100K", "Talal", "2026-11-16", "19464", "n", "in Stocker"],
+    ["M70336", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19578", "n", "in Stocker"],
+    ["M70337", "Yes", "No", "CR100K", "", "", "", "", ""],
+    ["M70338", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "lv2 NCC901"],
+    ["M70339", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "BLY901"],
+    ["M70340", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19726", "n", "lv1 AOP WIP"],
+    ["M70341", "Yes", "No", "CR100K", "", "", "", "", ""],
+    ["M70342", "Yes / X", "No", "CR100K", "Mohamed", "2026-11-16", "19086.02", "n", "in Stocker"],
+    ["M70343", "No", "No", "CR100K", "", "", "", "", ""],
+    ["M70344", "No", "No", "CR100K", "Mohamed", "2026-11-16", "", "", "C+ 1st magazine"],
+    ["M70345", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "lv2 WIP TLA/PNP"],
+    ["M70346", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19678", "n", "in Stocker"],
+    ["M70347", "Yes", "No", "CR100K", "Talal", "2026-11-16", "Empty", "n", "WIP OVC"],
+    ["M70348", "Yes", "Yes", "CR100K", "Talal", "2026-11-16", "19604.01", "n", "C+ WIP"],
+    ["M70349", "Yes", "No", "CR100K", "Talal", "2026-11-16", "19467", "n", "in Stocker"],
+    ["M70350", "Yes", "Yes", "CR100K", "Talal", "2026-11-16", "full with no traveller", "n", "in Stocker"]
+  ];
+
   /* --- Small helpers ------------------------------------------------ */
 
   function err(code, msg) { var e = new Error(msg); e.code = code; return e; }
@@ -137,7 +177,7 @@ window.HCP.store = (function () {
 
   function hist(d, row) {
     d.history.push({
-      id: newId('h'), tool_id: row.tool_id || null, task_id: row.task_id || null, action: row.action,
+      id: newId('h'), tool_id: row.tool_id || null, task_id: row.task_id || null, magazine_id: row.magazine_id || null, action: row.action,
       user_id: row.user_id || null, at: nowStamp(), reason: clean(row.reason), comment: clean(row.comment),
       old_date: row.old_date || null, new_date: row.new_date || null
     });
@@ -167,7 +207,7 @@ window.HCP.store = (function () {
 
   function pmToolFromSeed(s) {
     var tool = {
-      id: newId('tool'), kind: 'pm', name: s[0], tool_owner: '', mnt_owner: s[1],
+      id: newId('tool'), kind: 'pm', pos: SEED_PM.indexOf(s), name: s[0], tool_owner: '', mnt_owner: s[1],
       schedule_type: s[2] ? 'weeks' : 'none', interval: s[2] || null, weekday: s[3] ? R.weekday(s[3]) : null, month_day: null,
       start_date: s[3], status: s[4] === 'planned' ? 'planned' : s[4] === 'down' ? 'down' : 'active',
       down_reason: '', down_since: null, down_from: null, down_until: null, archived: false
@@ -305,8 +345,8 @@ window.HCP.store = (function () {
           .concat(SEED_OPERATORS.map(function (n, i) {
             return { id: newId('user'), operator_id: 'OP00' + (i + 1), name: n, role: 'operator', pin_hash: null, active: true };
           })),
-        tools: [], tasks: [], history: [], exceptions: [],
-        settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white' }
+        tools: [], tasks: [], history: [], exceptions: [], magazines: [], mag_events: [],
+        settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white', mag_check_weeks: 4 }
       };
       SEED_TOOLS.forEach(function (s) {
         var tool = {
@@ -319,6 +359,7 @@ window.HCP.store = (function () {
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
       });
       seedPm(d);
+      seedMagazines(d);
       return adapter.write(cfg.data_file, JSON.stringify(d, null, 1)).then(function () { data = d; return d; });
     });
   }
@@ -781,6 +822,149 @@ window.HCP.store = (function () {
     }, 'admin');
   }
 
+  /* --- Magazines (PLAN 13f) ----------------------------------------- */
+
+  function mags(d) { d.magazines = d.magazines || []; d.mag_events = d.mag_events || []; return d.magazines; }
+  function yesNo(v) { var s = clean(v); return /^y/i.test(s) ? (/x/i.test(s) ? 'Yes / X' : 'Yes') : /^n/i.test(s) ? 'No' : s; }
+
+  /** Adds the magazines from the Excel that are missing (by S/N), with their last check. -> S/Ns added */
+  function seedMagazines(d) {
+    mags(d);
+    var added = [];
+    SEED_MAGAZINES.forEach(function (s, i) {
+      if (d.magazines.some(function (m) { return m.sn === s[0]; })) return;
+      var m = { id: newId('mag'), sn: s[0], cr_type: s[3], cart: yesNo(s[1]), prod_use: yesNo(s[2]), lot_status: '', location: '',
+        last_check: null, last_by: null, last_by_name: '', needs_repair: false, repair_note: '', repair_since: null, pos: i, archived: false };
+      d.magazines.push(m);
+      if (s[5]) {
+        var u = d.users.find(function (x) { return x.name.toLowerCase().indexOf(s[4].toLowerCase()) === 0; });
+        applyCheck(d, m, { user: u, by_name: u ? u.name : s[4], date: s[5], at: s[5] + 'T12:00:00', cart: m.cart, prod_use: m.prod_use,
+          lot_status: s[6], repair_needed: s[7] === 'y', cleaned: false, comment: s[8] });
+      }
+      added.push(m.sn);
+    });
+    return added;
+  }
+
+  function applyCheck(d, m, c) {
+    var ev = { id: newId('mev'), magazine_id: m.id, kind: 'check', at: c.at, date: c.date, user_id: c.user ? c.user.id : null, by_name: c.by_name,
+      cart: c.cart, prod_use: c.prod_use, lot_status: clean(c.lot_status), repair_needed: !!c.repair_needed, cleaned: !!c.cleaned, comment: clean(c.comment) };
+    d.mag_events.push(ev);
+    m.last_check = c.date; m.last_by = ev.user_id; m.last_by_name = c.by_name;
+    m.cart = ev.cart; m.prod_use = ev.prod_use; m.lot_status = ev.lot_status; m.location = ev.comment;
+    if (ev.cleaned) m.cleaned_at = c.date;
+    if (ev.repair_needed && !m.needs_repair) { m.needs_repair = true; m.repair_since = c.date; }
+    if (ev.repair_needed) m.repair_note = ev.comment;
+    return ev;
+  }
+
+  function magOrThrow(d, id) {
+    var m = find(mags(d), id);
+    if (!m || m.archived) throw err('conflict', 'This magazine no longer exists. The list will refresh.');
+    return m;
+  }
+
+  /** Log a check (anyone, chooses their name). input: {cart, prod_use, lot_status, repair_needed, cleaned, comment} */
+  function magCheck(magId, operatorId, input) {
+    var i = input || {};
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var m = magOrThrow(d, magId);
+      var ev = applyCheck(d, m, { user: u, by_name: u.name, date: R.today(), at: nowStamp(), cart: yesNo(i.cart), prod_use: yesNo(i.prod_use),
+        lot_status: i.lot_status, repair_needed: !!i.repair_needed, cleaned: !!i.cleaned, comment: i.comment });
+      hist(d, { magazine_id: m.id, action: 'mag_checked', user_id: u.id,
+        comment: [ev.repair_needed ? 'Repair needed' : 'OK', ev.cleaned ? 'cleaned' : '', ev.lot_status ? 'lot ' + ev.lot_status : '', ev.comment].filter(Boolean).join(' · ') });
+      return { magazine: m, event: ev };
+    }, clean(operatorId).toUpperCase());
+  }
+
+  /** Repair finished (anyone, chooses their name). */
+  function magRepairDone(magId, operatorId, comment) {
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var m = magOrThrow(d, magId);
+      if (!m.needs_repair) throw err('conflict', 'This magazine has no open repair. The list will refresh.');
+      d.mag_events.push({ id: newId('mev'), magazine_id: m.id, kind: 'repair_done', at: nowStamp(), date: R.today(), user_id: u.id, by_name: u.name,
+        comment: clean(comment), repair_note: m.repair_note, repair_since: m.repair_since });
+      hist(d, { magazine_id: m.id, action: 'mag_repaired', user_id: u.id, reason: m.repair_note, comment: comment, old_date: m.repair_since });
+      m.needs_repair = false; m.repair_note = ''; m.repair_since = null;
+      return m;
+    }, clean(operatorId).toUpperCase());
+  }
+
+  /** Admin: add (no id) or edit a magazine. */
+  function saveMagazine(input) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      mags(d);
+      var sn = clean(input.sn).toUpperCase(), cr = clean(input.cr_type).toUpperCase();
+      if (!sn) throw err('invalid', 'Enter the magazine S/N.');
+      if (sn.length > 30) throw err('invalid', 'The S/N is too long.');
+      var dup = d.magazines.find(function (m) { return m.id !== input.id && m.sn === sn; });
+      if (dup) throw err('invalid', 'Magazine ' + sn + ' already exists' + (dup.archived ? ' (archived).' : '.'));
+      var m;
+      if (!input.id) {
+        m = { id: newId('mag'), sn: sn, cr_type: cr, cart: '', prod_use: '', lot_status: '', location: '', last_check: null, last_by: null, last_by_name: '',
+          needs_repair: false, repair_note: '', repair_since: null, pos: null, archived: false };
+        d.magazines.push(m);
+        hist(d, { magazine_id: m.id, action: 'mag_changed', user_id: a.id, comment: 'Magazine added' + (cr ? ' (' + cr + ')' : '') });
+      } else {
+        m = find(d.magazines, input.id);
+        if (!m) throw err('notfound', 'This magazine no longer exists.');
+        var before = m.sn + ' ' + m.cr_type;
+        m.sn = sn; m.cr_type = cr;
+        if (before !== sn + ' ' + cr) hist(d, { magazine_id: m.id, action: 'mag_changed', user_id: a.id, comment: 'Changed: ' + before + ' -> ' + sn + ' ' + cr });
+      }
+      return m;
+    }, 'admin');
+  }
+
+  function archiveMagazine(id, archived) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var m = find(mags(d), id);
+      if (!m) throw err('notfound', 'This magazine no longer exists.');
+      m.archived = !!archived;
+      hist(d, { magazine_id: m.id, action: 'mag_changed', user_id: a.id, comment: archived ? 'Magazine archived' : 'Magazine restored' });
+      return m;
+    }, 'admin');
+  }
+
+  function addMagazines() {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var added = seedMagazines(d);
+      if (added.length) hist(d, { action: 'mag_changed', user_id: a.id, comment: 'Magazines added from the Excel: ' + added.length });
+      return added;
+    }, 'admin');
+  }
+
+  function setMagCheckWeeks(n) {
+    return mutate(function (d) {
+      requireAdmin(d);
+      var w = parseInt(n, 10);
+      if (!(w >= 0 && w <= 52)) throw err('invalid', 'Enter 0 to 52 weeks (0 = no reminder).');
+      d.settings.mag_check_weeks = w;
+      return w;
+    }, 'admin');
+  }
+
+  function magCheckWeeks() { var w = data && data.settings && data.settings.mag_check_weeks; return w == null ? 4 : w; }
+
+  /** Magazines for the screen, with status. */
+  function magazines(showArchived) {
+    if (!data) return [];
+    var today = R.today(), w = magCheckWeeks();
+    return (data.magazines || []).filter(function (m) { return showArchived || !m.archived; }).map(function (m) {
+      return Object.assign({}, m, { status: R.magStatus(m, today, w) });
+    }).sort(function (a, b) { return R.byPosThenName({ pos: a.pos, name: a.sn }, { pos: b.pos, name: b.sn }); });
+  }
+
+  function magEvents(magId) {
+    return ((data && data.mag_events) || []).filter(function (e) { return e.magazine_id === magId; })
+      .sort(function (a, b) { return a.at < b.at ? 1 : -1; });
+  }
+
   /* --- Reading for screens ------------------------------------------ */
 
   function userName(d, id) { var u = find(d.users, id); return u ? u.name : ''; }
@@ -791,6 +975,7 @@ window.HCP.store = (function () {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
     reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Deleted',
     tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
+    mag_checked: 'Magazine checked', mag_repaired: 'Repair done', mag_changed: 'Magazine changed',
     cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
   };
 
@@ -800,13 +985,14 @@ window.HCP.store = (function () {
     var d = data;
     return d.history.filter(function (h) {
       var day = h.at.slice(0, 10);
-      var type = typeOf(find(d.tools, h.tool_id));
+      var type = h.magazine_id ? 'Magazine' : typeOf(find(d.tools, h.tool_id));
       return (!f.toolId || h.tool_id === f.toolId) && (!f.action || h.action === f.action) &&
         (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.type || type === f.type);
     }).map(function (h) {
       var tool = find(d.tools, h.tool_id), u = find(d.users, h.user_id);
+      var mag = h.magazine_id ? find(d.magazines || [], h.magazine_id) : null;
       return {
-        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '', type: typeOf(tool),
+        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: mag ? mag.sn : tool ? tool.name : '', type: mag || h.magazine_id ? 'Magazine' : typeOf(tool),
         action: h.action, action_label: ACTION_LABELS[h.action] || h.action,
         who: u ? u.name : '', operator_id: u ? u.operator_id : '',
         old_date: h.old_date || '', new_date: h.new_date || '', reason: h.reason || '', comment: h.comment || ''
@@ -846,6 +1032,8 @@ window.HCP.store = (function () {
     ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
   ];
 
+  var MAG_STATUS = { repair: 'Repair needed', never: 'Never checked', due: 'Check due', ok: 'OK' };
+
   /** One row per cleaning, as CSV (UTF-8 with BOM). */
   function reportCsv(from, to) {
     var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), 'cleaning');
@@ -877,6 +1065,18 @@ window.HCP.store = (function () {
         rows: st.topReasons.map(function (r) { return [r.reason, r.count]; }) },
       { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Type', 10), col('Tool', 12), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
         rows: hist.map(function (r) { return [r.date, r.time, r.type, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
+      { name: 'Magazines', columns: [col('S/N', 10), col('CR type', 10), col('Status', 14), col('Last check', 12, 'date'), col('Checked by', 22),
+          col('Cart', 9), col('Production use', 15), col('Lot status', 18), col('Location / comment', 34), col('Repair since', 13, 'date'), col('Repair note', 30)],
+        rows: magazines(false).map(function (m) {
+          return [m.sn, m.cr_type, MAG_STATUS[m.status], m.last_check, m.last_by_name, m.cart, m.prod_use, m.lot_status, m.location, m.repair_since, m.repair_note];
+        }) },
+      { name: 'Magazine checks', columns: [col('Date', 12, 'date'), col('Time', 8), col('S/N', 10), col('What', 12), col('Who', 22), col('Cart', 9),
+          col('Production use', 15), col('Lot status', 18), col('Repair needed', 14), col('Cleaned', 9), col('Comment', 40)],
+        rows: (data.mag_events || []).filter(function (e) { return e.date >= from && e.date <= to; }).sort(function (a, b) { return a.at < b.at ? -1 : 1; }).map(function (e) {
+          var m = find(data.magazines || [], e.magazine_id);
+          return [e.date, String(e.at).slice(11, 16), m ? m.sn : '', e.kind === 'check' ? 'Check' : 'Repair done', e.by_name, e.cart || '', e.prod_use || '', e.lot_status || '',
+            e.kind === 'check' ? (e.repair_needed ? 'Yes' : 'No') : '', e.kind === 'check' ? (e.cleaned ? 'Yes' : '') : '', e.comment || ''];
+        }) },
       { name: 'Tools', columns: [col('Type', 10), col('Tool', 12), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
         rows: data.tools.slice().sort(function (a, b) { return typeOf(a).localeCompare(typeOf(b)) || a.name.localeCompare(b.name); }).map(function (t) {
           return [typeOf(t), t.name, R.describeAny(t), t.start_date || null, t.tool_owner, t.mnt_owner,
@@ -935,7 +1135,9 @@ window.HCP.store = (function () {
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
-    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM, SEED_OPERATORS: SEED_OPERATORS,
+    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM,
+    magCheck: magCheck, magRepairDone: magRepairDone, saveMagazine: saveMagazine, archiveMagazine: archiveMagazine, addMagazines: addMagazines,
+    setMagCheckWeeks: setMagCheckWeeks, magCheckWeeks: magCheckWeeks, magazines: magazines, magEvents: magEvents, SEED_MAGAZINES: SEED_MAGAZINES, MAG_STATUS: MAG_STATUS, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin

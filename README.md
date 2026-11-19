@@ -55,6 +55,12 @@ Everyone can see it; only the Admin (logged in) marks a PM done, postpones it, o
 - Plans created before v0.8: Settings → PM tools → "Add PM tools from the Excel".
 - History has a Type column (Cleaning / PM); the Excel workbook has a PMs sheet.
 
+## Magazines tab
+
+One row per magazine with its last check. **Check** logs who, cart, production use, lot status, location, Cleaned and Repair needed; **Repair done** closes a repair.
+A magazine is "Check due" when its last check is older than the weeks set in Settings → Magazines (default 4).
+Plans created before v0.9: Settings → Magazines → "Add magazines from the Excel".
+
 ## Teams reminder (optional)
 
 In the Teams channel: **Workflows → "Post to a channel when a webhook request is received"**, copy the URL into **Settings → General**, then press **Send test message**. Once per working day, the first person who opens the app sends "due today and overdue". (The page cannot read Teams' answer, so check the channel after the test.)

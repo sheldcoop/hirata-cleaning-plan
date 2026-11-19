@@ -183,6 +183,16 @@ window.HCP.rules = (function () {
     return describeSchedule(tool);
   }
 
+  /* --- Magazines (13f) --------------------------------------------- */
+
+  /** repair | never | due | ok. due = last check older than `weeks` weeks (0 = never due). */
+  function magStatus(mag, todayStr, weeks) {
+    if (mag.needs_repair) return 'repair';
+    if (!mag.last_check) return 'never';
+    if (weeks > 0 && diffDays(mag.last_check, todayStr) >= weeks * 7) return 'due';
+    return 'ok';
+  }
+
   /* --- Status (R1) -------------------------------------------------- */
 
   /** done | down | overdue | today | postponed | upcoming */
@@ -193,6 +203,12 @@ window.HCP.rules = (function () {
     if (task.due_date === todayStr) return 'today';
     if (task.postpone_count > 0) return 'postponed';
     return 'upcoming';
+  }
+
+  /** PM tools keep the order of the Excel (pos); others (and new tools) by name. */
+  function byPosThenName(a, b) {
+    var pa = a.pos == null ? 1e9 : a.pos, pb = b.pos == null ? 1e9 : b.pos;
+    return pa - pb || a.name.localeCompare(b.name);
   }
 
   /* --- Weekly board (R13, R14, R14b, R14c) -------------------------- */
@@ -209,7 +225,7 @@ window.HCP.rules = (function () {
     var carryCol = days.indexOf(toPrevWorkingDay(todayStr));
 
     var tools = data.tools.filter(function (t) { return !t.archived && ofKind(t, kind || 'cleaning'); })
-      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+      .sort(byPosThenName);
 
     var rows = tools.map(function (tool) {
       var cells = [[], [], [], [], []];
@@ -272,6 +288,6 @@ window.HCP.rules = (function () {
     firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
     validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
-    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny
+    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny, magStatus: magStatus, byPosThenName: byPosThenName
   };
 })();

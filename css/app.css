@@ -456,7 +456,7 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 :root, [data-theme="white"] { --pm-d: #e8742c; --pm-d-fg: #ffffff; --pm-ni: #c00000; --pm-ni-bg: #f7d4d4; }
 [data-theme="teal"] { --pm-d: #d9652a; --pm-d-fg: #ffffff; --pm-ni: #ff5a52; --pm-ni-bg: #4a1c1c; }
 .dbox { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; background: var(--pm-d); color: var(--pm-d-fg); font-weight: 800; font-size: 12px; }
-.dbox.big { width: 100%; height: 34px; margin: 2px 0; font-size: 15px; border-radius: 8px; letter-spacing: .5px; }
+.dbox.big { display: flex; gap: 6px; justify-content: center; align-items: center; width: 100%; height: 34px; margin: 2px 0; font-size: 13px; font-weight: 700; border-radius: 8px; }
 .nibox { display: inline-block; width: 20px; height: 20px; border-radius: 4px; background: var(--pm-ni); }
 .pm-grid tr.is-planned td { background: var(--pm-ni-bg); }
 .pm-grid tr.is-planned .tool-col { box-shadow: inset 4px 0 0 var(--pm-ni); }
@@ -468,3 +468,24 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 .pm-grid .tool-meta { padding-left: 2px; }
 .type-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: var(--k-sched-bg); color: var(--k-sched-fg); }
 .type-tag.is-pm { background: var(--k-post-bg); color: var(--k-post-fg); }
+
+/* ---------- v0.9: Magazines tab ---------- */
+.summary.even { grid-template-columns: repeat(5, 1fr); }
+.summary.even:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, 1fr); }
+.tile.on { outline: 2px solid var(--tile-accent, var(--ats-blue)); outline-offset: -2px; }
+.search-wrap { display: flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.search-wrap input { border: 0; background: transparent; padding: 8px 0; min-width: 260px; color: var(--text); outline: none; }
+.mag-sn { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--text); font: inherit; text-align: left; }
+.mag-sn .icon { color: var(--ats-blue); }
+.mag-sn > span { display: flex; flex-direction: column; line-height: 1.15; }
+.mag-sn .cr { font-size: 11px; color: var(--muted); }
+.mag-sn:hover b { text-decoration: underline; }
+.mag-list td { vertical-align: middle; }
+.mag-list .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.mag-list tr.mag-repair td:first-child { box-shadow: inset 4px 0 0 var(--c-overdue); }
+.mag-list tr.mag-due td:first-child, .mag-list tr.mag-never td:first-child { box-shadow: inset 4px 0 0 var(--c-postponed); }
+.mag-list .pill { display: inline-flex; align-items: center; gap: 6px; }
+.check-row { display: flex; gap: 22px; margin: 6px 0 4px; }
+.inline-setting { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; flex-wrap: wrap; }
+.type-tag.is-mag { background: var(--k-done-bg); color: var(--k-done-fg); }
+.m-projected { --c: var(--c-projected); }

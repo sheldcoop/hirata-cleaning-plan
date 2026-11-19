@@ -52,7 +52,7 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click(btn('Create new plan'), 1500);
   ok(w.__files['hirata_data.json'], 'plan file written');
   ok(d.body.textContent.includes('Admin: Khurana'), 'logged in as Admin: ' + d.body.textContent.slice(0, 400) + errors.join('|'));
-  ok($$('.tab').length === 5, 'settings tabs shown');
+  ok($$('.tab').length === 6, 'settings tabs shown');
 
   step = 'settings: users';
   await click($$('.tab').find(t => t.textContent === 'Users'));
@@ -157,7 +157,8 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   w.location.hash = '#pm'; await wait(200);
   ok($$('.pm-grid tbody tr').length === 23, 'PM rows: ' + $$('.pm-grid tbody tr').length);
   ok($$('.pm-grid tr.is-planned').length === 1, 'LXP902 red row');
-  ok($$('.pm-grid .dbox.big').length >= 10, 'D boxes for DFS901 and PNP901');
+  ok($$('.pm-grid .dbox.big').length >= 10 && $('.pm-grid .dbox.big').textContent.includes('Down'), 'Down boxes for DFS901 and PNP901');
+  ok($$('.pm-grid .tool-name')[0].textContent === 'AOP901', 'PM tools in Excel order');
   let pmChip = $$('.pm-grid button.chip')[0];
   ok(pmChip, 'a PM chip');
   await click(pmChip);
@@ -177,6 +178,28 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   await click($$('button').find(b => b.textContent === 'Edit'));
   ok($('.modal') && d.querySelector('.modal').textContent.includes('Not installed yet'), 'PM tool form');
   await click(btn('Cancel'));
+
+  step = 'magazines';
+  w.location.hash = '#magazines'; await wait(200);
+  ok($$('.mag-list tbody tr').length === 35, 'magazine rows: ' + $$('.mag-list tbody tr').length);
+  ok($('.mag-list tbody tr').classList.contains('mag-repair'), 'repairs listed first');
+  await click($$('.mag-list button').find(b => b.textContent.trim() === 'Check'));
+  await click(btn('Continue'));
+  ok(!$('.form-error').hidden, 'name required for a check');
+  pick('Talal AL-EFFAH');
+  await click(btn('Continue'));
+  await click(btn('Yes, save'), 500);
+  ok(d.body.textContent.includes('checked'), 'check saved');
+  await click($$('.mag-list button').find(b => b.textContent.trim() === 'Repair done'));
+  pick('Mohamed Ibrahem');
+  await click(btn('Continue'));
+  await click(btn('Yes, repaired'), 500);
+  ok(!$$('.mag-list tr.mag-repair').length, 'no repairs left');
+  const srch = $('.mag-search'); type(srch, '70350'); await wait(150);
+  ok($$('.mag-list tbody tr').length === 1, 'search');
+  w.location.hash = '#settings'; await wait(200);
+  await click($$('.tab').find(t => t.textContent === 'Magazines'));
+  ok(d.body.textContent.includes('Check each magazine every'), 'magazine settings');
 
   step = 'history + export';
   w.location.hash = '#history'; await wait(200);

@@ -14,12 +14,12 @@ window.HCP.views.history = (function () {
   function render(root, app) {
     var d = S.current();
     var toolSel = h('select', { onchange: function (e) { filters.toolId = e.target.value; app.render(); } },
-      [h('option', { value: '', text: 'All tools' })].concat(d.tools.filter(function (t) { return !filters.type || (filters.type === 'PM') === R.isPm(t); })
+      [h('option', { value: '', text: 'All tools' })].concat(d.tools.filter(function (t) { return filters.type !== 'Magazine' && (!filters.type || (filters.type === 'PM') === R.isPm(t)); })
         .slice().sort(function (a, b) { return a.name.localeCompare(b.name) || (R.isPm(a) ? 1 : -1); }).map(function (t) {
         return h('option', { value: t.id, text: t.name + (R.isPm(t) ? ' (PM)' : '') + (t.archived ? ' (archived)' : ''), selected: filters.toolId === t.id });
       })));
     var typeSel = h('select', { onchange: function (e) { filters.type = e.target.value; filters.toolId = ''; app.render(); } },
-      [['', 'Cleaning and PM'], ['Cleaning', 'Cleaning'], ['PM', 'PM']].map(function (o) { return h('option', { value: o[0], text: o[1], selected: filters.type === o[0] }); }));
+      [['', 'Everything'], ['Cleaning', 'Cleaning'], ['PM', 'PM'], ['Magazine', 'Magazines']].map(function (o) { return h('option', { value: o[0], text: o[1], selected: filters.type === o[0] }); }));
     var actSel = h('select', { onchange: function (e) { filters.action = e.target.value; app.render(); } },
       [h('option', { value: '', text: 'All actions' })].concat(Object.keys(S.ACTION_LABELS).map(function (k) {
         return h('option', { value: k, text: S.ACTION_LABELS[k], selected: filters.action === k });
@@ -43,7 +43,7 @@ window.HCP.views.history = (function () {
       h('tbody', {}, rows.length ? rows.slice(0, PAGE).map(function (r) {
         var dates = r.old_date && r.new_date ? R.shortDate(r.old_date) + ' → ' + R.shortDate(r.new_date) : r.old_date ? R.shortDate(r.old_date) : r.new_date ? R.shortDate(r.new_date) : '';
         return h('tr', {}, [
-          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', {}, r.type ? h('span', { class: 'type-tag ' + (r.type === 'PM' ? 'is-pm' : ''), text: r.type }) : '–'), h('td', { class: 'strong', text: r.tool || '–' }),
+          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', {}, r.type ? h('span', { class: 'type-tag ' + (r.type === 'PM' ? 'is-pm' : r.type === 'Magazine' ? 'is-mag' : ''), text: r.type }) : '–'), h('td', { class: 'strong', text: r.tool || '–' }),
           h('td', {}, h('span', { class: 'act a-' + r.action, text: r.action_label })),
           h('td', { text: r.who || '–' }), h('td', { text: dates }),
           h('td', { class: 'wrap', text: [r.reason, r.comment].filter(Boolean).join(' · ') })

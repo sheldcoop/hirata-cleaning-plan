@@ -463,7 +463,7 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 :root, [data-theme="white"] { --pm-d: #e8742c; --pm-d-fg: #ffffff; --pm-ni: #c00000; --pm-ni-bg: #f7d4d4; }
 [data-theme="teal"] { --pm-d: #d9652a; --pm-d-fg: #ffffff; --pm-ni: #ff5a52; --pm-ni-bg: #4a1c1c; }
 .dbox { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; background: var(--pm-d); color: var(--pm-d-fg); font-weight: 800; font-size: 12px; }
-.dbox.big { width: 100%; height: 34px; margin: 2px 0; font-size: 15px; border-radius: 8px; letter-spacing: .5px; }
+.dbox.big { display: flex; gap: 6px; justify-content: center; align-items: center; width: 100%; height: 34px; margin: 2px 0; font-size: 13px; font-weight: 700; border-radius: 8px; }
 .nibox { display: inline-block; width: 20px; height: 20px; border-radius: 4px; background: var(--pm-ni); }
 .pm-grid tr.is-planned td { background: var(--pm-ni-bg); }
 .pm-grid tr.is-planned .tool-col { box-shadow: inset 4px 0 0 var(--pm-ni); }
@@ -475,6 +475,27 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 .pm-grid .tool-meta { padding-left: 2px; }
 .type-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 4px; background: var(--k-sched-bg); color: var(--k-sched-fg); }
 .type-tag.is-pm { background: var(--k-post-bg); color: var(--k-post-fg); }
+
+/* ---------- v0.9: Magazines tab ---------- */
+.summary.even { grid-template-columns: repeat(5, 1fr); }
+.summary.even:has(> :nth-child(4):last-child) { grid-template-columns: repeat(4, 1fr); }
+.tile.on { outline: 2px solid var(--tile-accent, var(--ats-blue)); outline-offset: -2px; }
+.search-wrap { display: flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
+.search-wrap input { border: 0; background: transparent; padding: 8px 0; min-width: 260px; color: var(--text); outline: none; }
+.mag-sn { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; cursor: pointer; color: var(--text); font: inherit; text-align: left; }
+.mag-sn .icon { color: var(--ats-blue); }
+.mag-sn > span { display: flex; flex-direction: column; line-height: 1.15; }
+.mag-sn .cr { font-size: 11px; color: var(--muted); }
+.mag-sn:hover b { text-decoration: underline; }
+.mag-list td { vertical-align: middle; }
+.mag-list .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.mag-list tr.mag-repair td:first-child { box-shadow: inset 4px 0 0 var(--c-overdue); }
+.mag-list tr.mag-due td:first-child, .mag-list tr.mag-never td:first-child { box-shadow: inset 4px 0 0 var(--c-postponed); }
+.mag-list .pill { display: inline-flex; align-items: center; gap: 6px; }
+.check-row { display: flex; gap: 22px; margin: 6px 0 4px; }
+.inline-setting { display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; flex-wrap: wrap; }
+.type-tag.is-mag { background: var(--k-done-bg); color: var(--k-done-fg); }
+.m-projected { --c: var(--c-projected); }
 
 </style>
 </head>
@@ -492,7 +513,7 @@ button.chip:hover { filter: brightness(1.04); box-shadow: 0 4px 12px rgba(0,0,0,
 window.HCP = window.HCP || {};
 window.HCP.config = {
   app_name: 'Hirata Cleaning Plan',
-  version: '0.8.0',
+  version: '0.9.0',
   idb_name: 'hirata-cleaning-plan',   // remembers the data folder per PC
   data_file: 'hirata_data.json',
   prev_file: 'hirata_data.prev.json',
@@ -687,6 +708,16 @@ window.HCP.rules = (function () {
     return describeSchedule(tool);
   }
 
+  /* --- Magazines (13f) --------------------------------------------- */
+
+  /** repair | never | due | ok. due = last check older than `weeks` weeks (0 = never due). */
+  function magStatus(mag, todayStr, weeks) {
+    if (mag.needs_repair) return 'repair';
+    if (!mag.last_check) return 'never';
+    if (weeks > 0 && diffDays(mag.last_check, todayStr) >= weeks * 7) return 'due';
+    return 'ok';
+  }
+
   /* --- Status (R1) -------------------------------------------------- */
 
   /** done | down | overdue | today | postponed | upcoming */
@@ -697,6 +728,12 @@ window.HCP.rules = (function () {
     if (task.due_date === todayStr) return 'today';
     if (task.postpone_count > 0) return 'postponed';
     return 'upcoming';
+  }
+
+  /** PM tools keep the order of the Excel (pos); others (and new tools) by name. */
+  function byPosThenName(a, b) {
+    var pa = a.pos == null ? 1e9 : a.pos, pb = b.pos == null ? 1e9 : b.pos;
+    return pa - pb || a.name.localeCompare(b.name);
   }
 
   /* --- Weekly board (R13, R14, R14b, R14c) -------------------------- */
@@ -713,7 +750,7 @@ window.HCP.rules = (function () {
     var carryCol = days.indexOf(toPrevWorkingDay(todayStr));
 
     var tools = data.tools.filter(function (t) { return !t.archived && ofKind(t, kind || 'cleaning'); })
-      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+      .sort(byPosThenName);
 
     var rows = tools.map(function (tool) {
       var cells = [[], [], [], [], []];
@@ -776,7 +813,7 @@ window.HCP.rules = (function () {
     firstRuleDate: firstRuleDate, stepRule: stepRule, exceptionFor: exceptionFor, nextAfterCompletion: nextAfterCompletion,
     projected: projected, previewDates: previewDates, describeSchedule: describeSchedule,
     validateSchedule: validateSchedule, taskStatus: taskStatus, buildBoard: buildBoard,
-    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny
+    dailySummary: dailySummary, isPm: isPm, ofKind: ofKind, hasSchedule: hasSchedule, downOn: downOn, describeAny: describeAny, magStatus: magStatus, byPosThenName: byPosThenName
   };
 })();
 
@@ -1041,6 +1078,46 @@ window.HCP.store = (function () {
   ];
   var SEED_PM_DOWN_FROM = '2026-11-16';
 
+  // Magazines (PLAN 13f), from "RnD_Magazines_checking_16-11-26.xlsx".
+  // [S/N, cart, production use, CR type, checked by (first name), date, lot status, repair needed y/n/'', comment]
+  var SEED_MAGAZINES = [
+    ["M70073", "", "Yes", "CR100K", "Talal", "2026-11-16", "19680", "y", "shutter loose (in Stocker)"],
+    ["M70074", "No", "No", "CR100K", "Mohamed", "2026-11-16", "Dummies/mixed", "n", "in Stocker"],
+    ["M70131", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "lv2 DFL901"],
+    ["M70132", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19637", "n", "WIP OVC"],
+    ["M70133", "No", "Yes", "CR100K", "", "", "", "", ""],
+    ["M70134", "No", "No", "CR100K", "Mohamed", "2026-11-16", "", "", "C+ 2nd magazine"],
+    ["M70135", "", "No", "CR100K", "Mohamed", "2026-11-16", "Empty", "n", "DPM Mag."],
+    ["M70136", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19561", "n", "in Stocker"],
+    ["M70137", "Yes", "No", "CR100K", "Talal", "2026-11-16", "19639", "n", "in Stocker"],
+    ["M70138", "Yes", "No", "CR100K", "Mohamed", "2026-11-16", "-", "n", "ECP901"],
+    ["M70139", "Yes / X", "No", "CR100K", "Mohamed", "2026-11-16", "-", "n", "ECP901"],
+    ["M70144", "No", "No", "CR100K", "Talal", "2026-11-16", "Dummies", "n", "WIP OVC/ DPM Mag"],
+    ["M70145", "No", "No", "CR100K", "", "", "", "", ""],
+    ["M70313", "Yes", "No", "CR100", "", "", "", "", ""],
+    ["M70318", "Yes / X", "No", "CR100K", "Mohamed", "2026-11-16", "19552", "n", "in Stocker"],
+    ["M70319", "Yes", "No", "CR100K", "Talal", "2026-11-16", "Empty", "n", "in Stocker"],
+    ["M70320", "Yes / X", "Yes", "CR100K", "Talal", "2026-11-16", "2 panels no traveller", "n", "in Stocker"],
+    ["M70321", "Yes / X", "No", "CR100K", "Talal", "2026-11-16", "19713", "n", "in Stocker"],
+    ["M70334", "Yes", "No", "CR100K", "Talal", "2026-11-16", "19466", "n", "in Stocker"],
+    ["M70335", "No", "No", "CR100K", "Talal", "2026-11-16", "19464", "n", "in Stocker"],
+    ["M70336", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19578", "n", "in Stocker"],
+    ["M70337", "Yes", "No", "CR100K", "", "", "", "", ""],
+    ["M70338", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "lv2 NCC901"],
+    ["M70339", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "BLY901"],
+    ["M70340", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19726", "n", "lv1 AOP WIP"],
+    ["M70341", "Yes", "No", "CR100K", "", "", "", "", ""],
+    ["M70342", "Yes / X", "No", "CR100K", "Mohamed", "2026-11-16", "19086.02", "n", "in Stocker"],
+    ["M70343", "No", "No", "CR100K", "", "", "", "", ""],
+    ["M70344", "No", "No", "CR100K", "Mohamed", "2026-11-16", "", "", "C+ 1st magazine"],
+    ["M70345", "Yes", "No", "CR100", "Mohamed", "2026-11-16", "-", "n", "lv2 WIP TLA/PNP"],
+    ["M70346", "No", "No", "CR100K", "Mohamed", "2026-11-16", "19678", "n", "in Stocker"],
+    ["M70347", "Yes", "No", "CR100K", "Talal", "2026-11-16", "Empty", "n", "WIP OVC"],
+    ["M70348", "Yes", "Yes", "CR100K", "Talal", "2026-11-16", "19604.01", "n", "C+ WIP"],
+    ["M70349", "Yes", "No", "CR100K", "Talal", "2026-11-16", "19467", "n", "in Stocker"],
+    ["M70350", "Yes", "Yes", "CR100K", "Talal", "2026-11-16", "full with no traveller", "n", "in Stocker"]
+  ];
+
   /* --- Small helpers ------------------------------------------------ */
 
   function err(code, msg) { var e = new Error(msg); e.code = code; return e; }
@@ -1105,7 +1182,7 @@ window.HCP.store = (function () {
 
   function hist(d, row) {
     d.history.push({
-      id: newId('h'), tool_id: row.tool_id || null, task_id: row.task_id || null, action: row.action,
+      id: newId('h'), tool_id: row.tool_id || null, task_id: row.task_id || null, magazine_id: row.magazine_id || null, action: row.action,
       user_id: row.user_id || null, at: nowStamp(), reason: clean(row.reason), comment: clean(row.comment),
       old_date: row.old_date || null, new_date: row.new_date || null
     });
@@ -1135,7 +1212,7 @@ window.HCP.store = (function () {
 
   function pmToolFromSeed(s) {
     var tool = {
-      id: newId('tool'), kind: 'pm', name: s[0], tool_owner: '', mnt_owner: s[1],
+      id: newId('tool'), kind: 'pm', pos: SEED_PM.indexOf(s), name: s[0], tool_owner: '', mnt_owner: s[1],
       schedule_type: s[2] ? 'weeks' : 'none', interval: s[2] || null, weekday: s[3] ? R.weekday(s[3]) : null, month_day: null,
       start_date: s[3], status: s[4] === 'planned' ? 'planned' : s[4] === 'down' ? 'down' : 'active',
       down_reason: '', down_since: null, down_from: null, down_until: null, archived: false
@@ -1273,8 +1350,8 @@ window.HCP.store = (function () {
           .concat(SEED_OPERATORS.map(function (n, i) {
             return { id: newId('user'), operator_id: 'OP00' + (i + 1), name: n, role: 'operator', pin_hash: null, active: true };
           })),
-        tools: [], tasks: [], history: [], exceptions: [],
-        settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white' }
+        tools: [], tasks: [], history: [], exceptions: [], magazines: [], mag_events: [],
+        settings: { teams_webhook_url: '', last_daily_message_date: '', theme_default: 'white', mag_check_weeks: 4 }
       };
       SEED_TOOLS.forEach(function (s) {
         var tool = {
@@ -1287,6 +1364,7 @@ window.HCP.store = (function () {
         d.tasks.push(makeTask(tool.id, R.firstRuleDate(tool, tool.start_date)));
       });
       seedPm(d);
+      seedMagazines(d);
       return adapter.write(cfg.data_file, JSON.stringify(d, null, 1)).then(function () { data = d; return d; });
     });
   }
@@ -1749,6 +1827,149 @@ window.HCP.store = (function () {
     }, 'admin');
   }
 
+  /* --- Magazines (PLAN 13f) ----------------------------------------- */
+
+  function mags(d) { d.magazines = d.magazines || []; d.mag_events = d.mag_events || []; return d.magazines; }
+  function yesNo(v) { var s = clean(v); return /^y/i.test(s) ? (/x/i.test(s) ? 'Yes / X' : 'Yes') : /^n/i.test(s) ? 'No' : s; }
+
+  /** Adds the magazines from the Excel that are missing (by S/N), with their last check. -> S/Ns added */
+  function seedMagazines(d) {
+    mags(d);
+    var added = [];
+    SEED_MAGAZINES.forEach(function (s, i) {
+      if (d.magazines.some(function (m) { return m.sn === s[0]; })) return;
+      var m = { id: newId('mag'), sn: s[0], cr_type: s[3], cart: yesNo(s[1]), prod_use: yesNo(s[2]), lot_status: '', location: '',
+        last_check: null, last_by: null, last_by_name: '', needs_repair: false, repair_note: '', repair_since: null, pos: i, archived: false };
+      d.magazines.push(m);
+      if (s[5]) {
+        var u = d.users.find(function (x) { return x.name.toLowerCase().indexOf(s[4].toLowerCase()) === 0; });
+        applyCheck(d, m, { user: u, by_name: u ? u.name : s[4], date: s[5], at: s[5] + 'T12:00:00', cart: m.cart, prod_use: m.prod_use,
+          lot_status: s[6], repair_needed: s[7] === 'y', cleaned: false, comment: s[8] });
+      }
+      added.push(m.sn);
+    });
+    return added;
+  }
+
+  function applyCheck(d, m, c) {
+    var ev = { id: newId('mev'), magazine_id: m.id, kind: 'check', at: c.at, date: c.date, user_id: c.user ? c.user.id : null, by_name: c.by_name,
+      cart: c.cart, prod_use: c.prod_use, lot_status: clean(c.lot_status), repair_needed: !!c.repair_needed, cleaned: !!c.cleaned, comment: clean(c.comment) };
+    d.mag_events.push(ev);
+    m.last_check = c.date; m.last_by = ev.user_id; m.last_by_name = c.by_name;
+    m.cart = ev.cart; m.prod_use = ev.prod_use; m.lot_status = ev.lot_status; m.location = ev.comment;
+    if (ev.cleaned) m.cleaned_at = c.date;
+    if (ev.repair_needed && !m.needs_repair) { m.needs_repair = true; m.repair_since = c.date; }
+    if (ev.repair_needed) m.repair_note = ev.comment;
+    return ev;
+  }
+
+  function magOrThrow(d, id) {
+    var m = find(mags(d), id);
+    if (!m || m.archived) throw err('conflict', 'This magazine no longer exists. The list will refresh.');
+    return m;
+  }
+
+  /** Log a check (anyone, chooses their name). input: {cart, prod_use, lot_status, repair_needed, cleaned, comment} */
+  function magCheck(magId, operatorId, input) {
+    var i = input || {};
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var m = magOrThrow(d, magId);
+      var ev = applyCheck(d, m, { user: u, by_name: u.name, date: R.today(), at: nowStamp(), cart: yesNo(i.cart), prod_use: yesNo(i.prod_use),
+        lot_status: i.lot_status, repair_needed: !!i.repair_needed, cleaned: !!i.cleaned, comment: i.comment });
+      hist(d, { magazine_id: m.id, action: 'mag_checked', user_id: u.id,
+        comment: [ev.repair_needed ? 'Repair needed' : 'OK', ev.cleaned ? 'cleaned' : '', ev.lot_status ? 'lot ' + ev.lot_status : '', ev.comment].filter(Boolean).join(' · ') });
+      return { magazine: m, event: ev };
+    }, clean(operatorId).toUpperCase());
+  }
+
+  /** Repair finished (anyone, chooses their name). */
+  function magRepairDone(magId, operatorId, comment) {
+    return mutate(function (d) {
+      var u = userByOperatorId(d, operatorId);
+      var m = magOrThrow(d, magId);
+      if (!m.needs_repair) throw err('conflict', 'This magazine has no open repair. The list will refresh.');
+      d.mag_events.push({ id: newId('mev'), magazine_id: m.id, kind: 'repair_done', at: nowStamp(), date: R.today(), user_id: u.id, by_name: u.name,
+        comment: clean(comment), repair_note: m.repair_note, repair_since: m.repair_since });
+      hist(d, { magazine_id: m.id, action: 'mag_repaired', user_id: u.id, reason: m.repair_note, comment: comment, old_date: m.repair_since });
+      m.needs_repair = false; m.repair_note = ''; m.repair_since = null;
+      return m;
+    }, clean(operatorId).toUpperCase());
+  }
+
+  /** Admin: add (no id) or edit a magazine. */
+  function saveMagazine(input) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      mags(d);
+      var sn = clean(input.sn).toUpperCase(), cr = clean(input.cr_type).toUpperCase();
+      if (!sn) throw err('invalid', 'Enter the magazine S/N.');
+      if (sn.length > 30) throw err('invalid', 'The S/N is too long.');
+      var dup = d.magazines.find(function (m) { return m.id !== input.id && m.sn === sn; });
+      if (dup) throw err('invalid', 'Magazine ' + sn + ' already exists' + (dup.archived ? ' (archived).' : '.'));
+      var m;
+      if (!input.id) {
+        m = { id: newId('mag'), sn: sn, cr_type: cr, cart: '', prod_use: '', lot_status: '', location: '', last_check: null, last_by: null, last_by_name: '',
+          needs_repair: false, repair_note: '', repair_since: null, pos: null, archived: false };
+        d.magazines.push(m);
+        hist(d, { magazine_id: m.id, action: 'mag_changed', user_id: a.id, comment: 'Magazine added' + (cr ? ' (' + cr + ')' : '') });
+      } else {
+        m = find(d.magazines, input.id);
+        if (!m) throw err('notfound', 'This magazine no longer exists.');
+        var before = m.sn + ' ' + m.cr_type;
+        m.sn = sn; m.cr_type = cr;
+        if (before !== sn + ' ' + cr) hist(d, { magazine_id: m.id, action: 'mag_changed', user_id: a.id, comment: 'Changed: ' + before + ' -> ' + sn + ' ' + cr });
+      }
+      return m;
+    }, 'admin');
+  }
+
+  function archiveMagazine(id, archived) {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var m = find(mags(d), id);
+      if (!m) throw err('notfound', 'This magazine no longer exists.');
+      m.archived = !!archived;
+      hist(d, { magazine_id: m.id, action: 'mag_changed', user_id: a.id, comment: archived ? 'Magazine archived' : 'Magazine restored' });
+      return m;
+    }, 'admin');
+  }
+
+  function addMagazines() {
+    return mutate(function (d) {
+      var a = requireAdmin(d);
+      var added = seedMagazines(d);
+      if (added.length) hist(d, { action: 'mag_changed', user_id: a.id, comment: 'Magazines added from the Excel: ' + added.length });
+      return added;
+    }, 'admin');
+  }
+
+  function setMagCheckWeeks(n) {
+    return mutate(function (d) {
+      requireAdmin(d);
+      var w = parseInt(n, 10);
+      if (!(w >= 0 && w <= 52)) throw err('invalid', 'Enter 0 to 52 weeks (0 = no reminder).');
+      d.settings.mag_check_weeks = w;
+      return w;
+    }, 'admin');
+  }
+
+  function magCheckWeeks() { var w = data && data.settings && data.settings.mag_check_weeks; return w == null ? 4 : w; }
+
+  /** Magazines for the screen, with status. */
+  function magazines(showArchived) {
+    if (!data) return [];
+    var today = R.today(), w = magCheckWeeks();
+    return (data.magazines || []).filter(function (m) { return showArchived || !m.archived; }).map(function (m) {
+      return Object.assign({}, m, { status: R.magStatus(m, today, w) });
+    }).sort(function (a, b) { return R.byPosThenName({ pos: a.pos, name: a.sn }, { pos: b.pos, name: b.sn }); });
+  }
+
+  function magEvents(magId) {
+    return ((data && data.mag_events) || []).filter(function (e) { return e.magazine_id === magId; })
+      .sort(function (a, b) { return a.at < b.at ? 1 : -1; });
+  }
+
   /* --- Reading for screens ------------------------------------------ */
 
   function userName(d, id) { var u = find(d.users, id); return u ? u.name : ''; }
@@ -1759,6 +1980,7 @@ window.HCP.store = (function () {
     completed: 'Completed', postponed: 'Postponed', tool_down: 'Tool down', reactivated: 'Reactivated',
     reopened: 'Reopened', task_added: 'One-off added', task_edited: 'Date changed', task_deleted: 'Deleted',
     tool_changed: 'Tool changed', user_changed: 'User changed', undone: 'Undone',
+    mag_checked: 'Magazine checked', mag_repaired: 'Repair done', mag_changed: 'Magazine changed',
     cycle_moved: 'Future cycle moved', cycle_skipped: 'Future cycle skipped', cycle_restored: 'Future cycle restored'
   };
 
@@ -1768,13 +1990,14 @@ window.HCP.store = (function () {
     var d = data;
     return d.history.filter(function (h) {
       var day = h.at.slice(0, 10);
-      var type = typeOf(find(d.tools, h.tool_id));
+      var type = h.magazine_id ? 'Magazine' : typeOf(find(d.tools, h.tool_id));
       return (!f.toolId || h.tool_id === f.toolId) && (!f.action || h.action === f.action) &&
         (!f.from || day >= f.from) && (!f.to || day <= f.to) && (!f.type || type === f.type);
     }).map(function (h) {
       var tool = find(d.tools, h.tool_id), u = find(d.users, h.user_id);
+      var mag = h.magazine_id ? find(d.magazines || [], h.magazine_id) : null;
       return {
-        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: tool ? tool.name : '', type: typeOf(tool),
+        at: h.at, date: h.at.slice(0, 10), time: h.at.slice(11, 16), tool: mag ? mag.sn : tool ? tool.name : '', type: mag || h.magazine_id ? 'Magazine' : typeOf(tool),
         action: h.action, action_label: ACTION_LABELS[h.action] || h.action,
         who: u ? u.name : '', operator_id: u ? u.operator_id : '',
         old_date: h.old_date || '', new_date: h.new_date || '', reason: h.reason || '', comment: h.comment || ''
@@ -1814,6 +2037,8 @@ window.HCP.store = (function () {
     ['Last postpone reason', 'reason', 30, 'text'], ['Comment', 'comment', 40, 'text'], ['Status', 'status', 14, 'text'], ['Schedule', 'schedule', 26, 'text']
   ];
 
+  var MAG_STATUS = { repair: 'Repair needed', never: 'Never checked', due: 'Check due', ok: 'OK' };
+
   /** One row per cleaning, as CSV (UTF-8 with BOM). */
   function reportCsv(from, to) {
     var rows = window.HCP.analytics.reportRows(data, from, to, R.today(), 'cleaning');
@@ -1845,6 +2070,18 @@ window.HCP.store = (function () {
         rows: st.topReasons.map(function (r) { return [r.reason, r.count]; }) },
       { name: 'History', columns: [col('Date', 12, 'date'), col('Time', 8), col('Type', 10), col('Tool', 12), col('Action', 22), col('Who', 24), col('Old date', 12, 'date'), col('New date', 12, 'date'), col('Reason', 30), col('Comment', 40)],
         rows: hist.map(function (r) { return [r.date, r.time, r.type, r.tool, r.action_label, r.who, r.old_date, r.new_date, r.reason, r.comment]; }) },
+      { name: 'Magazines', columns: [col('S/N', 10), col('CR type', 10), col('Status', 14), col('Last check', 12, 'date'), col('Checked by', 22),
+          col('Cart', 9), col('Production use', 15), col('Lot status', 18), col('Location / comment', 34), col('Repair since', 13, 'date'), col('Repair note', 30)],
+        rows: magazines(false).map(function (m) {
+          return [m.sn, m.cr_type, MAG_STATUS[m.status], m.last_check, m.last_by_name, m.cart, m.prod_use, m.lot_status, m.location, m.repair_since, m.repair_note];
+        }) },
+      { name: 'Magazine checks', columns: [col('Date', 12, 'date'), col('Time', 8), col('S/N', 10), col('What', 12), col('Who', 22), col('Cart', 9),
+          col('Production use', 15), col('Lot status', 18), col('Repair needed', 14), col('Cleaned', 9), col('Comment', 40)],
+        rows: (data.mag_events || []).filter(function (e) { return e.date >= from && e.date <= to; }).sort(function (a, b) { return a.at < b.at ? -1 : 1; }).map(function (e) {
+          var m = find(data.magazines || [], e.magazine_id);
+          return [e.date, String(e.at).slice(11, 16), m ? m.sn : '', e.kind === 'check' ? 'Check' : 'Repair done', e.by_name, e.cart || '', e.prod_use || '', e.lot_status || '',
+            e.kind === 'check' ? (e.repair_needed ? 'Yes' : 'No') : '', e.kind === 'check' ? (e.cleaned ? 'Yes' : '') : '', e.comment || ''];
+        }) },
       { name: 'Tools', columns: [col('Type', 10), col('Tool', 12), col('Schedule', 28), col('Start date', 12, 'date'), col('Tool owner', 24), col('MNT owner', 24), col('Status', 12)],
         rows: data.tools.slice().sort(function (a, b) { return typeOf(a).localeCompare(typeOf(b)) || a.name.localeCompare(b.name); }).map(function (t) {
           return [typeOf(t), t.name, R.describeAny(t), t.start_date || null, t.tool_owner, t.mnt_owner,
@@ -1903,7 +2140,9 @@ window.HCP.store = (function () {
     reopen: reopen, editTask: editTask, deleteTask: deleteTask, addOneOff: addOneOff,
     moveCycle: moveCycle, skipCycle: skipCycle, restoreCycle: restoreCycle,
     saveTool: saveTool, archiveTool: archiveTool, toolDown: toolDown, reactivate: reactivate,
-    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM, SEED_OPERATORS: SEED_OPERATORS,
+    saveUser: saveUser, saveSettings: saveSettings, addStandardOperators: addStandardOperators, addPmTools: addPmTools, SEED_PM: SEED_PM,
+    magCheck: magCheck, magRepairDone: magRepairDone, saveMagazine: saveMagazine, archiveMagazine: archiveMagazine, addMagazines: addMagazines,
+    setMagCheckWeeks: setMagCheckWeeks, magCheckWeeks: magCheckWeeks, magazines: magazines, magEvents: magEvents, SEED_MAGAZINES: SEED_MAGAZINES, MAG_STATUS: MAG_STATUS, SEED_OPERATORS: SEED_OPERATORS,
     board: board, history: history, historyCsv: historyCsv, reportCsv: reportCsv, workbook: workbook, taskDetails: taskDetails, lookupOperator: lookupOperator, activeUsers: activeUsers, admins: admins,
     maybeSendDaily: maybeSendDaily, teamsPayload: teamsPayload, ACTION_LABELS: ACTION_LABELS,
     _verifyPin: verifyPin, _hashPin: hashPin
@@ -2186,6 +2425,8 @@ window.HCP.icon = (function () {
     message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    magazine: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M5 7.5h14M5 12h14M5 16.5h14"/><path d="M8 3v18"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
     printer: '<path d="M6 9V2h12v7"/><rect x="6" y="14" width="12" height="8"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>',
@@ -2879,7 +3120,7 @@ window.HCP.views.board = (function () {
  * Hirata Cleaning Plan - views/pm.js
  * PM plan tab (PLAN.md 13e): weekly grid of the PM tools. Everyone can see it;
  * only the logged-in Admin marks PMs done, postpones them and sets tools down.
- * Red row = not installed yet. D = tool down on that day.
+ * Red row = not installed yet. Down = tool down on that day.
  */
 window.HCP = window.HCP || {};
 window.HCP.views = window.HCP.views || {};
@@ -2954,7 +3195,7 @@ window.HCP.views.pm = (function () {
       ])
     ]);
 
-    var strip = h('div', { class: 'summary' }, [
+    var strip = h('div', { class: 'summary even' }, [
       tile('today', 'Due today', b.isThisWeek ? c.today : 0, b.isThisWeek ? dd(today) : 'not this week'),
       tile('overdue', 'Overdue', c.overdue, c.overdue ? 'needs action' : 'all on time'),
       tile('done', 'Done', c.done, 'of ' + c.planned + ' this week'),
@@ -2976,7 +3217,7 @@ window.HCP.views.pm = (function () {
     var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'projected'].map(function (st) {
       return h('span', { class: 'legend-item' }, [med(st, 20), LABEL[st][1]]);
     }).concat([
-      h('span', { class: 'legend-item' }, [h('span', { class: 'dbox', text: 'D' }), 'Down']),
+      h('span', { class: 'legend-item' }, [h('span', { class: 'dbox' }, I('power', 12)), 'Down']),
       h('span', { class: 'legend-item' }, [h('span', { class: 'nibox' }), 'Not installed'])
     ]));
 
@@ -3003,7 +3244,7 @@ window.HCP.views.pm = (function () {
     return h('tr', { class: cls }, [head].concat(r.cells.map(function (items, i) {
       var d = b.days[i];
       var content = [];
-      if (r.downDays[i]) content.push(h('span', { class: 'dbox big', title: 'Down' + (t.down_reason ? ': ' + t.down_reason : ''), text: 'D' }));
+      if (r.downDays[i]) content.push(h('span', { class: 'dbox big', title: 'Down' + (t.down_reason ? ': ' + t.down_reason : '') }, [I('power', 14), ' Down']));
       items.forEach(function (it) { content.push(chip(it, app)); });
       return h('td', { class: (d === today ? 'is-today' : (d < today ? 'is-past' : '')) + (r.downDays[i] ? ' is-dday' : '') }, content);
     })));
@@ -3223,6 +3464,227 @@ window.HCP.views.pm = (function () {
 
 </script>
   <script>
+/* js/views/magazines.js */
+/**
+ * Hirata Cleaning Plan - views/magazines.js
+ * Magazine cleaning and repair (PLAN.md 13f): one row per magazine with its
+ * last check, a Repair needed flag and a "check due" reminder. Anyone logs a
+ * check or a finished repair with their name; the Admin adds or archives magazines.
+ */
+window.HCP = window.HCP || {};
+window.HCP.views = window.HCP.views || {};
+window.HCP.views.magazines = (function () {
+  'use strict';
+
+  var R = window.HCP.rules, S = window.HCP.store, U = window.HCP.ui, h = U.h, I = window.HCP.icon;
+  var filter = 'all';
+  var query = '';
+  var PILL = { repair: ['s-overdue', 'Repair needed'], never: ['s-projected', 'Never checked'], due: ['s-postponed', 'Check due'], ok: ['s-done', 'OK'] };
+  var MED = { repair: ['m-overdue', 'wrench'], never: ['m-projected', 'dashed'], due: ['m-postponed', 'clock'], ok: ['m-done', 'check'] };
+
+  function med(st, px) {
+    return h('span', { class: 'med ' + MED[st][0], style: 'width:' + px + 'px;height:' + px + 'px' }, I(MED[st][1], Math.round(px * 0.6)));
+  }
+  function dd(d) { return d ? R.dayName(d).slice(0, 3) + ' ' + R.shortDate(d) : '–'; }
+  function ago(d, today) {
+    if (!d) return '';
+    var n = R.diffDays(d, today);
+    return n <= 0 ? 'today' : n === 1 ? 'yesterday' : n + ' days ago';
+  }
+
+  function tile(key, st, label, value, sub, app) {
+    return h('button', { class: 'tile' + (filter === key ? ' on' : '') + (value ? '' : ' zero'), title: 'Show only these',
+      onclick: function () { filter = filter === key ? 'all' : key; app.render(); } }, [
+      h('span', { class: 'tile-ico' }, st === 'all' ? h('span', { class: 'med m-upcoming', style: 'width:38px;height:38px' }, I('magazine', 22)) : med(st, 38)),
+      h('span', { class: 'tile-num', text: String(value) }),
+      h('span', { class: 'tile-label', text: label }),
+      sub ? h('span', { class: 'tile-sub', text: sub }) : null
+    ]);
+  }
+
+  function render(root, app) {
+    var today = R.today();
+    var weeks = S.magCheckWeeks();
+    var all = S.magazines(false);
+    var c = { repair: 0, due: 0, never: 0, ok: 0 };
+    all.forEach(function (m) { c[m.status]++; });
+    var thisWeek = all.filter(function (m) { return m.last_check && m.last_check >= R.mondayOf(today); }).length;
+
+    var q = query.trim().toUpperCase();
+    var list = all.filter(function (m) {
+      if (filter === 'repair' && m.status !== 'repair') return false;
+      if (filter === 'due' && m.status !== 'due' && m.status !== 'never') return false;
+      if (filter === 'ok' && m.status !== 'ok') return false;
+      if (filter === 'prod' && !/^yes/i.test(m.prod_use)) return false;
+      if (q && (m.sn + ' ' + m.cr_type + ' ' + m.location + ' ' + m.lot_status).toUpperCase().indexOf(q) < 0) return false;
+      return true;
+    });
+    // repairs first, then never/due, then OK (within: Excel order)
+    var rank = { repair: 0, never: 1, due: 2, ok: 3 };
+    list.sort(function (a, b) { return rank[a.status] - rank[b.status]; });
+
+    var search = h('input', { type: 'search', class: 'mag-search', placeholder: 'Search S/N, CR type, location, lot…', value: query });
+    search.addEventListener('input', function () {
+      query = search.value;
+      var pos = search.selectionStart;
+      app.render();
+      var s2 = document.querySelector('.mag-search');
+      if (s2) { s2.focus(); try { s2.setSelectionRange(pos, pos); } catch (e) { /* ignore */ } }
+    });
+
+    var bar = h('div', { class: 'board-bar' }, [
+      h('div', { class: 'week-title' }, [
+        h('div', { class: 'week-kicker', text: 'Magazines · cleaning and repair' }),
+        h('h2', { class: 'week-label' }, [h('span', { class: 'wk', text: all.length + ' magazines' }), h('span', { class: 'sep', text: ' · ' }),
+          weeks ? 'check every ' + weeks + ' week' + (weeks === 1 ? '' : 's') : 'no check reminder'])
+      ]),
+      h('div', { class: 'bar-right' }, [h('label', { class: 'search-wrap' }, [I('search', 16), search]),
+        h('button', { class: 'btn ghost', title: 'Print the list', onclick: function () { window.print(); } }, [I('printer', 15), ' Print'])])
+    ]);
+
+    var strip = h('div', { class: 'summary even' }, [
+      tile('repair', 'repair', 'Repair needed', c.repair, c.repair ? 'waiting for repair' : 'none open', app),
+      tile('due', 'due', 'Check due', c.due + c.never, c.never ? c.never + ' never checked' : weeks ? 'not checked for ' + weeks + ' weeks' : 'reminder off', app),
+      tile('ok', 'ok', 'OK', c.ok, thisWeek + ' checked this week', app),
+      tile('prod', 'all', 'Production use', all.filter(function (m) { return /^yes/i.test(m.prod_use); }).length, 'marked "Yes"', app)
+    ]);
+
+    var table = h('table', { class: 'list mag-list' }, [
+      h('thead', {}, h('tr', {}, ['Magazine', 'Status', 'Last check', 'Lot status', 'Location / comment', 'Cart', 'Prod. use', ''].map(function (t) { return h('th', { text: t }); }))),
+      h('tbody', {}, list.length ? list.map(function (m) { return row(m, today, app); })
+        : h('tr', {}, h('td', { colspan: '8', class: 'empty' }, [I('magazine', 28), h('div', { text: all.length ? 'No magazines for this filter.' :
+          (S.currentAdmin() ? 'No magazines yet. Add them in Settings → Magazines.' : 'No magazines yet. An Admin adds them in Settings.') })])))
+    ]);
+
+    U.add(root, [bar, strip, filter !== 'all' || q ? h('p', { class: 'muted' }, [list.length + ' of ' + all.length + ' shown. ',
+      h('button', { class: 'link', text: 'Show all', onclick: function () { filter = 'all'; query = ''; app.render(); } })]) : null,
+      h('div', { class: 'grid-wrap' }, table),
+      h('p', { class: 'hint', text: 'Click Check after looking at a magazine (you can tick Cleaned and Repair needed). When a repair is finished, click Repair done.' })]);
+  }
+
+  function row(m, today, app) {
+    var p = PILL[m.status];
+    return h('tr', { class: 'mag-' + m.status }, [
+      h('td', {}, h('button', { class: 'mag-sn', title: 'Details and history', onclick: function () { panel(m.id, app); } }, [
+        I('magazine', 18), h('span', {}, [h('b', { text: m.sn }), h('span', { class: 'cr', text: m.cr_type || '' })])])),
+      h('td', {}, [h('span', { class: 'pill ' + p[0] }, [med(m.status, 16), p[1]]),
+        m.status === 'repair' && m.repair_since ? h('div', { class: 'sub', text: 'since ' + dd(m.repair_since) }) : null]),
+      h('td', {}, m.last_check ? [h('div', { text: dd(m.last_check) + ' · ' + (m.last_by_name || '–') }), h('div', { class: 'sub', text: ago(m.last_check, today) })] : h('span', { class: 'muted', text: 'never' })),
+      h('td', { class: 'mono', text: m.lot_status || '–' }),
+      h('td', { class: 'wrap', text: m.location || '–' }),
+      h('td', { text: m.cart || '–' }), h('td', { text: m.prod_use || '–' }),
+      h('td', { class: 'row-actions' }, [
+        h('button', { class: 'btn small', onclick: function () { panel(m.id, app, 'check'); } }, [I('check', 14), ' Check']),
+        m.needs_repair ? h('button', { class: 'btn small secondary', onclick: function () { panel(m.id, app, 'repair'); } }, [I('wrench', 14), ' Repair done']) : null
+      ])
+    ]);
+  }
+
+  /* --- Magazine panel: details, Check, Repair done ------------------- */
+
+  function panel(magId, app, start) {
+    var m = S.magazines(false).find(function (x) { return x.id === magId; });
+    if (!m) { app.reload(); return; }
+    var events = S.magEvents(m.id);
+    var area = h('div', { class: 'action-area' });
+    var p = PILL[m.status];
+    var box = U.modal('Magazine ' + m.sn + (m.cr_type ? ' · ' + m.cr_type : ''), [
+      h('dl', { class: 'facts' }, [
+        h('dt', { text: 'Status' }), h('dd', {}, h('span', { class: 'pill ' + p[0] }, [med(m.status, 18), p[1]])),
+        m.needs_repair ? h('dt', { text: 'Repair' }) : null,
+        m.needs_repair ? h('dd', { text: 'since ' + dd(m.repair_since) + (m.repair_note ? ' – ' + m.repair_note : '') }) : null,
+        h('dt', { text: 'Last check' }), h('dd', { text: m.last_check ? dd(m.last_check) + ' ' + m.last_check.slice(0, 4) + ' · ' + m.last_by_name : 'never' }),
+        h('dt', { text: 'Lot status' }), h('dd', { text: m.lot_status || '–' }),
+        h('dt', { text: 'Location / comment' }), h('dd', { text: m.location || '–' }),
+        h('dt', { text: 'Cart / prod. use' }), h('dd', { text: (m.cart || '–') + ' / ' + (m.prod_use || '–') }),
+        m.cleaned_at ? h('dt', { text: 'Last cleaned' }) : null, m.cleaned_at ? h('dd', { text: dd(m.cleaned_at) }) : null
+      ]),
+      events.length ? h('details', { class: 'events' }, [h('summary', { text: 'History (' + events.length + ')' }), h('ul', {}, events.slice(0, 30).map(function (e) {
+        return h('li', {}, e.kind === 'check'
+          ? [h('b', { text: e.repair_needed ? 'Check · repair needed' : 'Check' }), ' · ' + e.by_name + ' · ' + R.shortDate(e.date) + ' ' + e.date.slice(0, 4),
+            e.cleaned ? ' · cleaned' : '', e.lot_status ? ' · lot ' + e.lot_status : '', e.comment ? ' · ' + e.comment : '']
+          : [h('b', { text: 'Repair done' }), ' · ' + e.by_name + ' · ' + R.shortDate(e.date) + ' ' + e.date.slice(0, 4), e.comment ? ' · ' + e.comment : '']);
+      }))]) : null,
+      area
+    ]);
+    function finish(msg) { box.close(); U.toast(msg); app.reload(); }
+    function failHard(e) { if (e && e.code === 'conflict') { U.toast(e.message, 'error'); box.close(); app.reload(); return true; } return false; }
+
+    function menu() {
+      U.clear(area);
+      U.add(area, h('div', { class: 'actions' }, [
+        h('button', { class: 'btn', onclick: checkForm }, [I('check', 16), ' Check']),
+        m.needs_repair ? h('button', { class: 'btn secondary', onclick: repairForm }, [I('wrench', 16), ' Repair done']) : null
+      ]));
+    }
+
+    function yn(label, value, withX) {
+      var opts = [['', '–'], ['Yes', 'Yes'], ['No', 'No']];
+      if (withX) opts.splice(2, 0, ['Yes / X', 'Yes / X']);
+      var sel = h('select', {}, opts.map(function (o) { return h('option', { value: o[0], text: o[1], selected: (value || '') === o[0] }); }));
+      return { sel: sel, node: U.field(label, sel) };
+    }
+
+    function checkForm() {
+      var who = U.personField(S.activeUsers());
+      var cart = yn('Cart', m.cart, true), prod = yn('Can production use?', m.prod_use);
+      var lot = h('input', { type: 'text', maxlength: '60', value: m.lot_status || '', placeholder: 'Lot number / Dummies / Empty' });
+      var where = h('input', { type: 'text', maxlength: '200', value: m.location || '', placeholder: 'e.g. in Stocker, WIP OVC, shutter loose' });
+      var cleaned = h('input', { type: 'checkbox' });
+      var repair = h('input', { type: 'checkbox', checked: m.needs_repair });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Check magazine ' + m.sn }), h('div', { class: 'form-grid' }, [
+        U.field('Your name', who.node), U.field('Lot status', lot), cart.node, prod.node]),
+        U.field('Location / comment', where, 'What you found and where it is. If it needs repair, say what is wrong.'),
+        h('div', { class: 'check-row' }, [
+          h('label', { class: 'toggle' }, [cleaned, ' Cleaned']),
+          h('label', { class: 'toggle danger-text' }, [repair, ' Repair needed'])]),
+        msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var u = S.lookupOperator(who.input.value);
+            if (!u) { msg.textContent = 'Choose your name.'; msg.hidden = false; return; }
+            if (repair.checked && !where.value.trim()) { msg.textContent = 'Repair needed: write what is wrong in the comment.'; msg.hidden = false; return; }
+            var input = { cart: cart.sel.value, prod_use: prod.sel.value, lot_status: lot.value, comment: where.value, cleaned: cleaned.checked, repair_needed: repair.checked };
+            var opId = who.input.value;
+            U.confirmStep(area, u.name + ': save the check of ' + m.sn + (input.repair_needed ? ' (repair needed)' : ' (OK)') + '?', 'Yes, save', function () {
+              return S.magCheck(m.id, opId, input).then(function () { finish(m.sn + ' checked' + (input.repair_needed ? ', repair needed.' : '.')); },
+                function (e) { if (!failHard(e)) throw e; });
+            }, checkForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+      who.input.focus();
+    }
+
+    function repairForm() {
+      var who = U.personField(S.activeUsers());
+      var comment = h('textarea', { rows: '2', maxlength: '500', placeholder: 'What was done? (optional)' });
+      var msg = h('p', { class: 'form-error', hidden: true });
+      U.clear(area);
+      U.add(area, [h('h3', { text: 'Repair done' }), m.repair_note ? h('p', { class: 'muted', text: 'Problem: ' + m.repair_note }) : null,
+        U.field('Your name', who.node), U.field('Comment', comment), msg,
+        h('div', { class: 'actions' }, [
+          h('button', { class: 'btn', text: 'Continue', onclick: function () {
+            var u = S.lookupOperator(who.input.value);
+            if (!u) { msg.textContent = 'Choose your name.'; msg.hidden = false; return; }
+            var opId = who.input.value, cm = comment.value;
+            U.confirmStep(area, u.name + ': repair of ' + m.sn + ' is finished?', 'Yes, repaired', function () {
+              return S.magRepairDone(m.id, opId, cm).then(function () { finish(m.sn + ' repaired.'); }, function (e) { if (!failHard(e)) throw e; });
+            }, repairForm);
+          } }),
+          h('button', { class: 'btn ghost', text: 'Cancel', onclick: menu })])]);
+      who.input.focus();
+    }
+
+    if (start === 'check') checkForm(); else if (start === 'repair' && m.needs_repair) repairForm(); else menu();
+  }
+
+  return { render: render, panel: panel };
+})();
+
+</script>
+  <script>
 /* js/views/history.js */
 /**
  * Hirata Cleaning Plan - views/history.js
@@ -3240,12 +3702,12 @@ window.HCP.views.history = (function () {
   function render(root, app) {
     var d = S.current();
     var toolSel = h('select', { onchange: function (e) { filters.toolId = e.target.value; app.render(); } },
-      [h('option', { value: '', text: 'All tools' })].concat(d.tools.filter(function (t) { return !filters.type || (filters.type === 'PM') === R.isPm(t); })
+      [h('option', { value: '', text: 'All tools' })].concat(d.tools.filter(function (t) { return filters.type !== 'Magazine' && (!filters.type || (filters.type === 'PM') === R.isPm(t)); })
         .slice().sort(function (a, b) { return a.name.localeCompare(b.name) || (R.isPm(a) ? 1 : -1); }).map(function (t) {
         return h('option', { value: t.id, text: t.name + (R.isPm(t) ? ' (PM)' : '') + (t.archived ? ' (archived)' : ''), selected: filters.toolId === t.id });
       })));
     var typeSel = h('select', { onchange: function (e) { filters.type = e.target.value; filters.toolId = ''; app.render(); } },
-      [['', 'Cleaning and PM'], ['Cleaning', 'Cleaning'], ['PM', 'PM']].map(function (o) { return h('option', { value: o[0], text: o[1], selected: filters.type === o[0] }); }));
+      [['', 'Everything'], ['Cleaning', 'Cleaning'], ['PM', 'PM'], ['Magazine', 'Magazines']].map(function (o) { return h('option', { value: o[0], text: o[1], selected: filters.type === o[0] }); }));
     var actSel = h('select', { onchange: function (e) { filters.action = e.target.value; app.render(); } },
       [h('option', { value: '', text: 'All actions' })].concat(Object.keys(S.ACTION_LABELS).map(function (k) {
         return h('option', { value: k, text: S.ACTION_LABELS[k], selected: filters.action === k });
@@ -3269,7 +3731,7 @@ window.HCP.views.history = (function () {
       h('tbody', {}, rows.length ? rows.slice(0, PAGE).map(function (r) {
         var dates = r.old_date && r.new_date ? R.shortDate(r.old_date) + ' → ' + R.shortDate(r.new_date) : r.old_date ? R.shortDate(r.old_date) : r.new_date ? R.shortDate(r.new_date) : '';
         return h('tr', {}, [
-          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', {}, r.type ? h('span', { class: 'type-tag ' + (r.type === 'PM' ? 'is-pm' : ''), text: r.type }) : '–'), h('td', { class: 'strong', text: r.tool || '–' }),
+          h('td', { text: R.longDate(r.date) }), h('td', { text: r.time }), h('td', {}, r.type ? h('span', { class: 'type-tag ' + (r.type === 'PM' ? 'is-pm' : r.type === 'Magazine' ? 'is-mag' : ''), text: r.type }) : '–'), h('td', { class: 'strong', text: r.tool || '–' }),
           h('td', {}, h('span', { class: 'act a-' + r.action, text: r.action_label })),
           h('td', { text: r.who || '–' }), h('td', { text: dates }),
           h('td', { class: 'wrap', text: [r.reason, r.comment].filter(Boolean).join(' · ') })
@@ -3430,7 +3892,7 @@ window.HCP.views.analytics = (function () {
 /* js/views/settings.js */
 /**
  * Hirata Cleaning Plan - views/settings.js  (Admin only)
- * Tabs: Tools, PM tools, Users, One-off cleaning, General.
+ * Tabs: Cleaning tools, PM tools, Magazines, Users, One-off cleaning, General.
  */
 window.HCP = window.HCP || {};
 window.HCP.views = window.HCP.views || {};
@@ -3442,14 +3904,14 @@ window.HCP.views.settings = (function () {
   var showArchived = false;
 
   function render(root, app) {
-    var tabs = [['tools', 'Cleaning tools'], ['pmtools', 'PM tools'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
+    var tabs = [['tools', 'Cleaning tools'], ['pmtools', 'PM tools'], ['mags', 'Magazines'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
     var nav = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
       return h('button', { class: 'tab' + (tab === t[0] ? ' active' : ''), role: 'tab', 'aria-selected': String(tab === t[0]), text: t[1],
         onclick: function () { tab = t[0]; app.render(); } });
     }));
     var body = h('div', { class: 'tab-body' });
     U.add(root, [h('h2', { text: 'Settings' }), nav, body]);
-    ({ tools: tools, pmtools: pmTools, users: users, oneoff: oneoff, general: general })[tab](body, app);
+    ({ tools: tools, pmtools: pmTools, mags: magsTab, users: users, oneoff: oneoff, general: general })[tab](body, app);
   }
 
   /* --- Tools -------------------------------------------------------- */
@@ -3555,7 +4017,7 @@ window.HCP.views.settings = (function () {
 
   function pmTools(body, app) {
     var all = S.current().tools.filter(function (t) { return R.isPm(t); });
-    var list = all.filter(function (t) { return showArchived || !t.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var list = all.filter(function (t) { return showArchived || !t.archived; }).sort(R.byPosThenName);
     var missing = S.SEED_PM.filter(function (s) { return !all.some(function (t) { return t.name.toUpperCase() === s[0]; }); }).length;
     U.add(body, [
       h('div', { class: 'row-bar' }, [
@@ -3652,6 +4114,73 @@ window.HCP.views.settings = (function () {
       h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])
     ], { wide: true });
     update();
+  }
+
+  /* --- Magazines (PLAN 13f) ----------------------------------------- */
+
+  function magsTab(body, app) {
+    var list = S.magazines(true).filter(function (m) { return showArchived || !m.archived; });
+    var have = S.magazines(true).map(function (m) { return m.sn; });
+    var missing = S.SEED_MAGAZINES.filter(function (s) { return have.indexOf(s[0]) < 0; }).length;
+    var weeks = h('input', { type: 'number', min: '0', max: '52', step: '1', class: 'num', value: S.magCheckWeeks() });
+    var wmsg = h('span', { class: 'muted' });
+    var saveW = h('button', { class: 'btn small', text: 'Save', onclick: function () {
+      S.setMagCheckWeeks(weeks.value).then(function (w) { U.toast(w ? 'Magazines are due for a check after ' + w + ' weeks.' : 'Check reminder off.'); app.reload(); },
+        function (e) { wmsg.textContent = U.errorText(e); });
+    } });
+    U.add(body, [
+      h('div', { class: 'row-bar' }, [
+        h('button', { class: 'btn', text: '+ Add magazine', onclick: function () { magForm(null, app); } }),
+        missing ? h('button', { class: 'btn secondary', text: 'Add magazines from the Excel (' + missing + ')', onclick: function () {
+          var area = h('div');
+          U.modal('Add magazines from the Excel', area);
+          U.confirmStep(area, 'Add the ' + missing + ' magazines from "RnD_Magazines_checking_16-11-26" with their check of 16 Nov 2026? Existing magazines are not changed.', 'Yes, add', function () {
+            return S.addMagazines().then(function (a) { U.closeModal(); U.toast(a.length + ' magazines added.'); app.reload(); });
+          }, U.closeModal);
+        } }) : null,
+        h('label', { class: 'toggle' }, [h('input', { type: 'checkbox', checked: showArchived, onchange: function (e) { showArchived = e.target.checked; app.render(); } }), ' Show archived'])
+      ]),
+      h('div', { class: 'inline-setting' }, [h('span', { text: 'Check each magazine every' }), weeks, h('span', { text: 'weeks (0 = no reminder)' }), saveW, wmsg]),
+      h('div', { class: 'grid-wrap' }, h('table', { class: 'list' }, [
+        h('thead', {}, h('tr', {}, ['S/N', 'CR type', 'Status', 'Last check', ''].map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, list.length ? list.map(function (m) {
+          return h('tr', { class: m.archived ? 'is-archived' : '' }, [
+            h('td', { class: 'strong', text: m.sn }), h('td', { text: m.cr_type || '–' }),
+            h('td', { text: m.archived ? 'Archived' : S.MAG_STATUS[m.status] }),
+            h('td', { text: m.last_check ? R.longDate(m.last_check) + ' · ' + m.last_by_name : 'never' }),
+            h('td', { class: 'row-actions' }, [
+              h('button', { class: 'btn small ghost', text: 'Edit', onclick: function () { magForm(m, app); } }),
+              h('button', { class: 'btn small ghost', text: m.archived ? 'Restore' : 'Archive', onclick: function () {
+                var area = h('div');
+                U.modal((m.archived ? 'Restore ' : 'Archive ') + m.sn, area);
+                U.confirmStep(area, m.archived ? 'Restore magazine ' + m.sn + '?' : 'Archive magazine ' + m.sn + '? It disappears from the list; its history is kept.',
+                  m.archived ? 'Yes, restore' : 'Yes, archive', function () {
+                    return S.archiveMagazine(m.id, !m.archived).then(function () { U.closeModal(); U.toast(m.sn + (m.archived ? ' restored.' : ' archived.')); app.reload(); });
+                  }, U.closeModal, !m.archived);
+              } })
+            ])
+          ]);
+        }) : h('tr', {}, h('td', { colspan: '5', class: 'empty', text: 'No magazines.' })))
+      ]))
+    ]);
+  }
+
+  function magForm(m, app) {
+    var isNew = !m;
+    m = m || { sn: '', cr_type: '' };
+    var sn = h('input', { type: 'text', value: m.sn, maxlength: '30', placeholder: 'e.g. M70351' });
+    var cr = h('input', { type: 'text', value: m.cr_type, maxlength: '20', placeholder: 'e.g. CR100K', list: 'cr-types' });
+    var dl = h('datalist', { id: 'cr-types' }, ['CR100', 'CR100K'].map(function (v) { return h('option', { value: v }); }));
+    var msg = h('p', { class: 'form-error', hidden: true });
+    var save = h('button', { class: 'btn', text: isNew ? 'Add magazine' : 'Save' });
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      S.saveMagazine({ id: isNew ? undefined : m.id, sn: sn.value, cr_type: cr.value })
+        .then(function (saved) { U.closeModal(); U.toast(saved.sn + ' saved.'); app.reload(); })
+        .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; save.disabled = false; });
+    });
+    U.modal(isNew ? 'Add magazine' : 'Edit ' + m.sn, [h('div', { class: 'form-grid' }, [U.field('S/N', sn), U.field('CR type', cr), dl]), msg,
+      h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])]);
   }
 
   /* --- Users -------------------------------------------------------- */
@@ -3885,12 +4414,12 @@ window.HCP.views.settings = (function () {
       if (pin.value !== pin2.value) { msg.textContent = 'The two PINs are not the same.'; msg.hidden = false; return; }
       btn.disabled = true;
       S.createPlan(pin.value).then(function () { return S.adminLogin('ADMIN01', pin.value); })
-        .then(function (u) { rememberAdmin(u); U.toast('Plan created with 12 cleaning tools and the PM tools. You are logged in as Admin.'); location.hash = '#settings'; open(); })
+        .then(function (u) { rememberAdmin(u); U.toast('Plan created: 12 cleaning tools, the PM tools and 35 magazines. You are logged in as Admin.'); location.hash = '#settings'; open(); })
         .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; btn.disabled = false; });
     });
     screen([
       h('h2', { text: 'Create a new cleaning plan' }),
-      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools, the PM tools from the PM Excel, the 6 operators and the first Admin (Khurana).' }),
+      h('p', { text: 'The folder "' + storage.label() + '" has no plan yet. This creates it with the 12 loader tools, the PM tools, the 35 magazines from the Excel lists, the 6 operators and the first Admin (Khurana).' }),
       h('p', { class: 'muted', text: 'If your team already has a plan, you chose the wrong folder: reload the page and pick the shared data folder.' }),
       U.field('Admin PIN (4–8 digits)', pin), U.field('Repeat PIN', pin2), msg, btn
     ]);
@@ -3900,7 +4429,7 @@ window.HCP.views.settings = (function () {
 
   function route() {
     var hash = (location.hash || '#board').slice(1);
-    view = ['board', 'pm', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
+    view = ['board', 'pm', 'magazines', 'history', 'analytics', 'settings'].indexOf(hash) >= 0 ? hash : 'board';
     render();
   }
   window.addEventListener('hashchange', function () { if (S.current()) route(); });
@@ -3910,7 +4439,7 @@ window.HCP.views.settings = (function () {
     var d = S.current();
     var adminUser = S.currentAdmin();
     if (d) {
-      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Cleaning'], ['pm', 'PM plan'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
+      U.add(topbar, h('nav', { class: 'nav' }, [['board', 'Cleaning'], ['pm', 'PM plan'], ['magazines', 'Magazines'], ['history', 'History'], ['analytics', 'Analytics'], ['settings', 'Settings']].map(function (n) {
         return h('a', { href: '#' + n[0], class: view === n[0] ? 'active' : '', text: n[1] });
       })));
       U.add(topbar, adminUser

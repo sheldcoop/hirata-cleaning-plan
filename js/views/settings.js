@@ -1,6 +1,6 @@
 /**
  * Hirata Cleaning Plan - views/settings.js  (Admin only)
- * Tabs: Tools, PM tools, Users, One-off cleaning, General.
+ * Tabs: Cleaning tools, PM tools, Magazines, Users, One-off cleaning, General.
  */
 window.HCP = window.HCP || {};
 window.HCP.views = window.HCP.views || {};
@@ -12,14 +12,14 @@ window.HCP.views.settings = (function () {
   var showArchived = false;
 
   function render(root, app) {
-    var tabs = [['tools', 'Cleaning tools'], ['pmtools', 'PM tools'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
+    var tabs = [['tools', 'Cleaning tools'], ['pmtools', 'PM tools'], ['mags', 'Magazines'], ['users', 'Users'], ['oneoff', 'One-off cleaning'], ['general', 'General']];
     var nav = h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
       return h('button', { class: 'tab' + (tab === t[0] ? ' active' : ''), role: 'tab', 'aria-selected': String(tab === t[0]), text: t[1],
         onclick: function () { tab = t[0]; app.render(); } });
     }));
     var body = h('div', { class: 'tab-body' });
     U.add(root, [h('h2', { text: 'Settings' }), nav, body]);
-    ({ tools: tools, pmtools: pmTools, users: users, oneoff: oneoff, general: general })[tab](body, app);
+    ({ tools: tools, pmtools: pmTools, mags: magsTab, users: users, oneoff: oneoff, general: general })[tab](body, app);
   }
 
   /* --- Tools -------------------------------------------------------- */
@@ -125,7 +125,7 @@ window.HCP.views.settings = (function () {
 
   function pmTools(body, app) {
     var all = S.current().tools.filter(function (t) { return R.isPm(t); });
-    var list = all.filter(function (t) { return showArchived || !t.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var list = all.filter(function (t) { return showArchived || !t.archived; }).sort(R.byPosThenName);
     var missing = S.SEED_PM.filter(function (s) { return !all.some(function (t) { return t.name.toUpperCase() === s[0]; }); }).length;
     U.add(body, [
       h('div', { class: 'row-bar' }, [
@@ -222,6 +222,73 @@ window.HCP.views.settings = (function () {
       h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])
     ], { wide: true });
     update();
+  }
+
+  /* --- Magazines (PLAN 13f) ----------------------------------------- */
+
+  function magsTab(body, app) {
+    var list = S.magazines(true).filter(function (m) { return showArchived || !m.archived; });
+    var have = S.magazines(true).map(function (m) { return m.sn; });
+    var missing = S.SEED_MAGAZINES.filter(function (s) { return have.indexOf(s[0]) < 0; }).length;
+    var weeks = h('input', { type: 'number', min: '0', max: '52', step: '1', class: 'num', value: S.magCheckWeeks() });
+    var wmsg = h('span', { class: 'muted' });
+    var saveW = h('button', { class: 'btn small', text: 'Save', onclick: function () {
+      S.setMagCheckWeeks(weeks.value).then(function (w) { U.toast(w ? 'Magazines are due for a check after ' + w + ' weeks.' : 'Check reminder off.'); app.reload(); },
+        function (e) { wmsg.textContent = U.errorText(e); });
+    } });
+    U.add(body, [
+      h('div', { class: 'row-bar' }, [
+        h('button', { class: 'btn', text: '+ Add magazine', onclick: function () { magForm(null, app); } }),
+        missing ? h('button', { class: 'btn secondary', text: 'Add magazines from the Excel (' + missing + ')', onclick: function () {
+          var area = h('div');
+          U.modal('Add magazines from the Excel', area);
+          U.confirmStep(area, 'Add the ' + missing + ' magazines from "RnD_Magazines_checking_16-11-26" with their check of 16 Nov 2026? Existing magazines are not changed.', 'Yes, add', function () {
+            return S.addMagazines().then(function (a) { U.closeModal(); U.toast(a.length + ' magazines added.'); app.reload(); });
+          }, U.closeModal);
+        } }) : null,
+        h('label', { class: 'toggle' }, [h('input', { type: 'checkbox', checked: showArchived, onchange: function (e) { showArchived = e.target.checked; app.render(); } }), ' Show archived'])
+      ]),
+      h('div', { class: 'inline-setting' }, [h('span', { text: 'Check each magazine every' }), weeks, h('span', { text: 'weeks (0 = no reminder)' }), saveW, wmsg]),
+      h('div', { class: 'grid-wrap' }, h('table', { class: 'list' }, [
+        h('thead', {}, h('tr', {}, ['S/N', 'CR type', 'Status', 'Last check', ''].map(function (c) { return h('th', { text: c }); }))),
+        h('tbody', {}, list.length ? list.map(function (m) {
+          return h('tr', { class: m.archived ? 'is-archived' : '' }, [
+            h('td', { class: 'strong', text: m.sn }), h('td', { text: m.cr_type || '–' }),
+            h('td', { text: m.archived ? 'Archived' : S.MAG_STATUS[m.status] }),
+            h('td', { text: m.last_check ? R.longDate(m.last_check) + ' · ' + m.last_by_name : 'never' }),
+            h('td', { class: 'row-actions' }, [
+              h('button', { class: 'btn small ghost', text: 'Edit', onclick: function () { magForm(m, app); } }),
+              h('button', { class: 'btn small ghost', text: m.archived ? 'Restore' : 'Archive', onclick: function () {
+                var area = h('div');
+                U.modal((m.archived ? 'Restore ' : 'Archive ') + m.sn, area);
+                U.confirmStep(area, m.archived ? 'Restore magazine ' + m.sn + '?' : 'Archive magazine ' + m.sn + '? It disappears from the list; its history is kept.',
+                  m.archived ? 'Yes, restore' : 'Yes, archive', function () {
+                    return S.archiveMagazine(m.id, !m.archived).then(function () { U.closeModal(); U.toast(m.sn + (m.archived ? ' restored.' : ' archived.')); app.reload(); });
+                  }, U.closeModal, !m.archived);
+              } })
+            ])
+          ]);
+        }) : h('tr', {}, h('td', { colspan: '5', class: 'empty', text: 'No magazines.' })))
+      ]))
+    ]);
+  }
+
+  function magForm(m, app) {
+    var isNew = !m;
+    m = m || { sn: '', cr_type: '' };
+    var sn = h('input', { type: 'text', value: m.sn, maxlength: '30', placeholder: 'e.g. M70351' });
+    var cr = h('input', { type: 'text', value: m.cr_type, maxlength: '20', placeholder: 'e.g. CR100K', list: 'cr-types' });
+    var dl = h('datalist', { id: 'cr-types' }, ['CR100', 'CR100K'].map(function (v) { return h('option', { value: v }); }));
+    var msg = h('p', { class: 'form-error', hidden: true });
+    var save = h('button', { class: 'btn', text: isNew ? 'Add magazine' : 'Save' });
+    save.addEventListener('click', function () {
+      save.disabled = true;
+      S.saveMagazine({ id: isNew ? undefined : m.id, sn: sn.value, cr_type: cr.value })
+        .then(function (saved) { U.closeModal(); U.toast(saved.sn + ' saved.'); app.reload(); })
+        .catch(function (e) { msg.textContent = U.errorText(e); msg.hidden = false; save.disabled = false; });
+    });
+    U.modal(isNew ? 'Add magazine' : 'Edit ' + m.sn, [h('div', { class: 'form-grid' }, [U.field('S/N', sn), U.field('CR type', cr), dl]), msg,
+      h('div', { class: 'actions' }, [save, h('button', { class: 'btn ghost', text: 'Cancel', onclick: U.closeModal })])]);
   }
 
   /* --- Users -------------------------------------------------------- */

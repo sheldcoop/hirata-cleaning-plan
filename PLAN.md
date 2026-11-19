@@ -395,6 +395,16 @@ Decided with the owner on 19 Nov 2026 (one question at a time):
 7. **Starting data:** the 23 rows from the owner's PM Excel (WW47 2026) with real names, MNT owners and frequencies. LXP902 = Not installed; DFS901 and PNP901 = Down from 16 Nov 2026; start dates where the sheet shows a PM (AOP901 and CPM901 on 26 Nov, QVM901 and PRF901 on 19 Nov, all Thursdays). Other tools: no start date yet, the Admin sets it in Settings. A new plan gets them automatically; an existing plan gets a button in Settings > PM tools ("Add PM tools from the Excel"). The first PM is never put in the past: the pattern is stepped forward to today or later.
 8. **Reports:** PMs go in the **same Excel file** on their own **PMs** sheet; History (page, CSV and sheet) gets a **Type** column (Cleaning / PM) with a filter. The Cleanings sheet, cleaning report and Analytics page stay cleaning only. The Teams message stays cleaning only.
 
+## 13f. Version 0.9: Magazines tab (owner: "go with your best decision")
+
+- **Own tab "Magazines"** next to Cleaning and PM plan. A **list, one row per magazine** (not a weekly grid): checks happen for many magazines on one day, not on a fixed weekday each.
+- Each row: S/N + CR type, status, last check (date, who, how long ago), lot status, location / comment, cart, production use. Status (derived, `rules.magStatus`): **Repair needed** > **Never checked** > **Check due** (last check older than N weeks, Settings → Magazines, default 4, 0 = off) > **OK**. Repairs are listed first.
+- **Check** (anyone, chooses their name like a cleaning): cart, production use, lot status, location / comment, **Cleaned**, **Repair needed** (then a comment is required). **Repair done** (anyone, with name, optional comment) clears the flag.
+- **Admin:** add / edit / archive magazines and set the check interval in Settings → Magazines.
+- Data: `magazines` (current state) and `mag_events` (every check and repair, append only); history rows carry `magazine_id`, Type **Magazine**. Excel: sheets **Magazines** and **Magazine checks**.
+- Starting data: the 35 magazines of "RnD_Magazines_checking_16-11-26.xlsx" with the check of 16 Nov 2026 (Talal / Mohamed mapped to the operator list). Existing plans: button in Settings → Magazines.
+- PM plan: down days show **Down** (not "D"); PM tools keep the **order of the Excel**.
+
 ## 14. Open items (owner to confirm during the build)
 
 1. Start date for each seeded tool (placeholder: next Tuesday).

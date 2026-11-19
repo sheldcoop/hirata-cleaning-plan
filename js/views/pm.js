@@ -2,7 +2,7 @@
  * Hirata Cleaning Plan - views/pm.js
  * PM plan tab (PLAN.md 13e): weekly grid of the PM tools. Everyone can see it;
  * only the logged-in Admin marks PMs done, postpones them and sets tools down.
- * Red row = not installed yet. D = tool down on that day.
+ * Red row = not installed yet. Down = tool down on that day.
  */
 window.HCP = window.HCP || {};
 window.HCP.views = window.HCP.views || {};
@@ -77,7 +77,7 @@ window.HCP.views.pm = (function () {
       ])
     ]);
 
-    var strip = h('div', { class: 'summary' }, [
+    var strip = h('div', { class: 'summary even' }, [
       tile('today', 'Due today', b.isThisWeek ? c.today : 0, b.isThisWeek ? dd(today) : 'not this week'),
       tile('overdue', 'Overdue', c.overdue, c.overdue ? 'needs action' : 'all on time'),
       tile('done', 'Done', c.done, 'of ' + c.planned + ' this week'),
@@ -99,7 +99,7 @@ window.HCP.views.pm = (function () {
     var legend = h('div', { class: 'legend' }, ['upcoming', 'today', 'overdue', 'postponed', 'done', 'projected'].map(function (st) {
       return h('span', { class: 'legend-item' }, [med(st, 20), LABEL[st][1]]);
     }).concat([
-      h('span', { class: 'legend-item' }, [h('span', { class: 'dbox', text: 'D' }), 'Down']),
+      h('span', { class: 'legend-item' }, [h('span', { class: 'dbox' }, I('power', 12)), 'Down']),
       h('span', { class: 'legend-item' }, [h('span', { class: 'nibox' }), 'Not installed'])
     ]));
 
@@ -126,7 +126,7 @@ window.HCP.views.pm = (function () {
     return h('tr', { class: cls }, [head].concat(r.cells.map(function (items, i) {
       var d = b.days[i];
       var content = [];
-      if (r.downDays[i]) content.push(h('span', { class: 'dbox big', title: 'Down' + (t.down_reason ? ': ' + t.down_reason : ''), text: 'D' }));
+      if (r.downDays[i]) content.push(h('span', { class: 'dbox big', title: 'Down' + (t.down_reason ? ': ' + t.down_reason : '') }, [I('power', 14), ' Down']));
       items.forEach(function (it) { content.push(chip(it, app)); });
       return h('td', { class: (d === today ? 'is-today' : (d < today ? 'is-past' : '')) + (r.downDays[i] ? ' is-dday' : '') }, content);
     })));

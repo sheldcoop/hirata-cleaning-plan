@@ -410,4 +410,44 @@
         ok(S.workbook('2026-11-01', '2026-11-30').length > 1000);
       });
   });
+
+  /* --- Magazines (PLAN 13f) ----------------------------------------- */
+
+  function mag(sn) { return S.magazines(true).find(function (m) { return m.sn === sn; }); }
+
+  test('Magazines seed: 35 from the Excel, last check of 16 Nov with real names, repair flag from "Repair needed"', function () {
+    return setup('2026-11-18').then(function () {
+      eq(S.magazines().length, 35);
+      eq(mag('M70073').status, 'repair'); eq(mag('M70073').repair_note, 'shutter loose (in Stocker)');
+      eq(mag('M70074').last_by_name, 'Mohamed Ibrahem'); eq(mag('M70074').last_check, '2026-11-16'); eq(mag('M70074').status, 'ok');
+      eq(mag('M70073').last_by_name, 'Talal AL-EFFAH');
+      eq(mag('M70133').status, 'never');
+      eq(mag('M70139').cart, 'Yes / X');
+      eq(mag('M70342').lot_status, '19086.02');
+    });
+  });
+
+  test('Magazines: check due after N weeks; check and repair done by name; Admin-only edits', function () {
+    return setup('2026-11-18').then(function () {
+      day('2026-12-14');
+      eq(mag('M70074').status, 'due');                 // 4 weeks after 16 Nov
+      return rejects(S.magCheck(mag('M70074').id, '', {}), 'noid');
+    }).then(function () { return S.magCheck(mag('M70074').id, 'OP001', { cart: 'No', prod_use: 'Yes', lot_status: '20001', cleaned: true, repair_needed: true, comment: 'roller broken' }); })
+      .then(function () {
+        var m = mag('M70074');
+        eq([m.status, m.last_check, m.cleaned_at, m.repair_since, m.prod_use], ['repair', '2026-12-14', '2026-12-14', '2026-12-14', 'Yes']);
+        return S.magRepairDone(m.id, 'OP002', 'roller replaced');
+      }).then(function () {
+        eq(mag('M70074').status, 'ok');
+        eq(S.history({ type: 'Magazine' }).map(function (r) { return r.action; }).sort(), ['mag_checked', 'mag_repaired']);
+        return rejects(S.magRepairDone(mag('M70074').id, 'OP002', ''), 'conflict');
+      }).then(function () { return S.saveMagazine({ sn: 'm70999', cr_type: 'cr100' }); })
+      .then(function (m) {
+        eq([m.sn, m.cr_type], ['M70999', 'CR100']);
+        S.adminLogout();
+        return rejects(S.saveMagazine({ sn: 'M71000' }), 'forbidden');
+      }).then(function () { return S.adminLogin('ADMIN01', '1234'); })
+      .then(function () { return rejects(S.saveMagazine({ sn: 'M70999' }), 'invalid'); })
+      .then(function () { return S.addMagazines(); }).then(function (a) { eq(a, []); ok(S.workbook('2026-11-01', '2026-12-31').length > 1000); });
+  });
 })();

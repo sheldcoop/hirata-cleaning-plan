@@ -21,6 +21,12 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
     Object.defineProperty(w, 'crypto', { value: globalThis.crypto });
     w.TextEncoder = TextEncoder;
     w.HCP = { config: {} };
+    if (process.env.FAKE_TODAY) {   // e.g. FAKE_TODAY=2026-11-20 to run the test as if it were that day
+      const base = new Date(process.env.FAKE_TODAY + 'T10:00:00').getTime(), start = Date.now(), Real = Date;
+      const Fake = function (...a) { return a.length ? new Real(...a) : new Real(base + (Real.now() - start)); };
+      Fake.now = () => base + (Real.now() - start); Fake.UTC = Real.UTC; Fake.parse = Real.parse; Fake.prototype = Real.prototype;
+      w.Date = Fake;
+    }
     // in-memory folder that pretends to be already connected
     const files = {};
     w.__files = files;
@@ -96,10 +102,13 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($('.confirm-q').textContent.includes('Mohamed Ibrahem'), 'confirmation shows name');
   await click(btn('Yes, completed'), 400);
   ok(!$('.modal'), 'modal closed after complete');
+  if (!$$('button.chip.s-done').length) { const tb = btn('Today'); if (tb) await click(tb); }   // weekend: a done cleaning shows on Friday of this week
   ok($$('button.chip.s-done').length === 1, 'done chip on the board');
 
   step = 'postpone';
-  const open2 = $$('button.chip').find(c => !c.classList.contains('s-done'));
+  const isOpenChip = c => ['s-today', 's-upcoming', 's-overdue', 's-postponed'].some(k => c.classList.contains(k));
+  let open2 = $$('.grid button.chip').find(isOpenChip);
+  if (!open2) { await click($('[aria-label="Next week"]')); open2 = $$('.grid button.chip').find(isOpenChip); }   // late in the week: use next week
   await click(open2);
   await click(btn('Postpone'));
   pick('Anja KRALJ');
@@ -160,18 +169,20 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   ok($$('.pm-grid .dbox.big').length >= 10 && $('.pm-grid .dbox.big').textContent.includes('Down'), 'Down boxes for DFS901 and PNP901');
   ok($$('.pm-grid .tool-name')[0].textContent === 'AOP901', 'PM tools in Excel order');
   let pmChip = $$('.pm-grid button.chip')[0];
+  if (!pmChip) { await click($('[aria-label="Next week"]')); pmChip = $$('.pm-grid button.chip')[0]; }   // no PM left this week
   ok(pmChip, 'a PM chip');
   await click(pmChip);
   await click(btn('Done'));
   await click(btn('Continue'));
   await click(btn('Yes, done'), 600);
   ok(d.body.textContent.includes('PM done'), 'PM done toast');
+  { const tb = btn('Today'); if (tb) await click(tb); }   // a done PM shows on the day it was done
   ok($$('.pm-grid .chip.s-done').length >= 1, 'done chip shown');
   await click($$('.pm-grid .tool-name').find(b => b.textContent === 'AOI901'));
   await click(btn('Set down'));
   await click(btn('Continue'));
   await click(btn('Yes, set down'), 600);
-  ok($$('.pm-grid tr.is-down').length >= 3, 'AOI901 down');
+  ok($$('.pm-grid .badge.down').length >= 3, 'AOI901 down');
   step = 'pm drag';
   const fire2 = (el, type) => el.dispatchEvent(new w.Event(type, { bubbles: true, cancelable: true }));
   let pmDrag = null, pmTo = null;
@@ -217,9 +228,14 @@ JSDOM.fromFile(path.join(root, 'index.html'), {
   step = 'magazine weeks';
   type($('.mag-search'), ''); await wait(100);
   ok($$('.mag-list th').some(t => t.textContent.startsWith('Week ')), 'week column');
+  for (let i = 0; i < 80 && !$$('.mag-list th').some(t => t.textContent === 'Week 47'); i++) {   // go to the week of the Excel check (16 Nov)
+    const wk = parseInt($$('.mag-list th').find(t => t.textContent.startsWith('Week ')).textContent.slice(5), 10);
+    await click($(wk > 47 || wk < 10 ? '[aria-label="Previous week"]' : '[aria-label="Next week"]'), 30);
+  }
   ok($$('.wk-pill.s-done').length >= 25, 'checks of 16 Nov in this week: ' + $$('.wk-pill.s-done').length);
   await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]')); await click($('[aria-label="Next week"]'));
-  ok($$('.wk-pill.s-upcoming').length >= 20, 'due 4 weeks later: ' + $$('.wk-pill.s-upcoming').length);
+  const due51 = $$('.wk-pill.s-upcoming').length + $$('.wk-pill.s-overdue').length;
+  ok(due51 >= 20, 'due 4 weeks later: ' + due51);
   await click($('[aria-label="Previous week"]')); await click($('[aria-label="Previous week"]')); await click($('[aria-label="Previous week"]'));
   const onlyBox = $$('.toggle input').find(i => i.closest('label').textContent.includes('Only magazines'));
   onlyBox.checked = true; onlyBox.dispatchEvent(new w.Event('change', { bubbles: true })); await wait(150);
